@@ -1,0 +1,402 @@
+/*
+    Mikael Nilsson/Purple Prophet (C)opyright 1999.
+    TITLE:  LINE.H--
+    DESCRIPTION:  This file contains a collection of procedures for
+                  drawing lines.
+
+    LAST UPDATED: 7 april 2000
+    PROCEDURES DEFINED IN THIS FILE:
+
+	void hlineVESA(word x1,x2,y; byte color)
+	void hlineclipVESA(long x1,x2; int y; byte color)
+	void linedrawVESA(int x1,y1,x2,y2; byte color)
+	void linepatternVESA(int x1,y1,x2,y2; byte color;word pattern)
+	void xlineVESA(word x,y,length; byte color)
+	void xorhlineVESA(word x1,x2,y; byte color)
+	void xorhlineclipVESA(long x1,x2; int y; byte color)
+	void xorlinedrawVESA(int x1,y1,x2,y2; byte color)
+	void xorlinepatternVESA(int x1,y1,x2,y2; byte color;word pattern)
+	void xorxlineVESA(word x,y,length; byte color)
+	void xorylineVESA(word x,y,length; byte color)
+	void ylineVESA(word x,y,length; byte color)
+
+*/
+
+#ifndef _LINE_
+#define _LINE_ TRUE
+
+:void hlineVESA(word x1,x2,y; byte color)
+{
+	$push DI
+	IF(x1>x2)x1><x2;
+	AX=y/vesa_win_gran;
+	$push AX
+	setwritewinVESA(AX);
+	$pop AX
+	AX=AX*vesa_win_gran;
+	DI=y-AX*1024+x1;
+	CX=x2-x1;
+	ES=0xA000;
+	$cld
+	AL=color;
+	$rep $stosb
+}
+
+:void hlineclipVESA(long x1,x2; int y; byte color)
+{
+	BX=0;
+	CX=0;
+	IF(x1<0){
+		x1=0;
+		BX++;
+	}
+	IF(x2<0){
+		x2=0;
+		BX++;
+	}
+	IF(x1>1023){
+		x1=1023;
+		CX++;
+	}
+	IF(x2>1023){
+		x2=1023;
+		CX++;
+	}
+	IF(x1>x2)x1><x2;
+	IF(y>=0)&&(y<=767)&&(BX<>2)&&(CX<>2){
+		$push DI
+		AX=y/vesa_win_gran;
+		$push AX
+		setwritewinVESA(AX);
+		$pop AX
+		AX=AX*vesa_win_gran;
+		DI=y-AX*1024+x1;
+		CX=x2-x1;
+		ES=0xA000;
+		AL=color;
+		$cld
+		$rep $stosb
+		$pop DI
+	}
+}
+
+:void linedrawVESA(int x1,y1,x2,y2; byte color)
+int y_unit,x_unit;
+int ydiff,xdiff,error_term,length;
+{
+	ydiff=y2-y1;
+	IF(MINUSFLAG){
+		-ydiff;
+		y_unit=-1;
+	}
+	ELSE y_unit=1;
+	xdiff=x2-x1;
+	IF(MINUSFLAG){
+		-xdiff;
+		x_unit=-1;
+	}
+	ELSE x_unit=1;
+	error_term=0;
+	IF(xdiff>ydiff){
+		length=xdiff+1;
+		loop(length){
+			putpixelVESA(x1,y1,color);
+			x1+=x_unit;
+			error_term+=ydiff;
+			IF(error_term>xdiff){
+				error_term-=xdiff;
+				y1+=y_unit;
+			}
+		}
+	}
+	ELSE{
+		length=ydiff+1;
+		loop(length){
+			putpixelVESA(x1,y1,color);
+			y1+=y_unit;
+			error_term+=xdiff;
+			IF(error_term>0){
+				error_term-=ydiff;
+				x1+=x_unit;
+			}
+		}
+	}
+}
+
+:void linepatternVESA(int x1,y1,x2,y2; byte color;word pattern)
+int y_unit,x_unit;
+int ydiff,xdiff,error_term,length;
+{
+	ydiff=y2-y1;
+	IF(MINUSFLAG){
+		-ydiff;
+		y_unit=-1;
+	}
+	ELSE y_unit=1;
+	xdiff=x2-x1;
+	IF(MINUSFLAG){
+		xdiff=-xdiff;
+		x_unit=-1;
+	}
+	ELSE x_unit=1;
+	error_term=0;
+	IF(xdiff>ydiff){
+		length=xdiff+1;
+		loop(length){
+			$rol pattern,1
+			IF(CARRYFLAG)putpixelVESA(x1,y1,color);
+			x1+=x_unit;
+			error_term+=ydiff;
+			IF(error_term>xdiff){
+				error_term-=xdiff;
+				y1+=y_unit;
+			}
+		}
+	}
+	ELSE{
+		length=ydiff+1;
+		loop(length){
+			$rol pattern,1
+			IF(CARRYFLAG)putpixelVESA(x1,y1,color);
+			y1+=y_unit;
+			error_term+=xdiff;
+			IF(error_term>0){
+				error_term-=ydiff;
+				x1+=x_unit;
+			}
+		}
+	}
+}
+
+:void xlineVESA(word x,y,length; byte color)
+{
+	$push DI
+	AX=y/vesa_win_gran;
+	$push AX
+	setwritewinVESA(AX);
+	$pop AX
+	AX=AX*vesa_win_gran;
+	DI=y-AX*1024+x;
+	CX=length;
+	ES=0xA000;
+	AL=color;
+	$cld
+	$rep $stosb
+	$pop DI
+}
+
+:void xorhlineVESA(word x1,x2,y; byte color)
+{
+	IF(x1>x2)x1><x2;
+	AX=y/vesa_win_gran;
+	$push AX,AX
+	setreadwinVESA(AX);
+	$pop AX
+	setwritewinVESA(AX);
+	$pop AX
+	AX=AX*vesa_win_gran;
+	BX=y-AX*1024+x1;
+	CX=x2-x1;
+	ES=0xA000;
+	AL=color;
+	loop(CX){
+		ESBYTE[BX] ^= AL;
+		BX++;
+	}
+}
+
+:void xorhlineclipVESA(long x1,x2; int y; byte color)
+{
+	BX=0;
+	CX=0;
+	IF(x1<0){
+		x1=0;
+		BX++;
+	}
+	IF(x2<0){
+		x2=0;
+		BX++;
+	}
+	IF(x1>1023){
+		x1=1023;
+		CX++;
+	}
+	IF(x2>1023){
+		x2=1023;
+		CX++;
+	}
+	IF(x1>x2)x1><x2;
+	IF(y>=0)&&(y<=767)&&(BX<>2)&&(CX<>2){
+		AX=y/vesa_win_gran;
+		$push AX,AX
+		setreadwinVESA(AX);
+		$pop AX
+		setwritewinVESA(AX);
+		$pop AX
+		AX=AX*vesa_win_gran;
+		BX=y-AX*1024+x1;
+		CX=x2-x1;
+		ES=0xA000;
+		AL=color;
+		loop(CX){
+			ESBYTE[BX] ^= AL;
+			BX++;
+		}
+	}
+}
+
+:void xorlinedrawVESA(int x1,y1,x2,y2; byte color)
+int y_unit,x_unit;
+int ydiff,xdiff,error_term,length;
+{
+	ydiff=y2-y1;
+	IF(MINUSFLAG){
+		-ydiff;
+		y_unit=-1;
+	}
+	ELSE y_unit=1;
+	xdiff=x2-x1;
+	IF(MINUSFLAG){
+		-xdiff;
+		x_unit=-1;
+	}
+	ELSE x_unit=1;
+	error_term=0;
+	IF(xdiff>ydiff){
+		length=xdiff+1;
+		loop(length){
+			xorpixelVESA(x1,y1,color);
+			x1+=x_unit;
+			error_term+=ydiff;
+			IF(error_term>xdiff){
+				error_term-=xdiff;
+				y1+=y_unit;
+			}
+		}
+	}
+	ELSE{
+		length=ydiff+1;
+		loop(length){
+			xorpixelVESA(x1,y1,color);
+			y1+=y_unit;
+			error_term+=xdiff;
+			IF(error_term>0){
+				error_term-=ydiff;
+				x1+=x_unit;
+			}
+		}
+	}
+}
+
+:void xorlinepatternVESA(int x1,y1,x2,y2; byte color;word pattern)
+
+int y_unit,x_unit;
+int ydiff,xdiff,error_term,length;
+{
+	ydiff=y2-y1;
+	IF(ydiff<0){
+		-ydiff;
+		y_unit=-1;
+	}
+	ELSE y_unit=1;
+	xdiff=x2-x1;
+	IF(xdiff<0){
+		xdiff=-xdiff;
+		x_unit=-1;
+	}
+	ELSE x_unit=1;
+	error_term=0;
+	IF(xdiff>ydiff){
+		length=xdiff+1;
+		loop(length){
+			$rol pattern,1
+			IF(CARRYFLAG)xorpixelVESA(x1,y1,color);
+			x1+=x_unit;
+			error_term+=ydiff;
+			IF(error_term>xdiff){
+				error_term-=xdiff;
+				y1+=y_unit;
+			}
+		}
+	}
+	ELSE{
+		length=ydiff+1;
+		loop(length){
+			$rol pattern,1
+			IF(CARRYFLAG)xorpixelVESA(x1,y1,color);
+			y1+=y_unit;
+			error_term+=xdiff;
+			IF(error_term>0){
+				error_term-=ydiff;
+				x1+=x_unit;
+			}
+		}
+	}
+}
+
+:void xorxlineVESA(word x,y,length,color)
+{
+	AX=y/vesa_win_gran;
+	$push AX,AX
+	setreadwinVESA(AX);
+	$pop AX
+	setwritewinVESA(AX);
+	$pop AX
+	AX=AX*vesa_win_gran;
+	BX=y-AX*1024+x;
+	ES=0xA000;
+	CX=length;
+	AL=color;
+	loop(CX){
+		ESBYTE[BX] ^= AL;
+		BX++;
+	}
+}
+
+:void xorylineVESA(word xx,yy,length,color)
+word whichwin;
+{
+	$push SI
+	whichwin=yy/vesa_win_gran;
+	setreadwinVESA(AX);
+	setwritewinVESA(whichwin);
+	AX=whichwin*vesa_win_gran;
+	SI=yy-AX;
+	ES=0xA000;
+	loop(length){
+		BX=SI*1024+xx;
+		ESBYTE[BX] ^= color;
+		SI++;
+		IF(SI>=vesa_win_gran){
+			whichwin++;
+			setreadwinVESA(whichwin);
+			setwritewinVESA(whichwin);
+			SI=0;
+		}
+	}
+	$pop SI
+}
+
+:void ylineVESA(word xx,yy,length; byte color)
+word whichwin;
+{
+	$push SI
+	whichwin=yy/vesa_win_gran;
+	setwritewinVESA(AX);
+	AX=whichwin*vesa_win_gran;
+	SI=yy-AX;
+	ES=0xA000;
+	loop(length){
+		BX=SI*1024+xx;
+		ESBYTE[BX]=color;
+		SI++;
+		IF(SI>=vesa_win_gran){
+			whichwin++;
+			setwritewinVESA(whichwin);
+			SI=0;
+		}
+	}
+	$pop SI
+}
+
+#endif

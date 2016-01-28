@@ -1,0 +1,208 @@
+/*****************************************************************************
+* .FILE  : config.c--
+* .TITLE : Чтение и запись конфигурации.
+*****************************************************************************/
+
+#ifndef _CONFIG_
+#define _CONFIG_ TRUE
+
+#include "fgets.h--"
+
+// переменные
+char pusto=0;
+int cfile=0;        // конфигурационный файл
+char lineBuf[255];  // строка, считанная из файла
+int varData;        // указатель на данные переменной
+
+void STRCPY(DI,SI);
+void STRCAT(DI,SI);
+void STRTRIM(DI);
+void STRLTRIM(DI);
+byte STRNCMP(DI,SI,CX);
+
+/*****************************************************************************
+* .NAME   : OpenConfig
+* .TITLE  : Открывает конфигурационный файл.
+*****************************************************************************/
+int OpenConfig(word fname)
+char cname[128]; // имя файла конфигурации
+{
+	STRCPY(#cname,fname);
+	STRRCHR(#cname,byte '.');
+	IF(AX!=0){
+		AX><BX;
+		DSBYTE[BX]=0;
+	}
+	STRCAT(#cname,".INI");
+	cfile=FOPEN(0,,,#cname);
+}
+
+/*****************************************************************************
+* .NAME   : RewindConfig
+* .TITLE  : Переход в начало конфигурационного файла.
+*****************************************************************************/
+void RewindConfig()
+{
+	IF(cfile!=0)LSEEKHOME(,cfile);
+}
+
+/*****************************************************************************
+* .NAME   : CloseConfig
+* .TITLE  : Закрывает конфигурационный файл.
+*****************************************************************************/
+void CloseConfig()
+{
+	IF(cfile!=0){
+		FCLOSE(,cfile);
+		cfile=0;
+	}
+}
+
+/*****************************************************************************
+* .NAME   : FindArea
+* .TITLE  : Ищет в файле конфигурации заданную область.
+* .DESCR  : Если нашли, то указатель в файле стоит на след. строке.
+* .RETURN : Найдена/не найдена.
+*****************************************************************************/
+int FindArea(word areaName)
+char aname  [255];
+char buffer [255];
+int retcode;
+{
+	retcode=FALSE;
+// файл конфигурации не открыт
+	IF(cfile!=0){
+// в начало
+		RewindConfig();
+// формирование имени области [область данных, например]
+		SSWORD[#aname]='[';
+		STRCAT(#aname[0],areaName);
+		STRCAT(#aname[0],"]");
+		FOR(;;){
+// чтение строки
+			IF(fgets(#buffer,254,cfile)==0)BREAK;
+// нашли заголовок области
+			STRBTRIM(#buffer);
+			IF(byte STRCMP(#buffer,#aname)==0){
+				retcode=TRUE;
+				BREAK;
+			}
+		}
+	}
+	return retcode;
+}
+
+/*****************************************************************************
+* .NAME   : GetLine
+* .TITLE  : Получает строку из конфигурационного файла.
+* .DESCR  : Возвращает NO, если файл закончился.
+*****************************************************************************/
+int GetLine()
+{
+// ежели файл не открыт
+	IF(cfile!=0){
+// считываем строку (если конец файла - выходим)
+		IF(fgets(#lineBuf,254,cfile)!=0){
+// нашли заголовок следующей области (признак - [] по краям)
+			STRBTRIM(#lineBuf);
+			STRLEN(#lineBuf);
+			AX><BX;
+			IF(BX>=3)&&(lineBuf[0]=='[')&&(lineBuf[BX-1]==']')return FALSE;
+// ищем первый комментарий
+			STRCHR(#lineBuf,';');
+			IF(AX!=0){
+				BX=AX;
+				DSBYTE[BX]=0; // отсекаем все после него
+			}
+			STRBTRIM(#lineBuf);
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+/*****************************************************************************
+* .NAME   : TestLine
+* .TITLE  : Ищет переменную с именем varName в считанной строке.
+*****************************************************************************/
+int TestLine(word varName)
+{
+// файл не открыт
+	IF(cfile!=0){
+// сравниваем с именем переменной
+		STRLEN(varName);
+		IF(byte STRNCMP(#lineBuf,varName,AX)==0){
+			STRCHR(#lineBuf,'='); // ищем знак равенства
+			IF(AX==0)varData=#pusto;
+			ELSE{
+				AX++;
+				varData=AX;
+				STRBTRIM(AX); // лишние пробелы
+			}
+			RETURN TRUE;
+    }
+	}
+	return FALSE;
+ }
+
+/*****************************************************************************
+* .NAME   : GetVarData
+* .TITLE  : Получить данные, относящиеся к найденной переменной.
+*****************************************************************************/
+word GetVarData()
+{
+// файл не открыт
+	IF(cfile==0)AX=#pusto;
+	ELSE AX=varData;
+}
+
+:void STRTRIM(DI)
+{
+	SI=DI;
+	ES=DS;
+	BX=0;
+	do{
+		$lodsb
+		BX++;
+	}while(AL!=0);
+	BX--;
+	do{
+		BX--;
+		IF(MINUSFLAG)BREAK;
+	}while(DSBYTE[BX+DI]<=0x20);
+	BX++;
+	DSBYTE[BX+DI]=0;
+}
+
+:void STRLTRIM(DI)
+{
+	SI=DI;
+	ES=DS;
+	do{
+		$lodsb
+		IF(AL==0)BREAK;
+	}while(AL<=0x20);
+	SI--;
+	do{
+		$lodsb
+		$stosb
+	}while(AL!=0);
+}
+
+void STRBTRIM()
+{
+	$push AX
+	STRLTRIM(AX);
+	$pop DI
+	STRTRIM(DI);
+}
+
+:byte STRNCMP(DI,SI,CX)
+{
+	asm{
+		rep cmpsb
+		setnz AL
+	}
+}
+
+#endif

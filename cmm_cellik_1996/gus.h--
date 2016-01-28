@@ -1,0 +1,308 @@
+/*
+    SPHINX Programming (C) 1993.
+    TITLE:  GUS.H--
+    DESCRIPTION:  This file contains a collection of procedures for accessing
+                  the YEA_GUS driver.  The YEA_GUS allows access to many
+                  features of the Gravis Ultra Sound.
+                  YEA_GUS must be run with the parameter 'GUS' followed by
+                  the name of your program and any parameters that should be
+                  passed to your program.  YEA_GUS will then initialize
+                  your Gravis Ultra Sound and spawn your application.  After
+                  your program terminates YEA_GUS will shut down your GUS and
+                  also terminate.
+    LAST MODIFIED:  27 July 1993
+    PROCEDURES DEFINED IN THIS FILE:
+        : word GUSGETPOSITION(voice)
+        : word GUSGETVOLUME(voice)
+        : void GUSload(dataformat, flag16bit, bytes_to_send, buf_segment,
+                       buf_offset, dram_high, dram_low)
+        : void GUSplay(voice, flag16bit, looptype, begin_high, begin_low,
+                       loop_start_high, loop_start_low,
+                       loop_end_high, loop_end_low)
+        : void GUSrampvolume(voice,loopmode, start_volume,end_volume,
+                                               time_high,time_low)
+        : void GUSRESET(active_voices)
+        : void GUSrestartvoice(voice, flag16bit, looptype)
+        : void GUSsave(dataformat, flag16bit, bytes_to_get, buf_segment,
+                       buf_offset, dram_high, dram_low)
+        : void GUSsetbalance(voice,balance)
+        : void GUSsetfrequency(voice,frequency)
+        : void GUSsetvoiceend(voice,end_high,end_low)
+        : void GUSsetvolume(voice,volume)
+        : word GUSSTATUS()
+        : void GUSSTOP(voice)
+*/
+
+
+// looptype value:
+enum { GUS_LOOP_NONE, GUS_LOOP_FORWARD, GUS_LOOP_2WAY };
+
+// flag16bit values:
+enum { GUS_8_BIT, GUS_16_BIT };
+
+// data format values:
+enum { GUS_NOT_2_COMP, GUS_2_COMP };
+
+
+: word GUSSTATUS ()
+{
+AX = 0x6900;
+$ INT 0x18
+}
+/* RETURNS:  if GUS not available for any reason:
+                 AX = 0
+             else if GUS available:
+                 AX = amount of DRAM on card
+*/
+
+
+: void GUSRESET ()   // AX = number of active voices 14..32
+{
+BX = AX;
+AX = 0x6901;
+$ INT 0x18
+}
+/*  RETURNS:  AX = 0x6901
+              BX = number of active voices
+*/
+
+
+: void GUSsetvolume (word voice,volume)
+/*
+    voice = voice number 0..31
+    volume = linear volume 0..511
+*/
+{
+AX = 0x6902;
+BX = voice;
+CX = volume;
+$ INT 0x18
+}
+/* RETURNS:  AX = 0x6902
+             BX = voice number
+             CX = linear volume
+*/
+
+
+: void GUSsetfrequency (word voice,frequency)
+/*
+    voice = voice number 0..31
+    frequency = frequency 0..44100
+*/
+{
+AX = 0x6903;
+BX = voice;
+CX = frequency;
+$ INT 0x18
+}
+/* RETURNS:  AX = 0x6903
+             BX = voice number
+             CX = frequency
+*/
+
+
+: void GUSsetbalance (word voice,balance)
+/*
+    voice = voice number 0..31
+    balance = left/right balance 0..15,  7 for even
+*/
+{
+AX = 0x6904;
+BX = voice;
+CX = balance;
+$ INT 0x18
+}
+/* RETURNS:  AX = 0x6904
+             BX = voice number
+             CX = balance value
+*/
+
+
+: void GUSplay (word voice, flag16bit, looptype, begin_high, begin_low,
+              loop_start_high, loop_start_low, loop_end_high, loop_end_low)
+/*
+    voice = voice number 0..31
+    flag16bit = 0 if 8 bit, 1 if 16 bit
+    looptype = loop type (0 for no looping,1 for forward looping,
+                          2 for back and forith looping)
+    begin_high = high 4 bits of 20 bit voice start DRAM address
+    begin_low = low 16 bits of 20 bit voice start DRAM address
+    loop_start_high = high 4 bits of 20 bit voice loop start DRAM address
+    loop_start_low = low 16 bits of 20 bit voice loop start DRAM address
+    loop_end_high = high 4 bits of 20 bit voice loop end DRAM address
+    loop_end_low = low 16 bits of 20 bit voice loop end DRAM address
+*/
+{
+AX = 0x6905;
+BL = voice;
+BH = flag16bit;
+CL = looptype;
+CH = begin_high;
+DI = begin_low;
+DL = loop_start_high;
+SI = loop_start_low;
+DH = loop_end_high;
+BP = loop_end_low;
+$ INT 0x18
+}
+/* RETURNS:  AX = 0x6905
+             BL = voice number (0 to 31)
+             BH = 8 or 16 bit data (0 if 8 bit, 1 if 16 bit)
+             CL = loop type (0 for no looping,
+                             1 for forward looping,
+                             2 for back and forith looping)
+             CH = high 4 bits of 20 bit voice start address
+             DI = low 16 bits of 20 bit voice start address
+             DL = high 4 bits of 20 bit voice loop start address
+             SI = low 16 bits of 20 bit voice loop start address
+             DH = high 4 bits of 20 bit voice loop end address
+*/
+
+
+: void GUSload (word dataformat, flag16bit, bytes_to_send, buf_segment,
+                     buf_offset, dram_high, dram_low)
+{
+ES = buf_segment;
+SI = buf_offset;
+AX = 0x6906;
+BL = dataformat;
+BH = flag16bit;
+CX = bytes_to_send;
+DL = dram_high;
+DI = dram_low;
+$ INT 0x18
+}
+/* RETURNS:  AX = 0x6906
+             BL = data format (0 if not in 2's comp., 1 if so)
+             BH = 8 or 16 bit data (0 if 8 bit, 1 if 16 bit)
+             CX = # of bytes to send
+             ES = segment address of buffer to load from
+             SI = offset address of buffer to load from
+             DL = high 4 bits of 20 bit GUS DRAM address to load into
+             DI = low 16 bits of 20 bit GUS DRAM address to load into
+*/
+
+
+: void GUSSTOP ()   // AX = voice number (0..31)
+{
+BX = AX;
+AX = 0x6907;
+$ INT 0x18
+}
+/* RETURNS:  AX = 0x6907
+             BX = voice number
+*/
+
+
+: void GUSsetvoiceend (word voice,end_high,end_low)
+/*
+    voice = voice number 0..31
+*/
+{
+AX = 0x6908;
+BX = voice;
+CL = end_high;
+DX = end_low;
+$ INT 0x18
+}
+/* RETURNS:  AX = 0x6908
+             BX = voice number
+             CL = end_high
+             DX = end_low
+*/
+
+
+: void GUSrampvolume (word voice,loopmode,start_volume,end_volume,
+                                            time_high,time_low)
+/*
+    voice = voice number 0..31
+*/
+{
+AX = 0x6909;
+BL = voice;
+BH = loopmode;
+CX = start_volume;
+DX = end_volume;
+DI = time_high;
+SI = time_low;
+$ INT 0x18
+}
+/* RETURNS:  AX = 0x6909
+             BL = voice number
+             BH = loopmode
+             CX = start_volume
+             DX = end_volume
+             DI = time_high
+             SI = time_low
+*/
+
+
+: word GUSGETVOLUME ()  // AX = voice number (0..31)
+{
+BX = AX;
+AX = 0x690A;
+$ INT 0x18
+}
+/* RETURNS:  AX = current non-linear volume for specified voice
+             BX = voice
+*/
+
+
+
+: word GUSGETPOSITION ()    // AX = voice number (0..31)
+{
+BX = AX;
+AX = 0x690B;
+$ INT 0x18
+}
+/* RETURNS:  AX = low 16 bits of address
+             BX = high 4 bits of address
+*/
+
+
+: void GUSsave (word dataformat, flag16bit, bytes_to_get, buf_segment,
+                     buf_offset, dram_high, dram_low)
+{
+ES = buf_segment;
+SI = buf_offset;
+AX = 0x690C;
+BL = dataformat;
+BH = flag16bit;
+CX = bytes_to_get;
+DL = dram_high;
+DI = dram_low;
+$ INT 0x18
+}
+/* RETURNS:  AX = 0x690C
+             BL = data format (0 if not in 2's comp., 1 if so)
+             BH = 8 or 16 bit data (0 if 8 bit, 1 if 16 bit)
+             CX = # of bytes to get
+             ES = segment address of buffer to save into
+             SI = offset address of buffer to save into
+             DL = high 4 bits of 20 bit GUS DRAM address to load from
+             DI = low 16 bits of 20 bit GUS DRAM address to load from
+*/
+
+
+: void GUSrestartvoice (word voice,datatype,looptype)
+/*
+    voice = voice number 0..31
+    datatype = 0 if 8 bit, 1 if 16 bit
+    looptype = loop type (0 for no looping,
+                          1 for forward looping,
+                          2 for back and forith looping)
+*/
+{
+AX = 0x690D;
+BX = voice;
+CX = datatype;
+DX = looptype;
+$ INT 0x18
+}
+/* RETURNS:  AX = 0x6904
+             BX = voice number
+             CX = balance value
+*/
+
+
+/* end of GUS.H-- */

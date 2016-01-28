@@ -1,0 +1,677 @@
+/*
+    NAME:  JAM.C--
+    Notes:
+       - voice delay between repeats not yet supported.
+       - div zero fuck up still exists!!!!!!
+*/
+
+?use80386
+
+?include "WRITE.H--"
+?include "GWRITE.H--"
+?include "KEYCODES.H--"
+?include "FILE.H--"
+?include "GUS.H--"
+?include "VIDEO.H--"
+?include "VGA.H--"
+?include "DOS.H--"
+?include "STRING.H--"
+?include "SYSTEM.H--"
+?include "MOUSE.H--"
+?include "VGAFONT.H--"
+
+?define BUFSIZE 40000
+byte sound[BUFSIZE];
+
+?define KEYCOLORINC  16
+?define PALSIZE 256*3
+byte palette[PALSIZE] = FROM "TINYDRAW.PAL";
+
+?define MAXGOS 32
+word goindex = 0;
+byte go[MAXGOS] = 0;
+
+enum { scr_main, scr_filelist };
+
+
+?define ACTIVE_VOICES  14
+// all voice stuff are at least word or int for ease of indexing.
+word  voice_used[ACTIVE_VOICES] = FALSE;
+word  voice_color[ACTIVE_VOICES] = 15;
+word  voice_loop[ACTIVE_VOICES] = GUS_LOOP_NONE;
+word  voice_counter[ACTIVE_VOICES] = 0;  // tick count down timer
+word  voice_time[ACTIVE_VOICES] = 0;     // counters initial value
+word  voice_repeats[ACTIVE_VOICES] = 0;  // number of times to reset counter
+word  voice_delay[ACTIVE_VOICES] = 0;    // ticks to delay between repeats
+word  voice_freq[ACTIVE_VOICES] = 22050;
+int   voice_freq_rchange[ACTIVE_VOICES] = 0;  // frequency change per repeat
+int   voice_freq_tchange[ACTIVE_VOICES] = 0;  // frequency change per tick
+dword voice_start[ACTIVE_VOICES] = 0;
+dword voice_end[ACTIVE_VOICES] = 0;
+
+?define VIEWYSTART ACTIVE_VOICES*2+4
+
+
+dword dramloc=0,dramtotal;
+
+?define MAXSAMPLES 27
+?define SAMPLENAMELEN 40
+word samples = 0;
+byte samplenames[SAMPLENAMELEN*MAXSAMPLES];
+dword sample_start[MAXSAMPLES]  = 0;
+dword sample_length[MAXSAMPLES] = 1;
+
+?define KEYVOICES 10+26+11
+word current_keyedit=KEYVOICES;
+?define KEYVOICESIZE 26      // size in bytes of one entire key entry
+?define KEYBUFSIZE KEYVOICES*KEYVOICESIZE
+word key_freq[KEYVOICES]   = 22100;
+word key_freq_tchange[KEYVOICES] = 0;
+word key_freq_rchange[KEYVOICES] = 0;
+word key_loop[KEYVOICES]    = GUS_LOOP_NONE;
+word key_repeats[KEYVOICES] = {6,1};
+word key_delay[KEYVOICES] = 0;
+word key_volume[KEYVOICES]  = 300;
+word key_balance[KEYVOICES] = 7;
+word key_sample[KEYVOICES]  = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+dword key_start[KEYVOICES]  = 0;
+dword key_end[KEYVOICES]    = 0;
+
+byte updatevoicedisplay = TRUE;
+
+byte savefilename = "JAM.SAV";
+
+
+char loadsetup (word filename)
+word filehandle;
+{
+filehandle = open(filename,F_READ);  /* open file for reading */
+IF(filehandle == 0)                    /* if file did not open */
+    return(1);
+IF( read(filehandle,#key_freq,KEYBUFSIZE) != KEYBUFSIZE )
+    {close(filehandle);
+    return(2);
+    }    
+IF( read(filehandle,#palette,PALSIZE) != PALSIZE )
+    {close(filehandle);
+    return(3);
+    }    
+close(filehandle);
+return(0);
+}
+
+
+char savesetup (word filename)
+word filehandle;
+{
+filehandle = create(filename,FA_NORMAL); /* create file with normal attrib's */
+IF(filehandle == 0)                    /* if file did not open */
+    return(1);
+IF( write(filehandle,#key_freq,KEYBUFSIZE) != KEYBUFSIZE )
+    {close(filehandle);
+    return(2);
+    }    
+IF( write(filehandle,#palette,PALSIZE) != PALSIZE )
+    {close(filehandle);
+    return(3);
+    }    
+close(filehandle);
+return(0);
+}
+
+
+?define TIMERINT 0x8
+word oldtimerhandle[2]={};    /* address holder for old INT 0x1C handle */
+
+interrupt timerhandle()   
+{
+$ PUSH DS
+$ PUSH ES
+$ PUSHA
+DS = CS;    /* make memory variable addressable */
+dostuff();
+$ POPA
+$ POP ES
+$ POP DS
+
+$ PUSHF
+$ CS:
+$ CALL FAR oldtimerhandle;   /* chain to old interrupt handle */
+}
+
+
+void dogos ()
+word count;
+{IF( goindex > 0 )
+    {count = 0;
+    do {BX = count;
+        do_key_voice(go[BX]);
+        count++;
+        } while( count < goindex );
+    goindex = 0;
+    }
+}
+
+
+void dostuff ()
+word loopvar;
+{
+dogos();
+loopvar = 0;
+do {
+    SI = loopvar + SI;
+    if( voice_used[SI] > 0 )
+        {IF( voice_freq_tchange[SI] <> 0 )  // frequency change per tick
+            {voice_freq[SI] += voice_freq_tchange[SI];
+            GUSsetfrequency(loopvar,voice_freq[SI]);
+            SI = loopvar + SI;
+            }
+        if( voice_loop[SI] == GUS_LOOP_NONE )
+            {voice_counter[SI]--;
+            if( voice_counter[SI] == 0 )
+                {IF( voice_repeats[SI] > 0 )
+                    {voice_repeats[SI]--;
+                    voice_freq[SI] += voice_freq_rchange[SI];
+                    BX = SI+BX;
+                    EAX = voice_end[BX] - voice_start[BX] * 182
+                              / voice_freq[SI] / 10 +1;
+                    voice_counter[SI] = AX;
+                    GUSsetfrequency(loopvar,voice_freq[SI]);
+                    SI = loopvar + SI;
+                    DI = SI + DI;
+                    GUSplay( loopvar, GUS_8_BIT, voice_loop[SI],
+                                            dword voice_start[DI],
+                                            dword voice_start[DI],
+                                            dword voice_end[DI] );
+                    }
+                ELSE{GUSSTOP(loopvar);
+                    voice_used[SI] = FALSE;
+                    }
+                }
+            }
+        }
+    loopvar++;
+    } while( loopvar < ACTIVE_VOICES );
+
+IF( updatevoicedisplay == TRUE )
+    {YLINE19(0,1,ACTIVE_VOICES*2-1,0);
+    COPYFAR(VGA_SEG,320,VGA_SEG,320+1,320*ACTIVE_VOICES*2-1);
+    putpixel19(319,ACTIVE_VOICES*2,0);
+    loopvar = 0;
+    do {
+        SI = loopvar;
+        IF( voice_used[SI] == TRUE )
+            putpixel19(319,SI+1,voice_color[SI]);
+        loopvar += 2;
+        } while( loopvar < ACTIVE_VOICES*2 );
+    }
+}
+
+
+void main ()
+word dram;
+{
+dram = GUSSTATUS();
+IF( dram == 0 )
+    {WRITESTR("GUS not available.\n");
+    EXIT(1);
+    }
+WRITESTR("GUS found with ");
+WRITEWORD(dram);
+WRITESTR(" K DRAM.\n");
+
+IF( dram < 1024 )
+    WRITESTR("You should really upgrade to 1 MB.\n");
+
+dramtotal = dram * 1024;
+
+GUSRESET(ACTIVE_VOICES);
+GUSload(GUS_NOT_2_COMP, GUS_8_BIT,6, DS,"SPHINX",dword dramloc);
+dramloc += 6;
+
+IF( loadsetup(#savefilename) != 0 )
+    BEEP();
+
+SETVIDEOMODE(vid_320x200_256);
+SETVGAPALETTE( ,0,256,#palette);
+SETBORDERCOLOR(7);
+bar19(0,VIEWYSTART-3,320,3,7);
+@ RESETMOUSE();
+@ SETMOUSEYLIMIT( , ,4*8,199);
+
+paint_file_list(TRUE);
+loadsample("DRUMSHAK.SND",GUS_NOT_2_COMP);
+loadsample("CYMBOL.SND",GUS_2_COMP);
+loadsample("DUHDUH.SND",GUS_2_COMP);
+loadsample("D:\\SAMPLES\\SAMPLE2.SND",GUS_2_COMP);
+loadsample("D:\\SAMPLES\\PHONE.SND",GUS_2_COMP);
+loadsample("D:\\SAMPLES\\LOGROLL.SND",GUS_2_COMP);
+loadsample("D:\\SAMPLES\\GLASSBRK.SND",GUS_2_COMP);
+loadsample("D:\\SAMPLES\\SIREN.SND",GUS_2_COMP);
+loadsample("D:\\SAMPLES\\DOITNOW.SND",GUS_2_COMP);
+loadsample("D:\\SAMPLES\\ATOMBOY.SND",GUS_2_COMP);
+loadsample("D:\\SAMPLES\\DADUNTDA.SND",GUS_2_COMP);
+//loadsample("D:\\SAMPLES\\SAMPLE1.SND",GUS_2_COMP);
+loadsample("D:\\SAMPLES\\JAWHARP.SND",GUS_2_COMP);
+loadsample("D:\\SAMPLES\\OBNOWHS.SND",GUS_2_COMP);
+loadsample("D:\\GUS\\ARROW.SND",GUS_2_COMP);
+loadsample("D:\\GUS\\ENTER.SND",GUS_2_COMP);
+loadsample("D:\\GUS\\INTRO.SND",GUS_2_COMP);
+//loadsample("D:\\GUS\\ULTRA.SND",GUS_2_COMP);
+loadsample("D:\\GUS\\BOOM.SND",GUS_2_COMP);
+loadsample("D:\\GUS\\CRASH.SND",GUS_2_COMP);
+loadsample("DOOO2.SND",GUS_2_COMP);
+loadsample("WNOW.SND",GUS_2_COMP);
+loadsample("PWARP.SND",GUS_2_COMP);
+loadsample("HORN1.SND",GUS_2_COMP);
+loadsample("DRUM1.SND",GUS_2_COMP);
+loadsample("DRUM2.SND",GUS_2_COMP);
+loadsample("SNARE.SND",GUS_2_COMP);
+loadsample("DRUM2.SND",GUS_2_COMP);
+loadsample("SNARE.SND",GUS_2_COMP);
+
+
+GETINTVECT(#oldtimerhandle,TIMERINT);   /* get old timer interrupt handle */
+SETINTVECT( ,TIMERINT,CS,#timerhandle); /* attach to timer interrupt */
+SHOWMOUSE();
+
+doit();
+
+IF( savesetup(#savefilename) != 0 )
+    BEEP();
+
+GUSrampvolume(1,GUS_LOOP_NONE,500,0,0,100);
+do {
+    } while( GUSGETVOLUME(1) > 64000 ); // wait till volume is reasonably low
+
+SETINTVECT( ,TIMERINT,oldtimerhandle[2],oldtimerhandle[0]);
+HIDEMOUSE();
+// SETVIDEOMODE(vid_text80c);
+}
+
+
+void addgo (byte value)
+{
+@ DISABLE();
+IF( goindex < MAXGOS )
+    {BX = goindex;
+    go[BX] = value;
+    goindex++;
+    }
+@ ENABLE();
+}
+
+
+void doit ()
+word key;
+byte letter;
+{
+do {
+    GETMOUSEPRESS( ,MOUSELEFTBUTTON);
+    IF( BX > 0 )
+        domousepress(1,CX,DX);
+    GETMOUSEPRESS( ,MOUSERIGHTBUTTON);
+    IF( BX > 0 )
+        domousepress(-1,CX,DX);
+
+    if( BIOSEKEYCHECK() )
+        {key = BIOSEREADKEY();
+        letter = AL;
+        IF( letter >= 'a' )
+            IF( letter <= 'z' )
+                addgo(byte letter-'a'+10);
+        IF( letter >= '0' )
+            IF( letter <= '9' )
+                addgo(byte letter-'0');
+        IF( letter >= 'A' )
+            IF( letter <= 'Z' )
+                setup_key_voice(letter-'A'+10);
+        IF( letter == ')' )
+            setup_key_voice(0);
+        IF( letter == '!' )
+            setup_key_voice(1);
+        IF( letter == '@' )
+            setup_key_voice(2);
+        IF( letter == '#' )
+            setup_key_voice(3);
+        IF( letter == '$' )
+            setup_key_voice(4);
+        IF( letter == '%' )
+            setup_key_voice(5);
+        IF( letter == '^' )
+            setup_key_voice(6);
+        IF( letter == '&' )
+            setup_key_voice(7);
+        IF( letter == '*' )
+            setup_key_voice(8);
+        IF( letter == '(' )
+            setup_key_voice(9);
+
+        IF( letter == '`' )
+            addgo(byte 10+26+0);
+        IF( letter == '~' )
+            setup_key_voice(10+26+0);
+        IF( letter == '-' )
+            addgo(byte 10+26+1);
+        IF( letter == '_' )
+            setup_key_voice(10+26+1);
+        IF( letter == '=' )
+            addgo(byte 10+26+2);
+        IF( letter == '+' )
+            setup_key_voice(10+26+2);
+        IF( letter == '\\' )
+            addgo(byte 10+26+3);
+        IF( letter == '|' )
+            setup_key_voice(10+26+3);
+        IF( letter == '[' )
+            addgo(byte 10+26+4);
+        IF( letter == '{' )
+            setup_key_voice(10+26+4);
+        IF( letter == ']' )
+            addgo(byte 10+26+5);
+        IF( letter == '}' )
+            setup_key_voice(10+26+5);
+        IF( letter == ';' )
+            addgo(byte 10+26+6);
+        IF( letter == ':' )
+            setup_key_voice(10+26+6);
+        IF( letter == '\'' )
+            addgo(byte 10+26+7);
+        IF( letter == '"' )
+            setup_key_voice(10+26+7);
+        IF( letter == ',' )
+            addgo(byte 10+26+8);
+        IF( letter == '<' )
+            setup_key_voice(10+26+8);
+        IF( letter == '.' )
+            addgo(byte 10+26+9);
+        IF( letter == '>' )
+            setup_key_voice(10+26+9);
+        IF( letter == '/' )
+            addgo(byte 10+26+10);
+        IF( letter == '?' )
+            setup_key_voice(10+26+10);
+        }
+    } while(key != k_esc );
+}
+
+
+void do_key_voice (word voice)
+word use_voice;
+{
+use_voice = ACTIVE_VOICES;
+SI = 0;
+do {IF( voice_used[SI] == 0 )
+        use_voice = SI/2;
+    SI += 2;
+    } while( SI < ACTIVE_VOICES*2 );
+
+IF( use_voice == ACTIVE_VOICES )
+    {BEEP();
+    return();
+    }
+
+SI = voice+SI;
+GUSsetvolume(use_voice,key_volume[SI]);
+SI = voice+SI;
+DI = use_voice + DI;
+voice_freq[DI] = key_freq[SI];
+voice_freq_tchange[DI] = key_freq_tchange[SI];
+voice_freq_rchange[DI] = key_freq_rchange[SI];
+voice_repeats[DI] = key_repeats[SI];
+voice_delay[DI] = key_delay[SI];
+GUSsetfrequency(use_voice,voice_freq[DI]);
+SI = voice+SI;
+GUSsetbalance(use_voice,key_balance[SI]);
+SI = voice + SI;
+DI = use_voice + DI;
+voice_loop[DI] = key_loop[SI];
+voice_color[DI] = voice+KEYCOLORINC;
+voice_used[DI] = TRUE;
+SI = voice+SI;
+DI = SI+SI;
+BX = key_sample[SI] + BX + BX;   // * 4 
+SI = use_voice + SI + SI;
+voice_start[SI] = key_start[DI]+sample_start[BX];
+voice_end[SI] = sample_start[BX]+sample_length[BX]-key_end[DI];
+BX = voice+BX;
+EAX = voice_end[SI] - voice_start[SI] * 182 / key_freq[BX] / 10 +1;
+SI = use_voice + SI;
+voice_counter[SI] = AX;
+voice_time[SI] = AX;
+DI = SI + SI;
+GUSplay( use_voice, GUS_8_BIT, voice_loop[SI],
+                      dword voice_start[DI],
+                      dword voice_start[DI],
+                      dword voice_end[DI] );
+}
+
+
+void loadsample (word filename,format) 
+word filehandle;
+word bytesread;
+{filehandle = open(filename,F_READ);   /* open file for reading */
+IF(filehandle == 0)                    /* if file did not open */
+    {BEEP();
+    return();
+    }
+DI = samples +DI +DI;
+sample_start[DI] = dramloc;
+strcpy(40*samples+#samplenames,filename);
+
+do {
+    bytesread = read(filehandle,#sound,BUFSIZE);
+    IF( bytesread > 0 )
+        {GUSload(format, GUS_8_BIT,bytesread, DS,#sound,dword dramloc);
+        dramloc += bytesread;
+        }
+    } while( bytesread == BUFSIZE );
+close(filehandle);
+
+DI = samples +DI +DI;
+sample_length[DI] = dramloc - sample_start[DI];
+samples++;
+paint_file_list(FALSE);
+}
+
+
+void paint_main_screen ()
+word i;
+{HIDEMOUSE();
+box19(0,VIEWYSTART,320,200-VIEWYSTART,7);
+box19(0+1,VIEWYSTART+1,320-2,200-VIEWYSTART-2,8);
+bar19(0+2,VIEWYSTART+2,320-4,200-VIEWYSTART-4,0);
+SHOWMOUSE();
+}
+
+
+void paint_file_list (byte erase)
+word i,source;
+{
+HIDEMOUSE();
+IF( erase )
+    {i = 0;
+    do {
+        box19(i,VIEWYSTART+i,320-i-i,200-VIEWYSTART-i-i,255-i);
+        i++;
+        } while( i < 200-VIEWYSTART+1/2 );
+    over5x5str19(30,VIEWYSTART,"List of file Names of Loaded Samples:",8);
+    }
+i = 0;
+if( i < samples )
+    {do {over5x5str19(90,i+1*6+VIEWYSTART,i*SAMPLENAMELEN+#samplenames,0);
+        SI = i + SI + SI;
+        over5x5dword(46,i+1*6+VIEWYSTART,dword sample_length[SI],9);
+        SI = i + SI + SI;
+        over5x5dword(2,i+1*6+VIEWYSTART,
+                               dword sample_start[SI]+sample_length[SI],5);
+        i++;
+        } while( i < samples );
+    }
+SHOWMOUSE();
+}
+
+void paint_key_edit (word keynum)
+{
+HIDEMOUSE();
+box19(0,VIEWYSTART,320,200-VIEWYSTART,7);
+box19(0+1,VIEWYSTART+1,320-2,200-VIEWYSTART-2,8);
+bar19(0+2,VIEWYSTART+2,320-4,200-VIEWYSTART-4,0);
+GOTOXY(1,5);
+DI = keynum + DI;
+GWRITESTR(key_sample[DI]*40+#samplenames,keynum+KEYCOLORINC);
+GOTOXY(1,6);
+GWRITESTR("Frequency: ",keynum+KEYCOLORINC);
+DI = keynum + DI;
+GWRITEWORD(key_freq[DI],keynum+KEYCOLORINC);
+GOTOXY(1,7);
+GWRITESTR("VOLUME:",keynum+KEYCOLORINC);
+DI = keynum + DI;
+line19(72,7*8+4,key_volume[DI]/2+72,7*8+4,15);
+GOTOXY(1,8);
+GWRITESTR("BALANCE: L       C       R",keynum+KEYCOLORINC);
+DI = keynum + DI;
+line19(18*8+4,8*8+4,15-key_balance[DI]+10*8+4,8*8+4,15);
+GOTOXY(1,9);
+DI = keynum + DI;
+IF( key_loop[DI] == GUS_LOOP_FORWARD )
+    GWRITESTR("Forward Hardware Looping",keynum+KEYCOLORINC);
+ELSE IF( key_loop[DI] == GUS_LOOP_2WAY )
+    GWRITESTR("2-Way Hardware Looping  ",keynum+KEYCOLORINC);
+ELSE GWRITESTR("No Hardware Looping     ",keynum+KEYCOLORINC);
+GOTOXY(1,10);
+GWRITESTR("Software Repeats: ",keynum+KEYCOLORINC);
+DI = keynum + DI;
+GWRITEWORD(key_repeats[DI],keynum+KEYCOLORINC);
+GOTOXY(1,11);
+GWRITESTR("Delay Between Repeats: ",keynum+KEYCOLORINC);
+DI = keynum + DI;
+GWRITEWORD(key_delay[DI],keynum+KEYCOLORINC);
+GOTOXY(1,12);
+GWRITESTR("Frequency Change Per Tick: ",keynum+KEYCOLORINC);
+DI = keynum + DI;
+GWRITEINT(key_freq_tchange[DI],keynum+KEYCOLORINC);
+GOTOXY(1,13);
+GWRITESTR("Frequency Change Per Repeat: ",keynum+KEYCOLORINC);
+DI = keynum + DI;
+GWRITEINT(key_freq_rchange[DI],keynum+KEYCOLORINC);
+GOTOXY(1,14);
+WRITESTR("Adjust Colour RED values");
+GOTOXY(1,15);
+WRITESTR("Adjust Colour GREEN values");
+GOTOXY(1,16);
+WRITESTR("Adjust Colour BLUE values");
+SHOWMOUSE();
+}
+
+
+void setup_key_voice (word keynum)
+{paint_key_edit(keynum);
+current_keyedit = keynum;
+}
+
+
+void domousepress (int change; word xloc,yloc)
+{
+IF( current_keyedit == KEYVOICES+scr_filelist )
+    {current_keyedit = KEYVOICES+scr_main;
+    paint_main_screen();
+    return;
+    }
+IF( current_keyedit == KEYVOICES+scr_main )
+    {current_keyedit = KEYVOICES+scr_filelist;
+    paint_file_list(TRUE);
+    return;
+    }
+xloc = xloc/2;
+yloc -= 8*5;
+SI = current_keyedit + SI;
+IF( yloc < 8 )
+    key_sample[SI] = key_sample[SI] + samples + change % samples;
+else IF( yloc < 8*2 )
+    key_freq[SI] += change*1000;
+else IF( yloc < 8*3 )
+    {key_volume[SI] += change*10;
+    IF( int key_volume[SI] < 0 )
+        key_volume[SI] = 0;
+    IF( key_volume[SI] > 511 )
+        key_volume[SI] = 511;
+    }
+else IF( yloc < 8*4 )
+    {key_balance[SI] += change;
+    IF( key_balance[SI] == 0xFFFF )
+        key_balance[SI] = 0;
+    IF( key_balance[SI] == 16 )
+        key_balance[SI] = 15;
+    }
+else IF( yloc < 8*5 )
+    key_loop[SI] = key_loop[SI] + change + 3 % 3;
+else IF( yloc < 8*6 )
+    key_repeats[SI] += change;
+else IF( yloc < 8*7 )
+    key_delay[SI] += change;
+else IF( yloc < 8*8 )
+    key_freq_tchange[SI] += change*100;
+else IF( yloc < 8*9 )
+    key_freq_rchange[SI] += change*100;
+else IF( yloc < 8*10 )
+    {DI = current_keyedit+16;
+    SI = DI + SI + DI;
+    palette[SI] += change;
+    SETVGAPALETTE( ,current_keyedit+16,1,#palette[SI]);
+    return;
+    }
+else IF( yloc < 8*11 )
+    {DI = current_keyedit+16;
+    SI = DI + SI + DI;
+    palette[SI+1] += change;
+    SETVGAPALETTE( ,current_keyedit+16,1,#palette[SI]);
+    return;
+    }
+ELSE IF( yloc < 8*12 )
+    {DI = current_keyedit+16;
+    SI = DI + SI + DI;
+    palette[SI+2] += change;
+    SETVGAPALETTE( ,current_keyedit+16,1,#palette[SI]);
+    return;
+    }
+ELSE{IF( change > 0 )
+        {current_keyedit = KEYVOICES+scr_filelist;
+        paint_file_list(TRUE);
+        }
+    ELSE{current_keyedit = KEYVOICES+scr_main;
+        paint_main_screen();
+        }
+    return;
+    }
+paint_key_edit(current_keyedit);
+}
+
+
+void over5x5dword (word x,y; dword number; word color)
+word value;
+{
+EAX = number / 1000000;
+value = AX + '0';
+over5x5letter19(x,y,value,color);
+
+number = number % 1000000;
+EAX = number / 100000;
+value = AX + '0';
+over5x5letter19(x+6,y,value,color);
+
+number = number % 100000;
+EAX = number / 10000;
+value = AX + '0';
+over5x5letter19(x+12,y,value,color);
+
+value = number % 10000;
+over5x5letter19(x+18,y,value/1000+'0',color);
+value = value % 1000;
+over5x5letter19(x+24,y,value/100+'0',color);
+value = value % 100;
+over5x5letter19(x+30,y,value/10+'0',color);
+over5x5letter19(x+36,y,number%10+'0',color);
+}
+
+/* end of JAM.C-- */

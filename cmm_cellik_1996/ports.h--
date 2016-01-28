@@ -1,0 +1,53 @@
+/*
+    SPHINX Programming (C) 1993.
+    NAME:  PORTS.H--
+    DESCRIPTION:  This file contains a collection of procedures for reading
+                  and writing to ports.
+    LAST MODIFIED:  7 July 1993
+    PROCEDURES DEFINED IN THIS FILE:
+        : byte  INPORTB( , , ,port)
+        : word  INPORTW( , , ,port)
+        : dword INPORTD( , , ,port)
+        : void  OUTPORTB(bytevalue, , ,port)
+        : void  OUTPORTW(wordvalue, , ,port)
+        : void  OUTPORTD(dword dwordvalue, , ,port)
+*/
+
+
+: byte INPORTB ()  /* DX = port to read byte from */
+{
+$ IN AL,DX
+}
+
+
+: word INPORTW ()  /* DX = port to read word from */
+{
+$ IN AX,DX
+}
+
+
+: dword INPORTD ()  /* DX = port to read dword from */
+{
+$ IN EAX,DX
+}
+
+
+: void OUTPORTB ()  /* AL = byte value to write, DX = port to write to */
+{
+$ OUT DX,AL
+}
+
+
+: void OUTPORTW ()  /* AX = word value to write,  DX = port to write to */
+{
+$ OUT DX,AX
+}
+
+
+: void OUTPORTD ()  /* EAX = dword value to write,  DX = port to write to */
+{
+$ OUT DX,EAX
+}
+
+
+/* end of PORTS.H-- */

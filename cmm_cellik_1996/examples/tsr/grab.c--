@@ -1,0 +1,286 @@
+/*
+    NAME:  GRAB.C--
+    DESCRIPTION:  Screen grabber for all video modes of the CGA, EGA, MCGA
+                  and VGA video cards.
+*/ 
+
+?print "Building GRAB.COM, the VGA and lower screen grabber.\n"
+
+?assumeDSSS  FALSE  // never assume DS==SS because of TSR
+?jumptomain  NEAR   // NEAR jump to main () 
+?resize      FALSE  // don't bother to resize memory to 64K
+
+?include "KEYCODES.H--"
+?include "VIDEO.H--"
+?include "WRITE.H--"
+?include "SOUND.H--"
+?include "FILE.H--"
+?include "SYSTEM.H--"
+?include "DOS.H--"
+?include "TSR.H--"
+
+
+word filenumber = 0;          /* filename number */ 
+byte filename = "#####.EXT";  /* filename string */
+
+word activeseg=0,activeoff=0; /* address of DOS active byte */
+
+? define MAXCOLORS 256        /* maximum readable palette values */
+byte palette[MAXCOLORS*3]=1;  /* temp hold for palette */
+
+@ word writefile ();   // force location of writefile procedure here
+
+
+void savetextscreen (word screenseg,linesize,pagenum)
+{AL = @ TEXTROWS() +1;
+AH = 0;
+IF( AL < 25 )
+    AX = 25;
+linesize = AX * linesize;
+AX = pagenum * linesize;
+SI = AX;
+writefile(#filename,screenseg,SI,linesize);
+}
+
+
+void savegraphicscreen1 (word screenseg,screensize,colors)
+{writefile(#filename,screenseg,0x0000,screensize);
+savepalette(colors);
+}
+
+
+
+void savegraphicscreen4 (word planesize,pagenum,colors)
+word filehandle,count;
+{DI = planesize;
+AX = pagenum * DI;
+SI = AX;
+AX = @ FCREATE( , ,0,#filename); 
+IF( AX != 0 )
+    {filehandle = AX;
+    $ PUSH DS
+    DS = 0xA000;
+    count = 0;
+    do {@ SETREADMASK( ,count);
+        @ FWRITE( ,filehandle,DI,SI);
+        count++;
+        } while( count < 4 );
+    $ POP DS
+    @ FCLOSE( ,filehandle);
+    }
+savepalette(colors);
+}
+
+
+void savepalette (word colors)
+{filename[6]='P';
+filename[7]='A';
+filename[8]='L';
+@ GETVGAPALETTE( ,0,colors,#palette);
+writefile(#filename,DS,#palette,colors*3);
+}
+
+
+void saveATIscreen (byte planes; word leftover,colors)
+byte count;
+word filehandle;
+{
+AX = @ FCREATE( , ,0,#filename); 
+if( AX != 0 )
+    {filehandle = AX;
+    $ PUSH DS
+    DS = 0xA000;
+    count = 0;
+    do {@ SETATIMASK( ,count);
+        @ FWRITE( ,filehandle,32768,0);      // 32K bytes from offset 0
+        @ FWRITE( ,filehandle,32768,32768);  // 32K bytes from offset 32K
+        count++;
+        } while( count < planes );
+    IF( leftover > 0 )
+        {@ SETATIMASK( ,count);
+        @ FWRITE( ,filehandle,leftover,0);}  // write remainning < 64K
+    $ POP DS
+    @ FCLOSE( ,filehandle);
+    }
+savepalette(colors);
+}
+
+
+void savescreen ()
+{@ SOUND(333);
+@ WORDTODIGITS(filenumber,#filename);
+filename[5]='.';
+filename[6]='S';
+filename[7]='C';
+filename[8]='R';
+
+AL = @ GETVIDEOMODE();   // BH also equals current page
+IF( AL <= vid_text40c )
+    savetextscreen(0xB800,80,BH);
+else IF( AL <= vid_text80c )
+    savetextscreen(0xB800,160,BH);
+else IF( AL <= vid_320x200_4_RGB )
+    savegraphicscreen1(0xB800,16000,4);
+else IF( AL == vid_640x200_2 )
+    savegraphicscreen1(0xB800,16000,2);
+else IF( AL == vid_text80m )
+    savetextscreen(0xB000,160,BH);
+else IF( AL == vid_320x200_16 )
+    savegraphicscreen4(8000,BH,16);
+else IF( AL == vid_640x200_16 )
+    savegraphicscreen4(16000,BH,16);
+else IF( AL == vid_640x350_2 )
+    savegraphicscreen1(0xA000,28000,2);
+else IF( AL == vid_640x350_16 )
+    savegraphicscreen4(28000,BH,16);
+else IF( AL == vid_640x480_2 )
+    savegraphicscreen1(0xA000,38400,2);
+else IF( AL == vid_640x480_16 )
+    savegraphicscreen4(38400,BH,16);
+else IF( AL == vid_320x200_256 )
+    savegraphicscreen1(0xA000,64000,256);
+else IF( AL == vid_800x600_16_ATI_1 )
+    savegraphicscreen4(60000,DH,16);
+else IF( AL == vid_800x600_16_ATI_2 )
+    savegraphicscreen4(60000,DH,16);
+ELSE IF( AL == vid_640x400_256_ATI )
+    saveATIscreen(3,59392,256);
+ELSE IF( AL == vid_640x480_256_ATI )
+    saveATIscreen(4,45056,256);
+ELSE IF( AL == vid_800x600_256_ATI )
+    saveATIscreen(7,21248,256);
+ELSE IF( AL == vid_1024x768_16_ATI )
+    saveATIscreen(6,0,256);
+ELSE IF( AL == vid_1024x768_4_ATI )
+    saveATIscreen(3,0,256);
+ELSE filenumber--;
+
+filenumber++;
+@ NOSOUND();
+}
+
+
+/*************** Start of new keyboard handle ********************/
+
+word oldkeyboardhandle[2]={};   // holder for the old keyboard handle
+
+byte ctrldown=FALSE;   // control key down flag
+byte altdown=FALSE;    // alt key down flag
+byte busy = FALSE;     // busy saving the screen flag
+
+byte idcode = "grab";  // used to detect if already installed
+
+interrupt keyboardhandle ()
+{$ PUSH DS
+$ PUSH AX
+DS = CS;
+$ IN AL,KEYBOARD_PORT
+IF( AL < 0x80 )
+    {IF( AL == s_ctrl )
+        ctrldown = TRUE;
+    IF( AL == s_alt )
+        altdown = TRUE;
+    IF( AL == s_g )
+        {IF( ctrldown )
+            {IF( altdown )
+                {IF( busy == FALSE ) 
+                    {busy = TRUE;
+                    $ PUSH BX
+                    $ PUSH CX
+                    $ PUSH DX
+                    $ PUSH DI
+                    $ PUSH SI
+                    $ PUSH BP
+                    $ PUSH ES
+                    @ EATKEY();
+                    @ EOI();
+                    @ ENABLE();
+                    BX = activeoff;
+                    ES = activeseg;
+                    IF( ESBYTE[BX] == FALSE )
+                        savescreen(); 
+                    @ DISABLE();
+                    $ POP ES
+                    $ POP BP
+                    $ POP SI
+                    $ POP DI
+                    $ POP DX
+                    $ POP CX
+                    $ POP BX
+                    busy = FALSE; 
+                    $ POP AX
+                    $ POP DS
+                    $ IRET   
+                    }
+                }
+            }
+        }
+    }
+ELSE IF( AL == s_ctrl+0x80 )
+    ctrldown = FALSE;
+ELSE IF( AL == s_alt+0x80 )
+    altdown = FALSE;
+$ POP AX
+$ POP DS
+$ CS:
+$ JMP FAR oldkeyboardhandle;
+}
+
+/********************* end of NEW keyboard handle **********************/
+
+
+byte programinfo = 
+     "\nScreen Grabber:  GRAB   ver 3.0   by: SPHINX programming 1992\n"
+     "Will produce files ?????.SCR and ?????.PAL in current path.\n"
+     "\nGRAB was programmed and compiled using SPHINX C--.\n"
+     "Resident code 2640 bytes.\n"
+     "GRAB is freeware and may be used and copied so long as it is not\n"
+     "modified in anyway.\n"
+     "\nGRAB will capture the following video modes:\n"
+     "text: mono- 80x25\n"
+     "      colour- 40x25, 80x25, 40x28, 40x43, 40x50, 80x28, 80x43, 80x50\n"
+     "CGA graphics: 320x200-4, 640x200-2\n"
+     "EGA graphics: 320x200-16, 640x200-16, 640x350-16, 640x350-2\n"
+     "VGA graphics: 320x200-256, 640x480-2, 640x480-16\n"
+     "ATI VGA Wonder: 800x600-16, 1024x768-16, 1024x768-4,\n"
+     "                640x400-256, 640x480-256, 800x600-256\n"
+     "\n18 bit palette file (*.PAL) is created for all graphics modes,\n"
+     "the palette information will only be valid on systems with VGA or\n"
+     "higher BIOS.\n\n";
+
+byte usekeys =
+    "Press <CTRL><ALT> and <g> to activate.\n";
+
+
+?define ENDPROGOFFSET  #programinfo
+
+main ()
+{AH = 52;      
+$ INT 0x21    /* get DOS active byte */
+activeseg = ES;
+activeoff = BX;
+
+WRITESTR(#programinfo);
+@ GETINTVECT(#oldkeyboardhandle,KEYBOARD_INT);    // save old key handle
+IF( oldkeyboardhandle[0] == #keyboardhandle )
+    {ES = oldkeyboardhandle[2];
+    BX = oldkeyboardhandle[0];
+    IF( ESBYTE[BX-5] == 'g' )
+        IF( ESBYTE[BX-4] == 'r' )
+            IF( ESBYTE[BX-3] == 'a' )
+                IF( ESBYTE[BX-2] == 'b' )
+                    IF( ESBYTE[BX-1] == 0 )
+                        {WRITESTR("GRAB already installed.  ");
+                        WRITESTR(#usekeys);
+                        @ EXIT(-1);
+                        }
+    }
+
+@ SETINTVECT( ,KEYBOARD_INT,CS,#keyboardhandle);  // attach new handle
+WRITESTR("Screen Grabber Installed.  ");
+WRITESTR(#usekeys);
+@ KEEP( , , ,ENDPROGOFFSET);  // TSR to beginning of installed string
+}
+
+
+/* end of GRAB.C-- */

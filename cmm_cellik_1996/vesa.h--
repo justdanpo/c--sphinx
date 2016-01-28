@@ -1,0 +1,317 @@
+/*
+    SPHINX Programming (C) 1994.
+    NAME:  VESA.H--
+    DESCRIPTION:  This file contains some basic constant and procedure
+                  definitions for using VESA standard video modes.  VESA 1.0+
+                  video BIOS is required.
+    LAST MODIFIED:  20 Mar 1994
+    PROCEDURES DEFINED IN THIS FILE:
+        byte setVESAvideomode(VESAmode)
+      : byte SETVESA_MEMPOS(window_address,window_num)
+*/
+
+
+/* VESA SuperVGA BIOS modes */
+enum { VESA_640x400_256=0x100, VESA_640x480_256,    VESA_800x600_16,
+       VESA_800x600_256,       VESA_1024x768_16,    VESA_1024x768_256,
+       VESA_1280x1024_16,      VESA_1280x1024_256,  VESA_text80x60,
+       VESA_text132x25,        VESA_text132x43,     VESA_text132x50,
+       VESA_text132x60,        VESA_320x200_32k,    VESA_320x200_64k,
+       VESA_320x200_16M,       VESA_640x480_32k,    VESA_640x480_64k,
+       VESA_640x480_16M,       VESA_800x600_32k,    VESA_800x600_64k,
+       VESA_800x600_16M,       VESA_1024x768_32k,   VESA_1024x768_64k,
+       VESA_1024x768_16M,      VESA_1280x1024_32k,  VESA_1280x1024_64k,
+       VESA_1280x1024_16M };
+
+
+/*** fields below are filled after each successful setVESAvideomode call ***/
+word vesa_mode_attr;    // info on selected mode 
+byte vesa_win_a_info;   /* window A attributes:
+      				bit 0: exists
+				bit 1: readable
+				bit 2: writable
+				bits 3-7 reserved */
+byte vesa_win_b_info;   /* window B attributes:
+      				bit 0: exists
+				bit 1: readable
+				bit 2: writable
+				bits 3-7 reserved */
+word vesa_win_gran;     // window granularity in KB
+word vesa_win_size;     // window size in KB
+word vesa_win_a_seg;    // start segment location of window A
+word vesa_win_b_seg;    // start segment location of window B
+dword vesa_pos_func;    /* FAR pointer to window position function
+                                (equivalent to AX=4F05h, INT 0x10) */
+word vesa_bytes_scan;   // number of bytes per scan line
+/*** fields above are filled after each successful setVESAvideomode call ***/
+
+
+byte setVESAvideomode (word VESAmode) 
+/* set bit 15 in VESAmode to prevent clearing of video memory */
+/*
+   Returns 0 on success or non-0 on error.
+*/
+byte vesabuf[256];
+{
+BX = VESAmode;
+AX = 0x4F02;
+$ INT 0x10      // set vesa video mode
+IF( AX != 0x004F )
+    return(1);  // error return
+
+ES = SS;
+DI = #vesabuf;
+CX = VESAmode;
+AX = 0x4F01;
+$ INT 0x10      // get vesa video mode information
+IF( AX != 0x004F )
+    return(2);  // error return
+
+vesa_mode_attr = SSWORD[#vesabuf[0]];
+vesa_win_a_info = vesabuf[2];
+vesa_win_b_info = vesabuf[3];
+vesa_win_gran = SSWORD[#vesabuf[4]];
+vesa_win_size = SSWORD[#vesabuf[6]];
+vesa_win_a_seg = SSWORD[#vesabuf[8]];
+vesa_win_b_seg = SSWORD[#vesabuf[0xA]];
+vesa_pos_func = SSDWORD[#vesabuf[0xC]];
+vesa_bytes_scan = SSWORD[#vesabuf[0x10]];
+
+IF( vesa_mode_attr & 1 == 0 )  // check if mode supported
+    return(3);  // error return
+
+IF( vesa_win_a_info & 0b111 != 0b111 )  // check if window A exists R/W
+    return(4);  // error return
+
+return(0);
+}
+
+
+: byte SETVESA_MEMPOS ()   /* AX = window address in granularity units
+                              BX = window number (0 for A and 1 for B)
+                           */
+{
+DX = AX;
+AX = 0x4F05;
+// BH = 0;   <<<  BH is already zero so this line is not needed
+
+$INT 0x10
+// $ CALL FAR vesa_pos_func
+
+IF( AX == 0x004F )
+    AL = 0;
+ELSE AL = 1;
+} 
+
+
+/* end of VESA.H-- */
+
+/*
+
+BELOW is some information that might be used to enhance this file in the
+future.
+
+--------V-104F00-----------------------------
+INT 10 - VESA SuperVGA BIOS - GET SuperVGA INFORMATION
+	AX = 4F00h
+	ES:DI -> 256-byte buffer for SuperVGA information (see below)
+Return: AL = 4Fh function supported
+	AH = status
+	    00h successful
+		ES:DI buffer filled
+	    01h failed
+Desc:	determine whether VESA BIOS extensions are present and the capabilities
+	  supported by the display adapter
+SeeAlso: AX=4F01h,AX=7F00h
+Index:	installation check;VESA
+
+Format of SuperVGA information:
+Offset	Size	Description
+ 00h  4 BYTEs	signature ('VESA')
+ 04h	WORD	VESA version number
+ 06h	DWORD	pointer to OEM name
+		"761295520" for ATI
+ 0Ah  4 BYTEs	capabilities
+ 0Eh	DWORD	pointer to list of supported VESA and OEM video modes
+		(list of words terminated with FFFFh)
+ 12h	WORD	total amount of video memory in 64K blocks
+ 14h 236 BYTEs	reserved
+Notes:	the list of supported video modes is stored in the reserved portion of
+	  the SuperVGA information record by some implementations, and it may
+	  thus be necessary to either copy the mode list or use a different
+	  buffer for all subsequent VESA calls
+	the 1.1 VESA document specifies 242 reserved bytes at the end, so the
+	  buffer should be 262 bytes to ensure that it is not overrun
+--------V-104F01-----------------------------
+INT 10 - VESA SuperVGA BIOS - GET SuperVGA MODE INFORMATION
+	AX = 4F01h
+	CX = SuperVGA video mode
+	ES:DI -> 256-byte buffer for mode information (see below)
+Return: AL = 4Fh function supported
+	AH = status
+	    00h successful
+		ES:DI buffer filled
+	    01h failed
+Desc:	determine the attributes of the specified video mode
+SeeAlso: AX=4F00h,AX=4F02h
+
+Format of mode information:
+Offset	Size	Description
+ 00h	WORD	mode attributes
+		bit 0: mode supported
+		bit 1: optional information available
+		bit 2: BIOS output supported
+		bit 3: set if color, clear if monochrome
+		bit 4: set if graphics mode, clear if text mode
+ 02h	BYTE	window A attributes
+		bit 0: exists
+		bit 1: readable
+		bit 2: writable
+		bits 3-7 reserved
+ 03h	BYTE	window B attributes (as for window A)
+ 04h	WORD	window granularity in KB
+ 06h	WORD	window size in KB
+ 08h	WORD	start segment of window A
+ 0Ah	WORD	start segment of window B
+ 0Ch	DWORD	-> FAR window positioning function (equivalent to AX=4F05h)
+ 10h	WORD	bytes per scan line
+---remainder is optional for VESA modes in v1.0/1.1, needed for OEM modes---
+ 12h	WORD	width in pixels (graphics) or characters (text)
+ 14h	WORD	height in pixels (graphics) or characters (text)
+ 16h	BYTE	width of character cell in pixels
+ 17h	BYTE	height of character cell in pixels
+ 18h	BYTE	number of memory planes
+ 19h	BYTE	number of bits per pixel
+ 1Ah	BYTE	number of banks
+ 1Bh	BYTE	memory model type (see below)
+ 1Ch	BYTE	size of bank in KB
+ 1Dh	BYTE	number of image pages
+ 1Eh	BYTE	reserved (0)
+---VBE v1.2+---
+ 1Fh	BYTE	red mask size
+ 20h	BYTE	red field position
+ 21h	BYTE	green mask size
+ 22h	BYTE	green field size
+ 23h	BYTE	blue mask size
+ 24h	BYTE	blue field size
+ 25h	BYTE	reserved mask size
+ 26h	BYTE	reserved mask position
+ 27h	BYTE	direct color mode info
+ 28h 216 BYTEs	reserved (0)
+
+Values for memory model type:
+ 00h	text
+ 01h	CGA graphics
+ 02h	HGC graphics
+ 03h	16-color (EGA) graphics
+ 04h	packed pixel graphics
+ 05h	"sequ 256" (non-chain 4) graphics
+ 06h	direct color (HiColor, 24-bit color)
+ 07h	YUV (luminance-chrominance, also called YIQ)
+ 08h-0Fh reserved for VESA
+ 10h-FFh OEM memory models
+--------V-104F02-----------------------------
+INT 10 - VESA SuperVGA BIOS - SET SuperVGA VIDEO MODE
+	AX = 4F02h
+	BX = mode
+		bit 15 set means don't clear video memory
+Return: AL = 4Fh function supported
+	AH = status
+	    00h successful
+	    01h failed
+SeeAlso: AX=4F01h,AX=4F03h
+--------V-104F03-----------------------------
+INT 10 - VESA SuperVGA BIOS - GET CURRENT VIDEO MODE
+	AX = 4F03h
+Return: AL = 4Fh function supported
+	AH = status
+	    00h successful
+	    01h failed
+	BX = video mode (see AX=4F02h)
+SeeAlso: AX=4F02h
+--------V-104F04-----------------------------
+INT 10 - VESA SuperVGA BIOS - SAVE/RESTORE SuperVGA VIDEO STATE
+	AX = 4F04h
+	DL = subfunction
+	    00h get state buffer size
+		Return: BX = number of 64-byte blocks needed
+	    01h save video states
+		ES:BX -> buffer
+	    02h restore video states
+		ES:BX -> buffer
+	CX = flags for states to save/restore
+	    bit 0: video hardware state
+	    bit 1: video BIOS data state
+	    bit 2: video DAC state
+	    bit 3: SuperVGA state
+Return: AL = 4Fh function supported
+	AH = status
+	    00h successful
+	    01h failed
+--------V-104F05-----------------------------
+INT 10 - VESA SuperVGA BIOS - CPU VIDEO MEMORY CONTROL
+	AX = 4F05h
+	BH = subfunction
+	    00h select video memory window
+		DX = window address in video memory (in granularity units)
+	    01h get video memory window
+		Return: DX = window address in video memory (in gran. units)
+	BL = window number
+	    00h window A
+	    01h window B
+Return: AL = 4Fh function supported
+	AH = status
+	    00h successful
+	    01h failed
+SeeAlso: AX=4F01h,AX=4F06h,AX=4F07h,AX=7000h/BX=0004h
+--------V-104F06-----------------------------
+INT 10 - VESA SuperVGA BIOS v1.1+ - GET/SET LOGICAL SCAN LINE LENGTH
+	AX = 4F06h
+	BL = function
+	    00h set scan line length
+		CX = desired width in pixels
+	    01h get scan line length
+Return: AL = 4Fh if function supported
+	AH = status
+	    00h successful
+	    01h failed
+	BX = bytes per scan line
+	CX = number of pixels per scan line
+	DX = maximum number of scan lines
+Notes:	if the desired width is not achievable, the next larger width will be
+	  set
+	the scan line may be wider than the visible area of the screen
+	this function is valid in text modes, provided that values are
+	  multiplied by the character cell width/height
+SeeAlso: AX=4F01h,AX=4F05h,AX=4F07h
+--------V-104F07BH00-------------------------
+INT 10 - VESA SuperVGA BIOS v1.1+ - GET/SET DISPLAY START
+	AX = 4F07h
+	BH = 00h (reserved)
+	BL = function
+	    00h set display start
+		CX = leftmost displayed pixel in scan line
+		DX = first displayed scan line
+	    01h get display start
+		Return: BH = 00h
+			CX = leftmost displayed pixel in scan line
+			DX = first displayed scan line
+Return: AL = 4Fh if function supported
+	AH = status
+	    00h successful
+	    01h failed
+Note:	this function is valid in text modes, provided that values are
+	  multiplied by the character cell width/height
+SeeAlso: AX=4F01h,AX=4F05h,AX=4F06h
+--------V-104F08-----------------------------
+INT 10 - VESA SuperVGA BIOS v1.2+ - GET/SET DAC PALETTE CONTROL
+	AX = 4F08h
+	BL = function
+	    00h set DAC palette width
+		BH = desired number of bits per primary color
+	    01h get DAC palette width
+Return: AL = 4Fh if function supported
+	AH = status
+	BH = current number of bits per primary (06h = standard VGA)
+---------------------------------------------
+*/

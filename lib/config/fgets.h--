@@ -1,0 +1,112 @@
+#ifndef _FGETS_
+#define _FGETS_ TRUE
+
+?define SIZEPOTOC 512
+
+//считать строку из файла
+:word fgets(word buf,size,handl)
+/*-----------------30.08.99 03:40-------------------
+ Вход: buf - адрес буфера куда будет считана строка
+			 size - размер буфера
+			 handl - дескриптор открытого файла
+ Выход: 0 -если конец файла или адрес строки
+--------------------------------------------------*/
+char tbuf[SIZEPOTOC];
+{
+//получить текущую поз в файле
+	DI=buf;
+	$push DI
+	AX=0x4201;
+	BX=handl;
+	CX=0;
+	DX=0;
+	$int 0x21
+	$push DX,AX
+//считать в буфер
+	DX=#tbuf;
+	$push DX
+	$push DX
+	CX=SIZEPOTOC;
+	AH=0x3F;
+	$int 0x21
+	IF(CARRYFLAG)||(AX==0){
+		AX=0;
+		SP+=10;
+	}
+	ELSE{
+		ES=DS;
+		$pop SI
+		FOR(CX=size-1;CX!=0;CX--){
+			$LODSB
+			IF(AL==13)CONTINUE;
+			IF(AL==10){
+				AX=0x0a0d;
+				$stosw
+				BREAK;
+			}
+			$stosb
+		}
+		AL=0;
+		$stosb
+		$pop AX
+		SI-=AX;
+		$pop DX,CX
+		DX+=SI;
+		$ADC CX,0
+		AX=0x4200;
+		$int 0x21
+		$pop AX
+	}
+}
+
+:word gets(word buf,handl)
+/*-----------------30.08.99 03:40-------------------
+ Вход: buf - адрес буфера куда будет считана строка
+			 handl - дескриптор открытого файла
+ Выход: 0 -если конец файла или адрес строки
+--------------------------------------------------*/
+char tbuf[SIZEPOTOC];
+{
+//получить текущую поз в файле
+	DI=buf;
+	$push DI
+	AX=0x4201;
+	BX=handl;
+	CX=0;
+	DX=0;
+	$int 0x21
+	$push DX,AX
+//считать в буфер
+	DX=#tbuf;
+	$push DX,DX
+	CX=SIZEPOTOC;
+	AH=0x3F;
+	$int 0x21
+	IF(CARRYFLAG)||(AX==0){
+		AX=0;
+		SP+=10;
+	}
+	ELSE{
+		AX><CX;
+		ES=DS;
+		$pop SI
+		FOR(;CX!=0;CX--){
+			$LODSB
+			IF(AL==13)CONTINUE;
+			IF(AL==10)BREAK;
+			$stosb
+		}
+		AL=0;
+		$stosb
+		$pop AX
+		SI-=AX;
+		$pop DX,CX
+		DX+=SI;
+		$ADC CX,0
+		AX=0x4200;
+		$int 0x21
+		$pop AX
+	}
+}
+
+#endif

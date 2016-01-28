@@ -1,0 +1,600 @@
+/*
+                ╔═════════════════════════╗
+                ║ Работа с псевдографикой ║
+                ╚═════════════════════════╝
+ void bar(word start;byte lenw,columnw,color,fon,type) - закрашенный прямоуголь-
+		 ник с тенью. type - определяет наклон тени:
+					1 - справа внизу
+					2 - слева внизу
+					3 - слева вверху
+					4 - справа вверху
+ void box(startw,lenw,columnw,typeb) - рисует прямоугольник
+ void boxm(word startw,lenw,columnw;byte typeb;word mes;byte typem) - прамоугольник с надписью
+ void cbox(word startw,lenw,columnw;byte typeb,byte atr) - цветной прямоугольник
+ void GORLINE(start,len,type) - рисует горизонтальную линию
+ void GORLINEOR(start,len,type) - рисует горизонтальную линию с OR с фоном
+ void VERLINE(start,len,type) - рисует вертикальную линию
+ void VERLINEOR(start,len,type) - рисует вертикальную линию с OR с фоном
+ В проц. box,boxm,cbox - lenw,columnw означают соответсвенно X,Y размеры
+ рабочей части прямоугольника (т.е. без рамки).
+ В проц. bar - lenw,columnw означают соответсвенно X,Y размеры всего прямоу-
+ гольника
+ void FILL_SCREEN(chars,color)  //Заполнить экран
+ void PUTNCHAR(chars,color,num) //Выводит определенное число символов в заданном цвете.
+*/
+?ifndef _GRAFTEXT_
+?define _GRAFTEXT_ TRUE
+?warning FALSE
+
+:void box(word startw,lenw,columnw;byte typeb)
+{
+	$PUSH SI
+	$PUSH DI
+	IF(typeb==2){
+		$CALL NEAR M1
+		$DB 201,205,187,186,200,205,188
+	}
+	$CALL NEAR M1
+	$DB 218,196,191,179,192,196,217
+M1:
+	$POP SI
+	DI=startw;
+	$CALL NEAR VL
+	CX=columnw;
+	loop(CX){
+		DI+=0X100;
+		AH=2;
+		DX=DI;
+		$INT 0X10
+		AL=DSBYTE[SI];
+		AH=14;
+		$INT 0X10;
+		DX+=lenw;
+		DX++;
+		AH=2;
+		$INT 0X10
+		AL=DSBYTE[SI];
+		AH=14;
+		$INT 0X10;
+	}
+	SI++;
+	DI+=0X100;
+	$CALL NEAR VL
+	GOTO EN;
+VL:
+	AH=2;
+	BH=0;
+	DX=DI;
+	$INT 0X10
+	$LODSB
+	AH=14;
+	$INT 0X10;
+	CX=lenw;
+	$LODSB
+	AH=10;
+	$INT 0X10
+	AH=2;
+	DX+=lenw;
+	DX++;
+	$INT 0X10
+	$LODSB
+	AH=14;
+	$INT 0X10;
+	$RET
+EN:
+	$POP DI
+	$POP SI
+}
+
+:void GORLINE()
+/* AX - НАЧАЛО ЛИНИИ
+	 BX - ДЛИНА ЛИНИИ
+	 CX - ТИП ЛИНИИ
+ */
+{
+?ifdef codesize
+	DX><AX;
+?else
+	DX=AX;
+?endif
+	AH=2;
+	$INT 0X10
+	IF(CL==2)AL=205;
+	ELSE AL=196;
+	CX=BX;
+	AH=10;
+	$INT 0X10
+}
+
+:void VERLINE()
+/* AX - НАЧАЛО ЛИНИИ
+	 BX - ДЛИНА ЛИНИИ
+	 CX - ТИП ЛИНИИ
+ */
+{
+	$PUSH SI
+?ifdef codesize
+	DX><AX;
+?else
+	DX=AX;
+?endif
+	IF(CL==2)AL=186;
+	ELSE AL=179;
+	SI=AX;
+	CX=BX;
+	loop(CX){
+		AH=2;
+		$INT 0X10
+		DH++;
+		AX=SI;
+		AH=14;
+		$INT 0X10
+	}
+	$POP SI
+}
+
+:void GORLINEOR()
+/* AX - НАЧАЛО ЛИНИИ
+	 BX - ДЛИНА ЛИНИИ
+	 CX - ТИП ЛИНИИ
+ */
+{
+	$PUSH SI
+	$PUSH DI
+?ifdef codesize
+	DX><AX;
+?else
+	DX=AX;
+?endif
+	$CALL NEAR M3
+	$DB '║','│','╔','╚','╗','╝','┌','└','┐','┘'
+M3:
+	$POP DI
+	IF(CL==2){
+		$CALL NEAR M1
+		$DB '╠','╞','╔','╚','╦','╩','╒','╘','╤','╧'
+		$DB '╬','╪','╦','╩','╦','╩','╤','╧','╤','╧'
+		$DB '╣','╡','╦','╩','╗','╝','╤','╧','╕','╛','═'
+	}
+	$CALL NEAR M1
+	$DB '╟','├','╓','╙','╥','╨','┌','└','┬','┴'
+	$DB '╫','┼','╥','╨','╥','╨','┬','┴','┬','┴'
+	$DB '╢','┤','╥','╨','╖','╜','┬','┴','┐','┘','─'
+M1:
+	$POP SI
+	$PUSH BX
+	ES=DS;
+	AH=2;
+	$INT 0X10
+	AH=8;
+	$INT 0X10
+	CL=10;
+	$PUSH DI
+	$REPNE
+	$SCASB
+	IF(NOTZEROFLAG)AL=DSBYTE[SI+30];
+	ELSE{
+		BL=9-CL;
+		AL=DSBYTE[SI+BX];
+	}
+	$POP DI
+	AH=14;
+	$INT 0X10
+	$POP CX
+	SI+=10;
+	CX--;
+	$JZ EN
+	CX--;
+	$JZ M2
+	loop(CX){
+		AH=8;
+		$INT 0X10
+		$PUSH CX
+		CL=10;
+		$PUSH DI
+		$REPNE
+		$SCASB
+		IF(NOTZEROFLAG)AL=DSBYTE[SI+20];
+		ELSE{
+			BL=9-CL;
+			AL=DSBYTE[SI+BX];
+		}
+		$POP DI
+		AH=14;
+		$INT 0X10
+		$POP CX
+	}
+M2:
+	SI+=10;
+	AH=8;
+	$INT 0X10
+	CL=10;
+	$REPNE
+	$SCASB
+	IF(NOTZEROFLAG)AL=DSBYTE[SI+10];
+	ELSE{
+		BL=9-CL;
+		AL=DSBYTE[SI+BX];
+	}
+	AH=14;
+	$INT 0X10
+EN:
+	$POP DI
+	$POP SI
+}
+
+:void VERLINEOR()
+/* AX - НАЧАЛО ЛИНИИ
+	 BX - ДЛИНА ЛИНИИ
+	 CX - ТИП ЛИНИИ
+ */
+{
+	$PUSH SI
+	$PUSH DI
+?ifdef codesize
+	DX><AX;
+?else
+	DX=AX;
+?endif
+	$CALL NEAR M3
+	$DB '═','─','╔','╚','╗','╝','┌','└','┐','┘'
+M3:
+	$POP DI
+	IF(CL==2){
+		$CALL NEAR M1
+		$DB '╦','╥','╔','╠','╗','╣','╓','╟','╖','╢'
+		$DB '╬','╫','╠','╠','╣','╣','╟','╟','╢','╢'
+		$DB '╩','╨','╠','╚','╣','╝','╟','╙','╢','╜','║'
+	}
+	$CALL NEAR M1
+	$DB '╤','┬','╒','╞','╕','╡','┌','├','┐','┤'
+	$DB '╪','┼','╞','╞','╡','╡','├','├','┤','┤'
+	$DB '╧','┴','╞','╘','╡','╛','├','└','┤','┘','│'
+M1:
+	$POP SI
+	$PUSH BX
+	ES=DS;
+	AH=2;
+	$INT 0X10
+	AH=8;
+	$INT 0X10
+	CL=10;
+	$PUSH DI
+	$REPNE
+	$SCASB
+	IF(NOTZEROFLAG)AL=DSBYTE[SI+30];
+	ELSE{
+		BL=9-CL;
+		AL=DSBYTE[SI+BX];
+	}
+	$POP DI
+	AH=14;
+	$INT 0X10
+	$POP CX
+	SI+=10;
+	DH++;
+	AH=2;
+	$INT 0X10
+	CX--;
+	$JZ EN
+	CX--;
+	$JZ M2
+	loop(CX){
+		AH=8;
+		$INT 0X10
+		$PUSH CX
+		CL=10;
+		$PUSH DI
+		$REPNE
+		$SCASB
+		IF(NOTZEROFLAG)AL=DSBYTE[SI+20];
+		ELSE{
+			BL=9-CL;
+			AL=DSBYTE[SI+BX];
+		}
+		$POP DI
+		AH=14;
+		$INT 0X10
+		$POP CX
+		DH++;
+		AH=2;
+		$INT 0X10
+	}
+M2:
+	SI+=10;
+	AH=8;
+	$INT 0X10
+	CL=10;
+	$REPNE
+	$SCASB
+	IF(NOTZEROFLAG)AL=DSBYTE[SI+10];
+	ELSE{
+		BL=9-CL;
+		AL=DSBYTE[SI+BX];
+	}
+	AH=14;
+	$INT 0X10
+EN:
+	$POP DI
+	$POP SI
+}
+
+:void bar(word start;byte lenw,columnw,color,fon,type)
+{
+	$PUSH DI
+	CX=start;
+	DX=CX;
+	DL+=lenw;
+	DH+=columnw;
+	DX-=0X101;
+	BH=color;
+	AX=0X600;
+	$INT 0X10
+	DX=CX;
+	AL=type;
+	IF(AL==1){
+		DL+=lenw;
+		DH++;
+	}
+	ELSE IF(AL==2){
+		DH++;
+		DL--;
+	}
+	ELSE IF(AL==3){
+		DL+=lenw;
+		DL-=2;
+		DH--;
+	}
+	ELSE {
+		DL++;
+		DH--;
+	}
+	IF(AL<3)AX=columnw;
+	ELSE AX=lenw;
+	AX--;
+?ifdef codesize
+	DI><AX;
+?else
+	DI=AX;
+?endif
+	BH=0;
+	loop(DI){
+		AH=2;
+		$INT 0X10
+		AH=8;
+		$INT 0X10
+		BL=fon;
+		CX=1;
+		AH=9;
+		$INT 0X10
+		AL=type;
+		IF(AL==3)DL--;
+		ELSE IF(AL==4)DL++;
+		ELSE DH++;
+	}
+	IF(AL<3)AX=lenw;
+	ELSE AX=columnw;
+?ifdef codesize
+	DI><AX;
+?else
+	DI=AX;
+?endif
+	loop(DI){
+		AH=2;
+		$INT 0X10
+		AH=8;
+		$INT 0X10
+		BL=fon;
+		CX=1;
+		AH=9;
+		$INT 0X10
+		AL=type;
+		IF(AL==1)DL--;
+		ELSE IF(AL==2)DL++;
+		ELSE DH++;
+	}
+	$POP DI
+}
+
+:void cbox(word startw,lenw,columnw;byte typeb,atr)
+{
+	$PUSH SI
+	$PUSH DI
+	IF(typeb==2){
+		$CALL NEAR M1
+		$DB 201,205,187,186,200,205,188
+	}
+	$CALL NEAR M1
+	$DB 218,196,191,179,192,196,217
+M1:
+	$POP SI
+	DI=startw;
+	$CALL NEAR VL;
+	CX=columnw;
+	$JZ M3
+	loop(CX){
+		DI+=0X100;
+		AH=2;
+		DX=DI;
+		$INT 0X10
+		AL=DSBYTE[SI];
+		AH=9;
+		$PUSH CX
+		CL=1;
+		$INT 0X10;
+		DX+=lenw;
+		DX++;
+		AH=2;
+		$INT 0X10
+		AL=DSBYTE[SI];
+		AH=9;
+		CL=1;
+		$INT 0X10;
+		$POP CX
+	}
+M3:
+	SI++;
+	DI+=0X100;
+	$CALL NEAR VL
+	GOTO EN;
+VL:
+	AH=2;
+	BH=0;
+	DX=DI;
+	$INT 0X10
+	$LODSB
+	AH=9;
+	BL=atr;
+	CX=1;
+	$INT 0X10;
+	DX++;
+	AH=2;
+	$INT 0X10
+	CX=lenw;
+	$LODSB
+	AH=9;
+	$INT 0X10
+	AH=2;
+	DX+=lenw;
+	$INT 0X10
+	$LODSB
+	AH=9;
+	CL=1;
+	$INT 0X10;
+	$RET
+EN:
+	$POP DI
+	$POP SI
+}
+
+:void boxm(word startw,lenw,columnw;byte typeb;word mes;byte typem)
+{
+	$PUSH SI
+	$PUSH DI
+	IF(typeb==2){
+		$CALL NEAR M1
+		$DB 201,205,187,186,200,205,188
+	}
+	$CALL NEAR M1
+	$DB 218,196,191,179,192,196,217
+M1:
+	$POP SI
+	DI=startw;
+	$CALL NEAR VL
+	CX=columnw;
+	loop(CX){
+		DI+=0X100;
+		AH=2;
+		DX=DI;
+		$INT 0X10
+		AL=DSBYTE[SI];
+		AH=14;
+		$INT 0X10;
+		DX+=lenw;
+		DX++;
+		AH=2;
+		$INT 0X10
+		AL=DSBYTE[SI];
+		AH=14;
+		$INT 0X10;
+	}
+	SI++;
+	DI+=0X100;
+	$CALL NEAR VL
+	GOTO EN;
+VL:
+	AH=2;
+	BH=0;
+	DX=DI;
+	$INT 0X10
+	$LODSB
+	AH=14;
+	$INT 0X10;
+	CX=lenw;
+	$LODSB
+	AH=10;
+	$INT 0X10
+	AH=2;
+	DX+=lenw;
+	DX++;
+	$INT 0X10
+	$LODSB
+	AH=14;
+	$INT 0X10;
+	$RET
+EN:
+	SI=mes;	//длина строки
+	BX=0;
+	do
+	{
+		$LODSB
+		BX++;
+	} while ( AL!=0 );
+	BX--;
+	IF(BX>=lenw){
+		BX=lenw;
+		SI=BX;
+		SI+=mes;
+		DSBYTE[SI]=0;
+	}
+	AX=lenw-BX/2;
+	AX++;
+	BL=typem;
+	SI=startw;
+?ifdef codesize
+	DX><AX;
+?else
+	DX=AX;
+?endif
+	IF(BL==0)DX+=SI;
+	ELSE IF(BL==1)DX+=DI;
+	ELSE IF(BL==2){
+		DX=SI;
+		DX++;
+	}
+	ELSE{
+		DX=DI;
+		DX++;
+	}
+	AH=2;
+	BH=0;
+	$INT 0X10
+	SI=mes;
+LLL:
+	$LODSB
+	$CMP AL,0
+	$JZ BBB
+	AH=14;
+	$INT 0X10
+	$JMP SHORT LLL
+BBB:
+	$POP DI
+	$POP SI
+}
+
+:void FILL_SCREEN()
+//Заполнить экран
+//AL - код символа заполнения
+//BL - цвет
+//BH - видеостраница
+{
+	AH=2;
+	DX=0;
+	$INT 0X10
+	CX=2000;
+	AH=9;
+	$INT 0X10
+}
+
+:void PUTNCHAR()
+// Выводит определенное число символов в заданном цвете.
+//AL - код символа
+//BL - цвет
+//BH - видеостраница
+//CX - число символов
+{
+	AH=9;
+	$INT 0x10
+}
+
+?endif

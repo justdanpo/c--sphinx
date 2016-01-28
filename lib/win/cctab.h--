@@ -1,0 +1,75 @@
+// ------------------------------------------------------------------- //
+//        CCTAB.H-- для Sphinx C-- (COMCTL32.DLL)                      //
+//        Основан на COMMCTRL.H из C++ Builder                         //
+//        Предложения и плевки отправляйте на hd_keeper@mail.ru        //
+// ------------------------------------------------------------------- //
+
+// Описание функций
+
+:dword TabCtrl_GetImageList( dword hwnd) {
+SendMessage( hwnd, TCM_GETIMAGELIST, 0, 0); }
+
+:dword TabCtrl_SetImageList( dword hwnd, himl) {
+SendMessage( hwnd, TCM_SETIMAGELIST, 0, himl); }
+
+:dword TabCtrl_GetItemCount( dword hwnd) {
+SendMessage( hwnd, TCM_GETITEMCOUNT, 0, 0); }
+
+:dword TabCtrl_GetItem( dword hwnd, iItem, pitem) {
+SendMessage( hwnd, TCM_GETITEM, iItem, pitem); }
+
+:dword TabCtrl_SetItem( dword hwnd, iItem, pitem) {
+SendMessage( hwnd, TCM_SETITEM, iItem, pitem); }
+
+:dword TabCtrl_InsertItem( dword hwnd, iItem, pitem) {
+SendMessage( hwnd, TCM_INSERTITEM, iItem, pitem); }
+
+:dword TabCtrl_DeleteItem( dword hwnd, i) {
+SendMessage( hwnd, TCM_DELETEITEM, i, 0); }
+
+:dword TabCtrl_DeleteAllItems( dword hwnd) {
+SendMessage( hwnd, TCM_DELETEALLITEMS, 0, 0); }
+
+:dword TabCtrl_GetItemRect( dword hwnd, i, prc) {
+SendMessage( hwnd, TCM_GETITEMRECT, i, prc); }
+
+:dword TabCtrl_GetCurSel( dword hwnd) {
+SendMessage( hwnd, TCM_GETCURSEL, 0, 0); }
+
+:dword TabCtrl_SetCurSel( dword hwnd, i) {
+SendMessage( hwnd, TCM_SETCURSEL, i, 0); }
+
+:dword TabCtrl_HitTest( dword hwndTC, pinfo) {
+SendMessage( hwndTC, TCM_HITTEST, 0, pinfo); }
+
+:dword TabCtrl_SetItemExtra( dword hwndTC, cb) {
+SendMessage( hwndTC, TCM_SETITEMEXTRA, cb, 0); }
+
+:dword TabCtrl_AdjustRect( dword hwnd, bLarger, prc) {
+SendMessage( hwnd, TCM_ADJUSTRECT, bLarger, prc); }
+
+:dword TabCtrl_SetItemSize( dword hwnd, x, y) {
+SendMessage( hwnd, TCM_SETITEMSIZE, 0, @MAKELPARAM( x, y)); }
+
+:dword TabCtrl_RemoveImage( dword hwnd, i) {
+SendMessage( hwnd, TCM_REMOVEIMAGE, i, 0); }
+
+:dword TabCtrl_SetPadding( dword hwnd, cx, cy) {
+SendMessage( hwnd, TCM_SETPADDING, 0, @MAKELPARAM( cx, cy)); }
+
+:dword TabCtrl_GetRowCount( dword hwnd) {
+SendMessage( hwnd, TCM_GETROWCOUNT, 0, 0); }
+
+:dword TabCtrl_GetToolTips( dword hwnd) {
+SendMessage( hwnd, TCM_GETTOOLTIPS, 0, 0); }
+
+:dword TabCtrl_SetToolTips( dword hwnd, hwndTT) {
+SendMessage( hwnd, TCM_SETTOOLTIPS, hwndTT, 0); }
+
+:dword TabCtrl_GetCurFocus( dword hwnd) {
+SendMessage( hwnd, TCM_GETCURFOCUS, 0, 0); }
+
+:dword TabCtrl_SetCurFocus( dword hwnd, i) {
+SendMessage( hwnd, TCM_SETCURFOCUS, i, 0); }
+
+

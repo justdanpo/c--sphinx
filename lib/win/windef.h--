@@ -1,0 +1,200 @@
+// ------------------------------------------------------------------- //
+//        WINDEF.H-- для Sphinx C--                                    //
+//        Основан на WINDEF.H из C++ Builder                           //
+//        Предложения и плевки отправляйте на hd_keeper@mail.ru        //
+// ------------------------------------------------------------------- //
+//   Этот файл подключается автоматически при использовании библиотек  //
+//   WINBASE.H-- или WINDOWS.H--, поэтому вам НЕ НАДО подключать его   //
+//   явно директивой #include.                                         //
+// ------------------------------------------------------------------- //
+
+// Описание основных типов
+
+#define BYTE    byte
+#define WORD    word
+#define DWORD   dword
+#define UCHAR   byte
+#define USHORT  word
+#define UINT    dword
+#define ULONG   dword
+#define CHAR    char
+#define SHORT   short
+#define INT     long
+#define LONG    long
+#define BOOL    long
+#define BOOLEAN long
+#define FLOAT   dword
+#define ATOM    word
+#define LPVOID  dword
+#define LPSTR   dword
+#define LPCSTR  dword
+#define LRESULT long
+#define LPARAM  long
+#define WPARAM  dword
+#define HANDLE  dword
+#define WCHAR unsigned short
+
+// Описание типов HANDLE
+
+#define HGLOBAL      HANDLE
+#define HLOCAL       HANDLE
+#define HGDIOBJ      HANDLE
+#define HACCEL       HANDLE
+#define HBITMAP      HANDLE
+#define HBRUSH       HANDLE
+#define HDC          HANDLE
+#define HGLRC        HANDLE
+#define HDESK        HANDLE
+#define HENHMETAFILE HANDLE
+#define HFONT        HANDLE
+#define HICON        HANDLE
+#define HMENU        HANDLE
+#define HDROP        HANDLE
+#define HMETAFILE    HANDLE
+#define HINSTANCE    HANDLE
+#define HIMAGELIST   HANDLE
+#define HPROPSHEETPAGE HANDLE
+#define HTREEITEM    HANDLE
+#define HMODULE      HANDLE
+#define HPALETTE     HANDLE
+#define HPEN         HANDLE
+#define HRGN         HANDLE
+#define HRSRC        HANDLE
+#define HSTR         HANDLE
+#define HTASK        HANDLE
+#define HKL          HANDLE
+#define HFILE        HANDLE
+#define HWND         HANDLE
+#define HKEY         HANDLE
+#define HCURSOR      HANDLE
+
+// Описание прочих типов
+
+#define COLORREF      DWORD
+#define COLOR16       SHORT
+#define FXPT16DOT16   LONG
+#define FXPT2DOT30    LONG
+#define LCSCSTYPE     LONG
+#define LCSGAMUTMATCH LONG
+#define ACCESS_MASK   DWORD
+#define POINTL        POINT
+#define RECTL         RECT
+#define SIZEL         SIZE
+
+#define LPOFNHOOKPROC   dword
+#define LPPRINTHOOKPROC dword
+#define LPSETUPHOOKPROC dword
+#define LPDWORD         dword
+#define VOID            void
+
+// Описание макрокоманд
+
+:dword fastcall min(EAX,EBX)
+{
+  IF (long EAX>EBX) EAX><EBX;
+}
+
+:dword fastcall max(EAX,EBX)
+{
+  IF (long EAX<EBX) EAX><EBX;
+}
+
+:dword MAKELONG(AX,BX)
+{
+  EBX<<=16;
+  EAX=AX|EBX;
+}
+
+:word MAKEWORD(AX,BX)
+{
+  BX<<=8;
+  AX=AX|BX;
+}
+
+:word LOWORD(EAX)
+{
+  EAX&=0xFFFF;
+}
+
+:word HIWORD(EAX)
+{
+  EAX>>=16;
+}
+
+:byte LOBYTE(AX)
+{
+  AX&=0xFF;
+}
+
+:byte HIBYTE(AX)
+{
+  AX>>=8;
+}
+
+:dword RGB(EAX,EBX,ECX)
+{
+  EBX<<=8;
+  ECX<<=16;
+  EAX=EAX|EBX|ECX;
+}
+
+:dword GET_WM_VSCROLL_CODE(EAX,EBX)
+{
+	@LOWORD(EAX);
+}
+
+:dword GET_WM_VSCROLL_POS(EAX,EBX)
+{
+	@HIWORD(EAX);
+}
+
+:dword GET_WM_HSCROLL_CODE(EAX,EBX)
+{
+	@LOWORD(EAX);
+}
+
+:dword GET_WM_HSCROLL_POS(EAX,EBX)
+{
+	@HIWORD(EAX);
+}
+
+#define MAKEWPARAM MAKELONG
+#define MAKELPARAM MAKELONG
+#define MAKELRESULT MAKELONG
+
+// Описание констант
+
+#define NULL 0
+#define MAX_PATH 260
+#define MAX_MODULE_NAME32 255
+#define EXCEPTION_MAXIMUM_PARAMETERS 15
+
+// Описание структур
+
+struct LARGE_INTEGER {
+  DWORD LowPart;
+  LONG HighPart;
+};
+
+struct RECT {
+  LONG left;
+  LONG top;
+  LONG right;
+  LONG bottom;
+};
+
+struct POINT {
+  LONG x;
+  LONG y;
+};
+
+struct SIZE {
+  LONG cx;
+  LONG cy;
+};
+
+struct POINTS {
+  SHORT x;
+  SHORT y;
+};
+

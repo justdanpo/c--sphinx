@@ -1,0 +1,186 @@
+/*****************************************************************************
+ Sphinx C-- library (C) 2000.
+ FILE:        DIR.HMM
+ DESCRIPTION: inline procedures and defines.
+ LAST MODIFIED: 24.12.00 00:48
+ -----------------------------------------------------------------------------
+ FUNCTIONS:
+ void CHDIR(pathname)
+ void FINDFIRST(name,attrib)
+ void FINDNEXT()
+ void STRCPYNZ(DI,SI)
+ void FNMERGE(DI,SI,CX,DX,BX)
+ void GETCURDIR(DL,unsigned int SI)
+ byte GETDISK()
+ void MKDIR(DX)
+ void RMDIR(DX)
+ byte SETDISK(DL)
+
+ ***************************************************************************/
+#ifndef __FLAT__
+
+#define MAXPATH   80
+#define MAXDIR    66
+#define MAXFILE   9
+#define MAXEXT    5
+
+#else  /* defined __FLAT__ */
+
+#define MAXPATH   260
+#define MAXDIR    256
+#define MAXFILE   256
+#define MAXEXT    256
+
+#endif  /* __FLAT__  */
+
+/*****************************************************************************
+* TITLE : void CHDIR(DX)
+* DESCR : Set Current Directory (work in 32-bit DOS)
+* PARAMS: input: DX - pathname to become current directory (max 64 bytes)
+*       : output: CF clear if successful
+*       :         AX destroyed
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline void CHDIR((E)DX)
+{
+	AH=0x3B;
+	$INT 0x21
+}
+
+/*****************************************************************************
+* TITLE : void FINDFIRST(DX,CX)
+* DESCR : Find First Matching File (work in 32-bit DOS)
+* PARAMS: input: CX - file attribute mask
+*       :        DX - file name (may include path and wildcards)
+*       : output: CF clear if successful
+*       :         Disk Transfer Area fill
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline void FINDFIRST((E)DX,(E)CX)
+{
+	AH=0x4E;
+	$int 0x21
+}
+
+/*****************************************************************************
+* TITLE : void FINDNEXT()
+* DESCR : Find Next Matching File (work in 32-bit DOS)
+* PARAMS: input: no
+*       : output: CF clear if successful
+*       :         Disk Transfer Area fill
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline void FINDNEXT()
+{
+	AH=0x4F;
+	$int 0x21
+}
+
+/*****************************************************************************
+* TITLE : void FNMERGE(DI,SI,CX,DX,BX)
+* DESCR : Make New File Name (work in 32-bit DOS)
+* PARAMS: input: (E)DI - buffer for output full name
+*       :        (E)SI - drive
+*       :        (E)CX - directory
+*       :        (E)DX - file name
+*       :        (E)BX - file extension
+*****************************************************************************/
+:void FNMERGE((E)DI,(E)SI,(E)CX,(E)DX,(E)BX)
+{
+	ES=DS;
+	AL=0;
+	IF((E)SI!=0)STRCPYNZ((E)DI,(E)SI);
+	IF((E)CX!=0)STRCPYNZ((E)DI,(E)CX);
+	IF((E)DX!=0)STRCPYNZ((E)DI,(E)DX);
+	IF((E)BX!=0)STRCPYNZ((E)DI,(E)BX);
+	$STOSB
+}
+
+/*****************************************************************************
+* TITLE : void GETCURDIR(DL,unsigned int SI)
+* DESCR : Get Current Directory (work in 32-bit DOS)
+* PARAMS: input: DL - drive number (00h = default, 01h = A:, etc)
+*       :        (E)SI - 64-byte buffer for ASCIZ pathname
+*       :output: CF clear if successful
+*       :        AX = 0100h (undocumented
+*       :        CF set on error
+*       :        AX = error code
+*****************************************************************************/
+inline void GETCURDIR(DL,(E)SI)
+{
+	AH=0x47;
+	$int 0x21
+}
+
+/*****************************************************************************
+* TITLE : byte GETDISK()
+* DESCR : Get Current Default Drive
+* PARAMS: output: AL - drive (00h = A:, 01h = B:, etc)
+*****************************************************************************/
+inline byte GETDISK()
+{
+	AH=0x19;
+	$int 0x21
+}
+
+/*****************************************************************************
+* TITLE : void MKDIR(DX)
+* DESCR : Create Subdirectory (work in 32-bit DOS)
+* PARAMS: input: (E)DX - pathname
+*       : output: CF clear if successful
+*       :         AX destroyed
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline void MKDIR((E)DX)
+{
+	AH=0x39;
+	$INT 0x21
+}
+
+/*****************************************************************************
+* TITLE : void RMDIR(DX)
+* DESCR : Remove Subdirectory (work in 32-bit DOS)
+* PARAMS: input: (E)DX - pathname to be removed
+*       : output: CF clear if successful
+*       :         AX destroyed
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline void RMDIR((E)DX)
+{
+	AH=0x3A;
+	$INT 0x21
+}
+
+/*****************************************************************************
+* TITLE : byte SETDISK(DL)
+* DESCR : Select Default Drive
+* PARAMS: input: DL - new default drive (00h = A:, 01h = B:, etc)
+*       : output AL - number of potentially valid drive letters
+*****************************************************************************/
+inline byte SETDISK(DL)
+{
+	AH=0xE;
+	$int 0x21
+}
+
+/*****************************************************************************
+* TITLE : void STRCPYNZ(SI,DI)
+* DESCR : Copy string without zero terminator (work in 32-bit DOS)
+* PARAMS: input: (E)SI - source string
+*       :        (E)DI - dest. string
+*****************************************************************************/
+inline void STRCPYNZ((E)DI,(E)SI)
+{
+	for(;;){
+		$LODSB
+		IF(AL==0)BREAK;
+		$STOSB
+	}
+}
+
+/* end of DIR.HMM */

@@ -1,0 +1,360 @@
+?warning FALSE
+?define SHELL TRUE
+?use80386
+?resize TRUE
+?codesize
+?atexit
+
+?include "WRITE.h--"
+?include "keycodes.h--"
+?include "dos.h--"
+?include "system.h--"
+?include "string.h--"
+
+?define MAXNUMWIN 32	//максималное число открытых окон
+
+int fastcall Malloc(AX);
+
+byte _lackOfMemoryFlag=FALSE;
+:char NULLMESS=0;	//сообщение 0 длины
+char ermem="Memory allocation/deallocation error!\n"
+           "   Immediately contact the author!\n\n\n";
+char eroutmem="Для работы программы недостаточно\n"
+              "       оперативной памяти.\n\n\n";
+int memory;	 //свободно памяти при старте
+int wininfo=0;	 //буфер с информацией об окнах
+int winhide=0;	 //буфер со скрытами окнами
+word exitmessage=0;	//сообщение которое будет выведено при выходе из программы
+#ifdef BACKGROUND
+int FootMessage; //указатель на сообщение в нижней строке экрана
+#ifndef progNote
+#define progNote "Programm create use library SHELL"
+#endif
+#ifndef progFootNote
+#define progFootNote __DATE__
+#endif
+#else
+int _curpos_;	//положение курсора перед запуском программы
+#endif
+
+?ifndef DEBUG
+
+?define DEBUGSIZEINF 0
+
+?else
+
+?define DEBUGSIZEINF 15
+
+?endif
+
+?ifndef VIDEOS
+?include "VIDEOS.H--"
+?endif
+
+?ifndef MOUSE2
+?include "mouse2.h--"
+?endif
+
+?ifndef TEXT
+?include "text.h--"
+?endif
+
+?ifndef STRINGS
+?include "strings.h--"
+?endif
+
+?ifndef WINDOW
+?include "window.h--"
+?endif
+
+?ifndef EVENT
+?include "event.h--"
+?endif
+
+?ifdef GOODFONTS
+
+?define NUMFONT 15
+
+?ifndef SMOLLFONT
+
+?define NUMSIZEFONT 16
+
+byte _font[NUMFONT*17]={
+	200,0xFF,0xFF,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,
+	201,0xFF,0xFF,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+	214,0xFF,0xFF,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
+	  2,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,
+	213,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
+	203,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xFF,0xFF,
+	204,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xFF,0xFF,
+	215,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0xFF,0xFF,
+	205,0xFF,0x80,0x80,0x80,0x80,0x80,0x80,0x9F,0x9F,0x80,0x80,0x80,0x80,0x80,0x80,0xFF,
+	  6,0xFE,0x02,0x02,0x02,0x02,0x02,0x02,0xF2,0xF2,0x02,0x02,0x02,0x02,0x02,0x02,0xFE,
+	  8,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x66,0x00,0x00,
+	 21,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,		/* правая тень в кнопках*/
+	 23,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+	 16,0x80,0xC0,0xE0,0xF0,0xF8,0xFC,0xFE,0xFF,0xFE,0xFC,0xF8,0xF0,0xE0,0xC0,0x80,0x00,		/* стрелочки в кнопках <> */
+	 17,0x01,0x03,0x07,0x0F,0x1F,0x3F,0x7F,0xFF,0x7F,0x3F,0x1F,0x0F,0x07,0x03,0x01,0x00};
+
+?else
+
+?define NUMSIZEFONT 8
+
+byte _font[NUMFONT*9]={
+	200,0xFF,0xFF,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,
+	201,0xFF,0xFF,0x00,0x00,0x00,0x00,0x00,0x00,
+	214,0xFF,0xFF,0x01,0x01,0x01,0x01,0x01,0x01,
+	  2,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,
+	213,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
+	203,0xC0,0xC0,0xC0,0xC0,0xC0,0xC0,0xFF,0xFF,
+	204,0x00,0x00,0x00,0x00,0x00,0x00,0xFF,0xFF,
+	215,0x01,0x01,0x01,0x01,0x01,0x01,0xFF,0xFF,
+	205,0xFF,0x80,0x80,0x9F,0x9F,0x80,0x80,0xFF,
+	  6,0xFE,0x02,0x02,0xF2,0xF2,0x02,0x02,0xFE,
+	  8,0x00,0x00,0x00,0x00,0x00,0x66,0x00,0x00,
+	 21,0x00,0x00,0x00,0x00,0xFF,0xFF,0xFF,0xFF,
+	 23,0xFF,0xFF,0xFF,0xFF,0x00,0x00,0x00,0x00,
+	 16,0xC0,0xF0,0xFC,0xFF,0xFC,0xF0,0xC0,0x00,
+	 17,0x03,0x0F,0x3F,0xFF,0x3F,0x0F,0x03,0x00};
+
+?endif
+
+void DefineChar(char size;int ch,font);
+void DefineFont(word font,numchar);
+
+void DefineFont(word font,numchar)
+{
+	DI=font;
+	FOR(SI=0;SI<numchar;SI++){
+		BX=NUMSIZEFONT+1*SI;
+		DefineChar(NUMSIZEFONT,SSBYTE[DI+BX],DI+BX+1);
+	}
+}
+
+void DefineChar(char size;int ch,font)
+{
+	BH=size;
+	DX=ch;
+	BL=0;
+	ES=DS;
+	BP=font;
+	CX=1;
+	AX=0x1100;
+	asm int 0x10
+}
+
+?endif
+
+//int thandl;
+//#include "sprintf.h--"
+
+void InitShell()
+{
+//	thandl=FCREATE(,,0,"shell.log");
+
+	CSWORD[#SEGDS]=DS;	//сохранить адрес сегмента данных в CS
+	memory=FARCORELEFT();	//свободно памяти при старте
+#ifndef BACKGROUND
+	BH=0;
+	AH=3;
+	$int 0x10
+	_curpos_=DX;
+#endif
+	videoinit();	//опред видеопараметры
+	wininfo=Malloc(sizeof(Window)*MAXNUMWIN);	//блок памяти информации о окнах
+	winhide=Malloc(sizeof(Window)*MAXNUMWIN); //блок памяти информации о скрытых окнах
+//установить размер экрана
+?ifndef SMOLLFONT
+	setlines(25);
+?else
+	setlines(50);
+?endif
+?ifdef GOODFONTS
+	DefineFont(#_font,NUMFONT);	//загрузить красивые фонты
+	_chars.window1=205;
+	_chars.window2=6;
+	_chars.field1=8;
+// правая тень в кнопках
+	_chars.rightShadow1=21;
+	_chars.rightShadow3=23;
+	_box_table[3].ch[0]=219;
+	_box_table[3].ch[1]=219;
+	_box_table[3].ch[2]=219;
+	_box_table[3].ch[3]=2;
+	_box_table[3].ch[4]=213;
+	_box_table[3].ch[5]=203;
+	_box_table[3].ch[6]=204;
+	_box_table[3].ch[7]=215;
+/* 4 - Norton w/o title */
+	_box_table[4].ch[0]=200;
+	_box_table[4].ch[1]=201;
+	_box_table[4].ch[2]=214;
+	_box_table[4].ch[3]=2;
+	_box_table[4].ch[4]=213;
+	_box_table[4].ch[5]=203;
+	_box_table[4].ch[6]=204;
+	_box_table[4].ch[7]=215;
+?endif
+	SetBlink(OFF);	//отключить отрибут мигания
+	HIDECUR();	//убрать курсор
+?ifdef BACKGROUND
+	cclrscrn(0x70);	//цвет фона
+	CLEARWINDOW(,0X1F,0,_vinfo.numcols-1);
+	CH=_vinfo.numrows-1;
+	CL=0;
+	DH=CH;
+	DL=_vinfo.numcols-1;
+	CLEARWINDOW(,0X1F);
+	ShowProgNote();
+	ShowProgFootnote();
+	FootMessage=#NULLMESS;
+?endif
+	msinit();	//инициализация мыши
+	MSGOTOXY(0,0);
+	msshowcur();
+	ATEXIT(#CloseShell);
+}
+
+/*****************************************************************************
+* .TITLE  : Закрывает видиосистему - должна вызываться при выходе
+*****************************************************************************/
+void CloseShell()
+int i;
+{
+	MoClear();	//дождаться отпускания мыши
+	msuninit();	//деинсталяция мыши
+	FOR(i=0;i<_winfo.total;i++){	//закрытие буферов
+		ES=wininfo;
+		DI=sizeof(Window)*i;
+		copyfar(DS,#Window,ES,DI,sizeof(Window));
+		FREE(Window.wbuf);
+		FREE(Window.wsbuf);
+	}
+	FREE(wininfo);
+	FOR(i=0;i<_winfo.hidden;i++){
+		ES=winhide;
+		DI=sizeof(Window)*i;
+		copyfar(DS,#Window,ES,DI,sizeof(Window));
+		FREE(Window.wbuf);
+	}
+	FREE(winhide);
+#ifndef BACKGROUND
+	AX=0x1114;	//AX=0x83;
+#else
+	AX=3;
+#endif
+	$int 0x10	//установить экран в текстовый режим
+#ifndef BACKGROUND
+	AH=2;
+	BH=0;
+	DX=_curpos_;
+	$int 0x10
+#endif
+	IF(exitmessage)WRITESTR(exitmessage);
+	WRITESTR(ExitBanner);
+	KBCLEAR();	//очистить буфер клавиатуры
+	FARCORELEFT();	//сколько свободно памяти
+	IF(AX!=memory){
+		WRITESTR(#ermem);	//инфо о неосвобожденых блоках памяти
+	}
+//если при работе программы не хватило памяти
+	IF(_lackOfMemoryFlag)WRITESTR(#eroutmem);
+//завершающее сообщение
+}
+
+/*--------------------------------------
+	Выделить блок памяти с заполнением его 0
+ --------------------------------------*/
+int fastcall Malloc()
+{
+	IF(AX==0)return AX;
+	CX=AX;
+	AX+=15;
+	AX>>=4;
+	GETMEM();
+	IF(AX!=0){
+		ES=AX;
+		DI=0;
+		AL=0;
+		$repe
+		$stosb
+	}
+	ELSE{
+		_lackOfMemoryFlag=TRUE;
+		ABORT();
+	}
+	return ES;
+}
+
+void FREE()
+//char buf[40];
+{
+	IF(AX!=0){
+//		$push AX
+		FREEMEM();
+/*		IF(AX==0){
+			$pop BX
+			sprintf(#buf,"Relesed segment 0x%4X\n",BX);
+			WriteLog(#buf);
+		}
+		ELSE $pop AX*/
+	}
+}
+
+?ifdef BACKGROUND
+/*****************************************************************************
+* .NAME   : ShowProgNote
+* .TITLE  : Выводит в верхнюю строку экрана дополнительную информацию
+*****************************************************************************/
+void ShowProgNote()
+{
+	AH=0;
+	prints(0,byte _vinfo.numcols-sizeof(progNote)-1/2,0x1F,progNote);
+// символ закрытия
+	AH=0;
+	printc(0,0,byte _scheme.schNormalText[idNormal]&0x0F,byte _chars.window1);
+	AH=0;
+	printc(0,1,byte _scheme.schNormalText[idNormal]&0x0F,byte _chars.window2);
+}
+
+/*****************************************************************************
+* .NAME   : ShowProgFootnote
+* .TITLE  : Выводит в правый нижний угол дополнительную информацию
+*****************************************************************************/
+void ShowProgFootnote()
+{
+	AH=0;
+	printc(byte _vinfo.numrows-1,byte _vinfo.numcols-sizeof(progFootNote)-3,0x1F,'│');
+	AH=0;
+	prints(byte _vinfo.numrows-1,byte _vinfo.numcols-sizeof(progFootNote)-1,0x1F,progFootNote);
+}
+
+/*****************************************************************************
+* .NAME   : ShowMessage
+* .TITLE  : Вывод сообщения в нижней строки экрана.
+*****************************************************************************/
+void ShowMessage()
+char buf[140];
+{
+	CX=_vinfo.numcols-sizeof(progFootNote)-3-DEBUGSIZEINF;
+	$push CX
+	ES=DS;
+	STRNCPY(#buf,FootMessage);
+	$pop CX
+	STRSETSZ(#buf,CX);
+	prints(_vinfo.numrows-1,0,0x1F,#buf);
+}
+
+?endif
+
+int FARCORELEFT()
+{
+	GETMEM(-1);
+	AX><BX;
+}
+
+/*void WriteLog(word buf)
+{
+	CX=STRLEN(buf);
+	FWRITE(,thandl, ,buf);
+} */

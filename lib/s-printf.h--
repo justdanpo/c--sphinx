@@ -1,0 +1,128 @@
+/* Общие для PRINTF и SPRINTF процедуры */
+
+?ifndef _S_PRINTF_
+?define _S_PRINTF_ TRUE
+
+GetPtr()
+{
+	BX=SSWORD[BP];
+	BP+=2;
+	AX=BX;
+}
+
+GetPtrL()
+{
+	EBX=SSDWORD[BP];
+	BP+=4;
+	EAX=EBX;
+}
+
+int ISIZE()
+inline
+{
+	IF(int AX<0){
+		$neg AX
+		USIZE();
+		AX++;
+		return;
+	}
+}
+
+int USIZE()
+{
+	IF(AX<10)return 1;
+	IF(AX<100)return 2;
+	IF(AX<1000)return 3;
+	IF(AX<10000)return 4;
+	return 5;
+}
+
+int LSIZE()
+inline
+{
+	IF(long EAX<0){
+		$neg EAX
+		ULSIZE();
+		AX++;
+		return;
+	}
+}
+
+int ULSIZE()
+{
+	IF(EAX<10)return 1;
+	IF(EAX<100)return 2;
+	IF(EAX<1000)return 3;
+	IF(EAX<10000)return 4;
+	IF(EAX<100000)return 5;
+	IF(EAX<1000000)return 6;
+	IF(EAX<10000000)return 7;
+	IF(EAX<100000000)return 8;
+	IF(EAX<1000000000)return 9;
+	return 10;
+}
+
+PrintPad()
+{
+	$push	AX
+	AL=DH;
+	$jcxz	NoPadding
+	loop(CX){
+		IF(DI==0)PUTC();
+		ELSE $stosb
+	}
+NoPadding:
+	$pop AX
+}
+
+void CSWITCH()
+{
+	$lodsb
+	CX=1;
+	DL=0;
+	DH=' ';
+	IF(AL=='-'){
+		DL++;
+		$lodsb
+	}
+	IF(AL=='^'){
+		$lodsb
+		DH=AL;
+		$lodsb
+	}
+	IF((AL>='0')&&(AL<='9')){
+		$push DX
+		SI--;
+		CX=0;
+		for(;;){
+			$lodsb
+			IF((AL<'0')||(AL>'9'))BREAK;
+			AL&=0xf;
+			CX<<=1;
+			DX=CX;
+			CX<<=2;
+			CX+=DX;
+			CL+=AL;
+			$adc CH,0
+		}
+		$pop DX
+	}
+}
+
+PUTC()
+{
+	$push	AX
+?ifdef _USEBIOS_
+	AH=14;
+	$int 0x10
+?else
+	$push	DX
+	DL=AL;
+	AH=2;
+	$int 0x21
+	$pop DX
+?endif
+	$pop AX
+}
+
+?endif

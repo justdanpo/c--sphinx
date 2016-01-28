@@ -1,0 +1,231 @@
+/*++ BUILD Version: 0002    // Increment this if a change has global effects
+Copyright (c) 1989-1995  Microsoft Corporation
+Module Name:
+
+    wincon.h
+
+Abstract:
+    This module contains the public data structures, data types,
+    and procedures exported by the NT console subsystem.
+
+--*/
+
+struct COORD {
+    short X;
+    short Y;
+};
+
+struct SMALL_RECT {
+    short Left;
+    short Top;
+    short Right;
+    short Bottom;
+};
+
+struct KEY_EVENT_RECORD {
+    BOOL bKeyDown;
+    WORD wRepeatCount;
+    WORD wVirtualKeyCode;
+    WORD wVirtualScanCode;
+    union {
+        WCHAR UnicodeChar;
+        CHAR   AsciiChar;
+    };
+    DWORD dwControlKeyState;
+};
+
+//
+// ControlKeyState flags
+//
+
+#define RIGHT_ALT_PRESSED     0x0001 // the right alt key is pressed.
+#define LEFT_ALT_PRESSED      0x0002 // the left alt key is pressed.
+#define RIGHT_CTRL_PRESSED    0x0004 // the right ctrl key is pressed.
+#define LEFT_CTRL_PRESSED     0x0008 // the left ctrl key is pressed.
+#define SHIFT_PRESSED         0x0010 // the shift key is pressed.
+#define NUMLOCK_ON            0x0020 // the numlock light is on.
+#define SCROLLLOCK_ON         0x0040 // the scrolllock light is on.
+#define CAPSLOCK_ON           0x0080 // the capslock light is on.
+#define ENHANCED_KEY          0x0100 // the key is enhanced.
+
+struct MOUSE_EVENT_RECORD {
+    COORD dwMousePosition;
+    DWORD dwButtonState;
+    DWORD dwControlKeyState;
+    DWORD dwEventFlags;
+};
+
+//
+// ButtonState flags
+//
+
+#define FROM_LEFT_1ST_BUTTON_PRESSED    0x0001
+#define RIGHTMOST_BUTTON_PRESSED        0x0002
+#define FROM_LEFT_2ND_BUTTON_PRESSED    0x0004
+#define FROM_LEFT_3RD_BUTTON_PRESSED    0x0008
+#define FROM_LEFT_4TH_BUTTON_PRESSED    0x0010
+
+//
+// EventFlags
+//
+
+#define MOUSE_MOVED   0x0001
+#define DOUBLE_CLICK  0x0002
+#define MOUSE_WHEELED 0x0004
+
+struct WINDOW_BUFFER_SIZE_RECORD {
+	COORD dwSize;
+};
+
+struct MENU_EVENT_RECORD {
+  UINT dwCommandId;
+};
+
+struct FOCUS_EVENT_RECORD {
+  BOOL bSetFocus;
+};
+
+struct INPUT_RECORD {
+  WORD EventType;
+  WORD align_res;
+  union {
+  	KEY_EVENT_RECORD KeyEvent;
+    MOUSE_EVENT_RECORD MouseEvent;
+    WINDOW_BUFFER_SIZE_RECORD WindowBufferSizeEvent;
+    MENU_EVENT_RECORD MenuEvent;
+    FOCUS_EVENT_RECORD FocusEvent;
+  };
+};
+
+//
+//  EventType flags:
+//
+
+#define KEY_EVENT         0x0001 // Event contains key event record
+#define MOUSE_EVENT       0x0002 // Event contains mouse event record
+#define WINDOW_BUFFER_SIZE_EVENT 0x0004 // Event contains window change event record
+#define MENU_EVENT 0x0008 // Event contains menu event record
+#define FOCUS_EVENT 0x0010 // event contains focus change
+
+struct CHAR_INFO {
+    union {
+        WCHAR UnicodeChar;
+        CHAR   AsciiChar;
+    };
+    WORD Attributes;
+};
+
+//
+// Attributes flags:
+//
+
+#define FOREGROUND_BLUE      0x0001 // text color contains blue.
+#define FOREGROUND_GREEN     0x0002 // text color contains green.
+#define FOREGROUND_RED       0x0004 // text color contains red.
+#define FOREGROUND_INTENSITY 0x0008 // text color is intensified.
+#define BACKGROUND_BLUE      0x0010 // background color contains blue.
+#define BACKGROUND_GREEN     0x0020 // background color contains green.
+#define BACKGROUND_RED       0x0040 // background color contains red.
+#define BACKGROUND_INTENSITY 0x0080 // background color is intensified.
+
+
+struct CONSOLE_SCREEN_BUFFER_INFO {
+    struct COORD dwSize;
+    struct COORD dwCursorPosition;
+    WORD  wAttributes;
+    struct SMALL_RECT srWindow;
+    struct COORD dwMaximumWindowSize;
+};
+
+struct CONSOLE_CURSOR_INFO {
+    DWORD  dwSize;
+    BOOL   bVisible;
+};
+
+#define CTRL_C_EVENT        0
+#define CTRL_BREAK_EVENT    1
+#define CTRL_CLOSE_EVENT    2
+// 3 is reserved!
+// 4 is reserved!
+#define CTRL_LOGOFF_EVENT   5
+#define CTRL_SHUTDOWN_EVENT 6
+
+//
+//  Input Mode flags:
+//
+
+#define ENABLE_PROCESSED_INPUT 0x0001
+#define ENABLE_LINE_INPUT      0x0002
+#define ENABLE_ECHO_INPUT      0x0004
+#define ENABLE_WINDOW_INPUT    0x0008
+#define ENABLE_MOUSE_INPUT     0x0010
+
+//
+// Output Mode flags:
+//
+
+#define ENABLE_PROCESSED_OUTPUT    0x0001
+#define ENABLE_WRAP_AT_EOL_OUTPUT  0x0002
+
+//
+// direct API definitions.
+//
+
+extern WINAPI "kernel32.dll"
+{
+	BOOL   AllocConsole(VOID);
+	HANDLE CreateConsoleScreenBuffer(DWORD dwDesiredAccess,DWORD dwShareMode,dword lpSecurityAttributes,DWORD dwFlags,LPVOID lpScreenBufferData);
+	BOOL   FillConsoleOutputAttribute(HANDLE hConsoleOutput,WORD wAttribute,DWORD nLength,dword dwWriteCoord,LPDWORD lpNumberOfAttrsWritten);
+	BOOL   FillConsoleOutputCharacterA(HANDLE hConsoleOutput,CHAR cCharacter,DWORD nLength,dword dwWriteCoord,LPDWORD lpNumberOfCharsWritten);
+	BOOL   FlushConsoleInputBuffer(HANDLE hConsoleInput);
+	BOOL   FreeConsole(VOID);
+	BOOL   GenerateConsoleCtrlEvent(DWORD dwCtrlEvent,DWORD dwProcessGroupId);
+	UINT   GetConsoleCP(VOID);
+	BOOL   GetConsoleCursorInfo(HANDLE hConsoleOutput,dword lpConsoleCursorInfo);
+	BOOL   GetConsoleMode(HANDLE hConsoleHandle,LPDWORD lpMode);
+	UINT   GetConsoleOutputCP(VOID);
+	BOOL   GetConsoleScreenBufferInfo(HANDLE hConsoleOutput,dword lpConsoleScreenBufferInfo);
+	DWORD  GetConsoleTitleA(LPSTR lpConsoleTitle,DWORD nSize);
+	dword  GetLargestConsoleWindowSize(HANDLE hConsoleOutput);
+	BOOL   GetNumberOfConsoleInputEvents(HANDLE hConsoleInput,LPDWORD lpNumberOfEvents);
+	BOOL   GetNumberOfConsoleMouseButtons(LPDWORD lpNumberOfMouseButtons);
+	BOOL   PeekConsoleInputA(HANDLE hConsoleInput,dword lpBuffer,DWORD nLength,LPDWORD lpNumberOfEventsRead);
+	BOOL   ReadConsoleA(HANDLE hConsoleInput,LPVOID lpBuffer,DWORD nNumberOfCharsToRead,LPDWORD lpNumberOfCharsRead,LPVOID lpReserved);
+	BOOL   ReadConsoleInputA(HANDLE hConsoleInput,dword lpBuffer,DWORD nLength,LPDWORD lpNumberOfEventsRead);
+	BOOL   ReadConsoleOutputA(HANDLE hConsoleOutput,dword lpBuffer,dword dwBufferSize,dword dwBufferCoord,dword lpReadRegion);
+	BOOL   ReadConsoleOutputAttribute(HANDLE hConsoleOutput,dword lpAttribute,DWORD nLength,dword dwReadCoord,LPDWORD lpNumberOfAttrsRead);
+	BOOL   ReadConsoleOutputCharacterA(HANDLE hConsoleOutput,LPSTR lpCharacter,DWORD nLength,dword dwReadCoord,LPDWORD lpNumberOfCharsRead);
+	BOOL   ScrollConsoleScreenBufferA(HANDLE hConsoleOutput,dword lpScrollRectangle,dword lpClipRectangle,dword dwDestinationOrigin,dword lpFill);
+	BOOL   SetConsoleActiveScreenBuffer(HANDLE hConsoleOutput);
+	BOOL   SetConsoleCP(UINT wCodePageID);
+	BOOL   SetConsoleCtrlHandler(dword HandlerRoutine,BOOL Add);
+	BOOL   SetConsoleCursorInfo(HANDLE hConsoleOutput,dword lpConsoleCursorInfo);
+	BOOL   SetConsoleCursorPosition(HANDLE hConsoleOutput,dword dwCursorPosition);
+	BOOL   SetConsoleMode(HANDLE hConsoleHandle,DWORD dwMode);
+	BOOL   SetConsoleOutputCP(UINT wCodePageID);
+	BOOL   SetConsoleScreenBufferSize(HANDLE hConsoleOutput,dword dwSize);
+	BOOL   SetConsoleTextAttribute(HANDLE hConsoleOutput,WORD wAttributes);
+	BOOL   SetConsoleTitleA(LPCSTR lpConsoleTitle);
+	BOOL   SetConsoleWindowInfo(HANDLE hConsoleOutput,BOOL bAbsolute,dword lpConsoleWindow);
+	BOOL   WriteConsoleA(HANDLE hConsoleOutput,dword lpBuffer,DWORD nNumberOfCharsToWrite,LPDWORD lpNumberOfCharsWritten,LPVOID lpReserved);
+	BOOL   WriteConsoleInputA(HANDLE hConsoleInput,dword lpBuffer,DWORD nLength,LPDWORD lpNumberOfEventsWritten);
+	BOOL   WriteConsoleOutputA(HANDLE hConsoleOutput,dword lpBuffer,dword dwBufferSize,dword dwBufferCoord,dword lpWriteRegion);
+	BOOL   WriteConsoleOutputAttribute(HANDLE hConsoleOutput,WORD lpAttribute,DWORD nLength,dword dwWriteCoord,LPDWORD lpNumberOfAttrsWritten);
+	BOOL   WriteConsoleOutputCharacterA(HANDLE hConsoleOutput,LPCSTR lpCharacter,DWORD nLength,dword dwWriteCoord,LPDWORD lpNumberOfCharsWritten);
+}
+
+#define CONSOLE_TEXTMODE_BUFFER  1
+
+#define FillConsoleOutputCharacter  FillConsoleOutputCharacterA
+#define GetConsoleTitle             GetConsoleTitleA
+#define PeekConsoleInput            PeekConsoleInputA
+#define ReadConsole                 ReadConsoleA
+#define ReadConsoleInput            ReadConsoleInputA
+#define ReadConsoleOutput           ReadConsoleOutputA
+#define ReadConsoleOutputCharacter  ReadConsoleOutputCharacterA
+#define ScrollConsoleScreenBuffer   ScrollConsoleScreenBufferA
+#define SetConsoleTitle             SetConsoleTitleA
+#define WriteConsole                WriteConsoleA
+#define WriteConsoleInput           WriteConsoleInputA
+#define WriteConsoleOutput          WriteConsoleOutputA
+#define WriteConsoleOutputCharacter WriteConsoleOutputCharacterA

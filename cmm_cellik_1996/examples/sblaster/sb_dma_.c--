@@ -1,0 +1,289 @@
+/*
+   NAME:  SB_DMA_.C--
+   Copyright (C) 1994  Michael B. Martin
+
+   Output a raw sample to SB DAC using DMA mode.
+
+   Uses SB_DETECT().
+
+   30 Mar 1994:  Small Modifications by SPHINX.
+*/
+
+?parsecommandline TRUE
+?resize FALSE             // we'll do it ourselves
+?assumeDSSS TRUE
+
+?include "WRITE.H--"
+?include "DOS.H--"
+?include "STRING.H--"
+?include "KEYCODES.H--"
+?include "SYSTEM.H--"
+
+?include "SB.H--"
+?include "SBDMA.H--"
+
+?define DEFAULT_VOL 9
+?define BUFFER_SIZE 32000
+
+word sl=0, sr=11000;
+byte stereo=FALSE;
+byte signed=FALSE;
+byte vol=-1;
+byte oldvol=0;
+byte done=FALSE;
+byte fast=FALSE;
+byte params=0;
+word i=0;
+word Buffer_Seg=0;
+word fhandle=0;
+
+byte mem_str = "Can't allocate enough memory.\n"
+               "This program requires 192k free RAM.\n";
+
+byte usage_str = "Usage: dacdma [-a] [-r rate] [-s] [-v volume] sample\n\n"
+                 "Switches:\n"
+                 "  -a  enables playback of signed (Amiga) samples\n"
+                 "  -r  sample rate in Hz (samples per second)\n"
+                 "  -s  enables stereo mode (SB Pro only)\n"
+                 "  -v  volume value can be 0 to 15 (SB Pro only)\n";
+
+byte no_pro1 = "SB Pro not found: ignoring request for ";
+
+void main ()
+{
+
+   /* first grab some memory for a buffer */
+   AX = CS;
+   $ SHR AX,12
+   $ ADD AL,2    // start at beginnning of next free (64k) page
+   $ SHL AX,12
+   Buffer_Seg = AX;
+   BX = CS;
+   AX -= BX;     // space before buffer seg
+   AX += 0x1000; // plus segment for data buffers
+   BX = AX;      // total (contiguous) space required
+
+   IF (RESIZEMEM(CS,BX) != 0)
+   {
+      WRITESTR(#mem_str);
+      return();
+   }
+
+   params = PARAMCOUNT();
+   IF (params == 0)
+   {
+      WRITESTR(#usage_str);
+      return();
+   }
+
+   params--;     // assume last argument is file name (ignore for now)
+   if (params > 0)  // do we have switches?
+   {
+      do {
+         IF (STRCMP(PARAMSTR(i),"-s") == 0)
+         {
+            stereo = TRUE;
+            i++;
+         }
+         else IF (STRCMP(PARAMSTR(i),"-a") == 0)
+         {
+            signed = TRUE;
+            i++;
+         }
+         ELSE IF (STRCMP(PARAMSTR(i),"-r") == 0)
+         {
+            PARAMSTR(i+1);
+            SI = AX;
+            ES = CS;
+            sr = DIGITSTOWORD();
+            i+=2;
+         }
+         ELSE IF (STRCMP(PARAMSTR(i),"-v") == 0)
+         {
+            PARAMSTR(i+1);
+            SI = AX;
+            ES = CS;
+            AX = DIGITSTOWORD();
+            vol = AL;
+            i+=2;
+         }
+         ELSE
+         {
+            WRITESTR("Invalid parameter: \"");
+            WRITESTR(PARAMSTR(i));
+            WRITESTR("\"\n");
+	    return();
+         }
+      } while (i < params);
+   }
+
+   AX = PARAMSTR(i);
+   DX = AX;
+   FOPEN(0,,,DX);
+   IF (AX == 0)
+   {
+      WRITESTR("Couldn't open file.\n");
+      return();
+   }
+   fhandle = AX;
+
+   IF (SB_DETECT() != 0)
+   {
+      WRITESTR("Could not find Sound Blaster!\n");
+      return();
+   }
+
+   WRITESTR("Found Sound Blaster ");
+   IF (SbType == SBPro)
+      WRITESTR("Pro ");
+   WRITESTR("at address ");
+   WRITEHEX(SbIOaddr);
+   WRITESTR("h, IRQ ");
+   WRITEWORD(SbIRQ);
+   WRITESTR(", DMA channel ");
+   WRITEWORD(SbDMAchan);
+   WRITESTR(".\n");
+
+   IF (SbType != SBPro)
+   {
+      IF (vol != -1)
+      {
+         WRITESTR(#no_pro1);
+         WRITESTR("volume control\n");
+      }
+   }
+   ELSE
+   {
+      IF (vol == -1)
+         vol = DEFAULT_VOL;   // set to default if user does not specify
+      IF (vol > 15)
+      {
+         WRITESTR("Maximum volume exceeded: setting to 15\n");
+         vol = 15;
+      }
+      AL = vol;
+      $ PUSH AX
+      AL <<= 4;
+      vol += AL;   // set both channels to same value
+
+      oldvol = READMIXER(VOC_VOL);   // save previous value (to be nice)
+      WRITEMIXER(VOC_VOL,vol);
+
+      WRITESTR("Volume is ");
+      $ POP AX
+      $ XOR AH,AH
+      WRITEWORD(AX);
+      WRITESTR(" (max: 15)\n");
+   }
+
+   WRITESTR("Sample rate = ");
+   WRITEWORD(sr);
+   WRITESTR(" Hz\n");
+   IF (stereo == TRUE)
+   {
+      IF (SbType == SBPro)
+         WRITESTR("Output is stereo.\n");
+      ELSE
+      {
+         WRITESTR(#no_pro1);
+         WRITESTR("stereo\n");
+      }
+   }
+
+   SB_SAMPLE_RATE(,sr);
+
+   IF (sr > 23000)
+   {
+      fast = TRUE;
+      WRITESTR("Running in high-speed mode.\n");
+   }
+
+   Sb_Init_Voice_DMA(0,0);   /* Use default interrupt handler */
+
+   SB_VOICE(1);
+
+   DMA_complete = TRUE;
+
+  do {
+   $ PUSH DS
+   BX = fhandle;
+   DS = Buffer_Seg;
+   FREAD(,BX,BUFFER_SIZE,0);
+   $ POP DS
+   IF (AX == 0)
+   {
+      WRITESTR("Couldn't read in data\n");
+      return();
+   }
+   sl = AX;
+
+   IF (signed == TRUE)
+   {
+      ES = Buffer_Seg;
+      SI = 0;
+      CX = sl;
+      loop(CX)
+      {
+         ESBYTE[SI] += 0x80;
+         SI++;
+      }
+   }
+
+   do {
+      IF (BIOSKEYCHECK())
+      {
+         done = TRUE;
+	 $ JMP END_LOOP
+      }
+   } while (SB_DMA_COMPLETE() == FALSE);
+
+   IF (Sb_Out_Voice_DMA(Buffer_Seg,0,sl,stereo,fast) != 0)
+   {
+      WRITESTR("DMA Error: ");
+      BX = dma_errno;
+      $ SHL BX,1      // convert to word pointer
+      WRITESTR(dma_errlist[BX]);
+      $ JMP DMA_ERROR
+   }
+
+   IF (sl < BUFFER_SIZE)      // last buffer
+   {
+      do {
+         IF (BIOSKEYCHECK())
+            done = TRUE;
+         IF (SB_DMA_COMPLETE())
+            done = TRUE;
+      } while (done == FALSE);
+   }
+   ELSE
+      $ XOR Buffer_Seg,BUFFER_SIZE/16   // swap buffers
+END_LOOP:
+  } while (done == FALSE);
+
+   IF (SB_DMA_COMPLETE() == FALSE)
+   {
+      BIOSREADKEY();  // process the key the user pressed
+      WRITESTR("Halting DMA transfer...\n");
+      IF (fast == TRUE)
+         SB_INIT();     // only way to stop high-speed DMA transfers?
+      ELSE
+         SB_HALT_DMA();
+   }
+
+   WRITESTR("Done.\n");
+
+DMA_ERROR:
+   IF (SbType == SBPro)
+   {
+      WRITEMIXER(VOC_VOL,oldvol);   // reset to previous value
+   }
+
+   SB_VOICE(0);
+   Sb_DeInit_Voice_DMA();
+
+   FCLOSE(,fhandle);
+
+NO_FILE:
+}
+
+/* end of SB_DMA_.C-- */

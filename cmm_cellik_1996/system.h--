@@ -1,0 +1,119 @@
+/*
+    SPHINX Programming (C) 1994.
+    NAME:  SYSTEM.H--
+    DESCRIPTION:  This file contains a collection of procedures for doing low
+                  level system stuff.
+    LAST MODIFIED:  30 March 1994
+    PROCEDURES DEFINED IN THIS FILE:
+        : void COLDBOOT()
+        : void DELAY(time)
+        : void DISABLE()
+        : void EATKEY()
+        : void ENABLE()
+        : void EOI()
+        : void REBOOT()
+        : void ROMBASIC()
+        : void WAIT(ticks)
+        : void WARMBOOT()
+*/
+
+
+: void COLDBOOT ()
+{
+/*
+   A call to INT 0x19 or something to make sure it is safe to reboot, may
+   be required.
+*/
+$ JMP FAR 0xFFFF:0000
+}
+
+
+: void WARMBOOT ()
+{
+/*
+   A call to INT 0x19 or something to make sure it is safe to reboot, may
+   be required.
+*/
+DS = 0;
+DSWORD[0x472] = 0x1234;
+$ JMP FAR 0xFFFF:0000
+}
+
+
+: void REBOOT ()
+{
+$ INT 0x19
+}
+
+
+: void ROMBASIC ()
+{
+$ INT 0x18
+}
+
+
+: void ENABLE ()
+/* Enables interrupts by use of the STI operation.
+*/
+{
+$ STI
+}
+
+
+: void DISABLE ()
+/* Disables interrupts by use of the CLI operation.
+*/
+{
+$ CLI
+}
+
+
+: void EOI ()
+{
+AL = 0x20;
+$ OUT 0x20,AL
+}
+
+
+: void DELAY ()  /* AX = amount of time to delay in 1/15.3 second units. */
+/* Delays for a specified time.  AT or higher BIOS required.
+*/
+{
+CX = AX;
+DX = 0;
+AH = 0x86;
+$ INT 15
+}
+
+
+: void EATKEY ()
+/* Informs the keyboard controller that the scan code has been received.
+*/
+{
+$ IN AL,0x61
+AH = AL;
+AL |= 0x80;
+$ OUT 0x61,AL
+AL = AH;
+$ OUT 0x61,AL
+}
+
+
+: void WAIT ()     /* AX == number of ticks to wait */
+/*
+   Delay for a certain number of clock ticks (unless another program has
+   reprogrammed the PIT, there should be 18.2 ticks/sec).
+   Number of ticks to wait is passed in AX.
+   Modfied version of code supplied by Michael B. Martin.
+*/
+{
+   DX = AX;
+   ES = 0x40;       // read daily timer value from BIOS system data area
+   CX = ESWORD[0x6C];
+do {
+   AX = ESWORD[0x6C];
+   AX -= CX;
+   } while(AX < DX);
+}
+
+/* end of SYSTEM.H-- */

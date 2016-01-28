@@ -1,0 +1,223 @@
+/*
+    NAME:  COMPLETE.C--
+    SPHINX C-- Example File
+    DESCRIPTION:  C-- TSR program to add command line file and directory name
+                  completion to DOS.  The hot key is <SCROLL LOCK>.
+*/
+
+?resize TRUE   // resize program memory
+?assumeDSSS FALSE
+
+?include "WRITE.H--"
+?include "DOS.H--"
+?include "KEYCODES.H--"
+?include "SYSTEM.H--"
+?include "FILE.H--"
+?include "TSR.H--"
+
+
+word old_idle_handle[2]={};    /* address holder for old int 0x28 handle */
+word oldkeyboardhandle[2]={};  /* address holder for old INT 0x9 handle */
+
+?define DEFAULT_DTA  0x80  // offset address in program segment of DTA
+
+byte scrolllockcount = 0;
+word oldDTAsegment=0,oldDTAoffset=0;
+byte cursorx = 0,cursory = 0;
+byte xcount = 0;
+byte done = FALSE;
+byte displaypage = 0;
+
+?define SEARCHSTRLEN 80
+byte search_ext_flag = FALSE;
+word skip_count = 0;
+byte searchstr[SEARCHSTRLEN] = 0;
+word search_attributes = FA_NORMAL + FA_READONLY + FA_HIDDEN + FA_SYSTEM
+                         + FA_DIRECTORY + FA_ARCHIVE;
+?define FILENAMELEN 8+4+1
+byte foundstr[FILENAMELEN] = 0;
+
+?define INTNUMBER 0x28
+
+@ setDTA ();  /* place setDTA procedure here in code, to make sure it is
+                 before the TSR cut off point, which is #main +1 */
+
+
+interrupt idle_handle ()
+/*
+    This handle chains onto the INT 0x28 vector.
+*/
+{
+$ PUSHA
+$ PUSH DS
+$ PUSH ES
+DS = CS;
+
+if( scrolllockcount > 0 )
+    {scrolllockcount = 0;
+
+    AH = 0xF;
+    $ INT 0x10  // get current video mode BH will equal active page
+
+    AH = 0x3;
+    $ INT 0x10  // get cursor location DH,DL= row,column
+    cursorx = DL;
+    cursory = DH;    
+    displaypage = BH;
+
+    xcount = cursorx;
+    IF( xcount >= 1 )
+        {do {
+            xcount--;
+            IF( xcount >= 1 )
+                done = TRUE;
+            @ GOTOXYZ(byte xcount,byte cursory,byte displaypage);
+            AH = 0x8;
+            BH = displaypage;
+            $INT 0x10  // READ ATTRIBUTES/CHARACTER AT CURSOR POSITION
+            IF( AL != ' ' )
+                IF( AL != '<' )
+                    IF( AL != '>' )
+                        IF( AL != '|' )
+                            IF( AL != '\t' )
+                                done = FALSE;
+            } while( done == FALSE );
+        }
+
+    DI = 0;
+    xcount++;
+    search_ext_flag = FALSE;
+    skip_count = 0;
+    IF( xcount < cursorx )
+        {done = FALSE;
+        do {
+            skip_count++;
+            @ GOTOXYZ(byte xcount,byte cursory,byte displaypage);
+
+            AH = 0x8;
+            BH = displaypage;
+            $INT 0x10  // READ ATTRIBUTES/CHARACTER AT CURSOR POSITION
+
+            searchstr[DI] = AL;
+            IF( AL == '\\' )
+                {search_ext_flag = FALSE;
+                skip_count = 0;
+                }
+            ELSE IF( AL == ':' )
+                {search_ext_flag = FALSE;
+                skip_count = 0;
+                }
+            ELSE IF( AL == '.' )
+                search_ext_flag = TRUE;
+            DI++;
+
+            xcount++;
+            } while( xcount < cursorx );
+        }
+
+    @ GOTOXYZ(byte cursorx,byte cursory,byte displaypage);
+
+    if( DI > 0 )
+        {IF( search_ext_flag == FALSE )
+            {searchstr[DI] = '*';
+            DI++;
+            searchstr[DI] = '.';
+            DI++;
+            }
+        searchstr[DI] = '*';
+        DI++;
+        searchstr[DI] = 0;
+        @ GETDTA();
+        oldDTAoffset = BX;
+        oldDTAsegment = ES;
+        setDTA(DS,DEFAULT_DTA);
+
+        IF( @ FINDFIRSTFILE( , ,search_attributes,#searchstr) == 0 )
+            {
+            DI = 0;
+            do {
+                foundstr[DI] = DSBYTE[DI+DEFAULT_DTA+0x1E];
+                DI++;
+                } while( foundstr[DI-1] != 0 );
+
+            AX = @ FINDNEXTFILE();
+            IF( AX == 0 )
+                {do {
+                     DI = 0;
+                     do {
+                         BL = TRUE;
+                         IF( foundstr[DI] != DSBYTE[DI+DEFAULT_DTA+0x1E] )
+                             BL = FALSE;
+                         IF( foundstr[DI] == 0 )
+                             BL = FALSE;
+                         IF( DSBYTE[DI+DEFAULT_DTA+0x1E] == 0 )
+                             BL = FALSE;
+                         DI++;
+                         } while( BL == TRUE );
+                     DI--;
+                     foundstr[DI] = 0;
+                     } while( @ FINDNEXTFILE() == 0 );
+                } 
+
+            SI = 0;
+            do {
+                IF( SI >= skip_count )
+                    @ BIOSPUSHKEY( foundstr[SI] );
+                SI++;
+                } while( foundstr[SI] != 0 );
+            }
+        ELSE @BEEP();
+        setDTA(oldDTAoffset,oldDTAoffset);
+        }
+    ELSE @BEEP();
+    }
+
+$ POP ES
+$ POP DS
+$ POPA
+$ CS:
+$ JMP FAR old_idle_handle;   /* chain to old interrupt handle */
+}
+
+
+interrupt keyboardhandle ()   
+/* this is called every time a key is pressed or released */
+{
+$ PUSH AX
+
+$ IN AL,KEYBOARD_PORT 
+IF( AL == s_scrolllock )
+    {CSBYTE[#scrolllockcount]++;
+    @ EATKEY();      
+    @ EOI();  
+    $ POP AX
+    return();
+    }
+
+$ POP AX
+
+$ CS:
+$ JMP FAR oldkeyboardhandle;   /* chain to old interrupt handle */
+}
+
+
+void main ()
+{GETINTVECT(#old_idle_handle,INTNUMBER); /* get old keyboard interrupt handle */
+SETINTVECT( ,INTNUMBER,CS,#idle_handle); /* attach to keyboard interrupt */
+GETINTVECT(#oldkeyboardhandle,0x9);    /* get old keyboard interrupt handle */
+SETINTVECT( ,0x9,CS,#keyboardhandle);  /* attach to keyboard interrupt */
+
+WRITESTR("\nCOMPLETE.COM  ---  Version 1.1\n");
+WRITESTR("The DOS command line filename completion INSTALLED.\n\n");
+WRITESTR("Created By SPHINX Programming 1994.\n");
+WRITESTR("COMPLETE.COM was compiled with ");
+WRITESTR(__COMPILER__);
+WRITESTR(".\n\n");
+WRITESTR("Press <SCROLL LOCK> at the command line prompt to complete a partially\n");
+WRITESTR("entered file or directory name.  A beep will sound if no match is found,\n");
+WRITESTR("otherwise the first match will be supplied.\n");
+
+@ KEEP( , , ,#main+1);   /* TSR, memory saved up to start of main() */
+}
+
+/* end of COMPLETE.C-- */

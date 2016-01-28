@@ -1,0 +1,26 @@
+/*
+    FILENAME:  SIMPLE03.C--
+
+    DESCRIPTION:  This is the lasts in a list of progressing example files
+                  to teach you how to use C--.
+                  Sorry that I have not yet had the time to do any real docs 
+                  and continue this example series, but I would like to get
+                  some input from some other programmers about how things
+                  are going.  What did you think of these example files?  I
+                  would appreciate some feedback.
+
+    CONCEPTS:  - Wait until the next update of C--.
+
+    COM FILE SIZE:  42 bytes.    
+*/
+
+
+?include "KEYCODES.H--"
+
+main()           
+{
+@ BIOSREADKEY();  // hmmm the same as last time
+BIOSREADKEY();    // ----------- " ------------
+} 
+
+/* end of SIMPLE03.c-- */

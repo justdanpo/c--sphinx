@@ -1,0 +1,541 @@
+/*
+    SPHINX Programming (C) 1995.
+    TITLE:  VGAFONT.H--
+    DESCRIPTION:  This file contain support for a 5x5 pixel font for VGA
+		  mode 19.
+		  All routines take a standard ASCII character or string,
+		  but only values 32 through 128 inclusive are supported.
+    LAST MODIFIED:  16 May 1995
+    PROCEDURES DEFINED IN THIS FILE:
+	: void _over5x5letter19(x,y,letter,byte colour);
+	: void over5x5letter19(x,y,letter,byte colour);
+	: void _over5x5str19(x,y,straddr,byte colour);
+	: void over5x5str19(x,y,straddr,byte colour);
+	: void _put5x5letter19(x,y,letter,byte fg,byte bg);
+	: void put5x5letter19(x,y,letter,byte fg,byte bg);
+	: void _put5x5str19(x,y,straddr,byte fg,byte bg);
+	: void put5x5str19(x,y,straddr,byte fg,byte bg);
+*/
+
+
+// 5x5 horizontally flipped character set from ' ' to 'z'.
+// lower case letters supplied by Joel Hardy, some are ugly, but at least
+// they are there!  :-)
+byte font_5x5 ={0b00000,0b00000,0b00000,0b00000,0b00000,
+		0b00100,0b00100,0b00100,0b00000,0b00100,
+		0b01010,0b01010,0b00000,0b00000,0b00000,
+		0b01010,0b11111,0b01010,0b11111,0b01010,
+		0b01111,0b10100,0b11111,0b00101,0b11110,
+		0b10001,0b00010,0b00100,0b01000,0b10001,
+		0b00110,0b01010,0b10100,0b10011,0b01111,
+		0b00010,0b00100,0b00000,0b00000,0b00000,
+		0b00010,0b00100,0b00100,0b00100,0b00010,
+		0b00100,0b00010,0b00010,0b00010,0b00100,
+		0b01001,0b00110,0b01111,0b00110,0b01001,
+		0b00100,0b00100,0b11111,0b00100,0b00100,
+		0b00000,0b00000,0b00000,0b00010,0b00100,
+		0b00000,0b00000,0b11111,0b00000,0b00000,
+		0b00000,0b00000,0b00000,0b00000,0b00100,
+		0b00001,0b00010,0b00100,0b01000,0b10000,
+		0b01110,0b10011,0b10101,0b11001,0b01110,
+		0b00100,0b01100,0b00100,0b00100,0b01110,
+		0b11111,0b00001,0b11111,0b10000,0b11111,
+		0b11111,0b00001,0b00111,0b00001,0b11111,
+		0b00010,0b00110,0b01010,0b11111,0b00010,
+		0b11111,0b10000,0b11110,0b00001,0b11110,
+		0b11111,0b10000,0b11111,0b10001,0b11111,
+		0b11111,0b00001,0b00010,0b00100,0b00100,
+		0b11111,0b10001,0b11111,0b10001,0b11111,
+		0b11111,0b10001,0b11111,0b00001,0b11111,
+		0b00000,0b00010,0b00000,0b00010,0b00000,
+		0b00000,0b00010,0b00000,0b00010,0b00100,
+		0b00010,0b00100,0b01000,0b00100,0b00010,
+		0b00000,0b01111,0b00000,0b01111,0b00000,
+		0b01000,0b00100,0b00010,0b00100,0b01000,
+		0b00110,0b01001,0b00010,0b00000,0b00010,
+		0b11111,0b10001,0b10011,0b10000,0b11111,
+
+		0b00100,0b01010,0b10001,0b11111,0b10001, //A
+		0b11110,0b10001,0b11110,0b10001,0b11110,
+		0b01110,0b10001,0b10000,0b10001,0b01110,
+		0b11110,0b10001,0b10001,0b10001,0b11110,
+		0b11111,0b10000,0b11100,0b10000,0b11111,
+		0b11111,0b10000,0b11100,0b10000,0b10000,
+		0b01110,0b10000,0b10011,0b10001,0b01110,
+		0b10001,0b10001,0b11111,0b10001,0b10001,
+		0b01110,0b00100,0b00100,0b00100,0b01110,
+		0b11111,0b00010,0b00010,0b10010,0b01100,
+		0b10001,0b10110,0b11100,0b10010,0b10001,
+		0b10000,0b10000,0b10000,0b10000,0b11111,
+		0b10001,0b11011,0b10101,0b10001,0b10001,
+		0b10001,0b11001,0b10101,0b10011,0b10001,
+		0b01110,0b10001,0b10001,0b10001,0b01110,
+		0b11110,0b10001,0b11110,0b10000,0b10000,
+		0b01110,0b10001,0b10101,0b10010,0b01101,
+		0b11110,0b10001,0b11111,0b10010,0b10001,
+		0b01111,0b10000,0b01110,0b00001,0b11110,
+		0b11111,0b00100,0b00100,0b00100,0b00100,
+		0b10001,0b10001,0b10001,0b10001,0b01110,
+		0b10001,0b01010,0b01010,0b00100,0b00100,
+		0b10001,0b10001,0b10101,0b11011,0b10001,
+		0b10001,0b01010,0b00100,0b01010,0b10001,
+		0b10001,0b01010,0b00100,0b00100,0b00100,
+		0b11111,0b00010,0b00100,0b01000,0b11111,//Z
+
+		0b01110,0b01000,0b01000,0b01000,0b01110,
+		0b10000,0b01000,0b00100,0b00010,0b00001,
+		0b00111,0b00001,0b00001,0b00001,0b00111,
+		0b00100,0b01010,0b10001,0b00000,0b00000,
+		0b00000,0b00000,0b00000,0b00000,0b11111,
+		0b00100,0b00010,0b00000,0b00000,0b00000,
+
+		0b00110,0b00001,0b00111,0b01001,0b00111,//a
+		0b10000,0b10000,0b11110,0b10001,0b11110,//b
+		0b00000,0b01110,0b10000,0b10000,0b01110,//c
+		0b00001,0b00001,0b01111,0b10001,0b01111,//d
+		0b01110,0b10001,0b11111,0b10000,0b01110,//e
+		0b00110,0b01001,0b11100,0b01000,0b01000,//f
+		0b01110,0b10001,0b01111,0b00001,0b01110,//g
+		0b10000,0b10000,0b11110,0b10001,0b10001,//h
+		0b00100,0b00000,0b00100,0b00100,0b00100,//i
+		0b00001,0b00000,0b00001,0b00001,0b01110,//j
+		0b10000,0b10000,0b10100,0b11000,0b10100,//k
+		0b00100,0b00100,0b00100,0b00100,0b00100,//l
+		0b00000,0b00000,0b11110,0b10101,0b10101,//m
+		0b00000,0b00000,0b11110,0b10001,0b10001,//n
+		0b00000,0b01110,0b10001,0b10001,0b01110,//o
+		0b00000,0b01100,0b10010,0b11100,0b10000,//p
+		0b00000,0b00110,0b01001,0b00111,0b00001,//q
+		0b00000,0b10110,0b11001,0b10000,0b10000,//r
+// This one's a little mutilated because otherwise it would be the same as
+// the capital s, which I've marked if you want to change it to that.
+		// 0b01111,0b10000,0b01110,0b00001,0b11110,//Capital S
+		0b00000,0b01110,0b10000,0b01110,0b11110,//s
+		0b00100,0b01110,0b00100,0b00100,0b00100,//t
+		0b00000,0b00000,0b10001,0b10001,0b01111,//u
+		0b00000,0b00000,0b10001,0b01010,0b00100,//v
+		0b00000,0b00000,0b10101,0b10101,0b01010,//w
+		0b00000,0b00000,0b01010,0b00100,0b01010,//x
+		0b10001,0b10001,0b01111,0b00001,0b01110,//y
+		0b00000,0b01111,0b00010,0b00100,0b01111,//z
+
+		0b00110,0b00100,0b01000,0b00100,0b00110,
+		0b00100,0b00100,0b00000,0b00100,0b00100,
+		0b00110,0b00010,0b00001,0b00010,0b00110,
+		0b01010,0b10100,0b00000,0b00000,0b00000,
+		0b00100,0b01010,0b10001,0b10001,0b11111
+		};
+
+
+: void _put5x5letter19 (word x,y; byte letter,fgcolor,bgcolor)
+{
+AX = y*320 + x;
+DI = AX;
+BH = fgcolor;
+BL = bgcolor; 
+AX = letter - 32 * 5 + #font_5x5;
+SI = AX;
+AH = 5;
+loop(AH)
+    {$ LODSB
+    CL = BL;
+    $ TEST AL,16
+    $ JZ DOWN16
+    CL = BH;
+    DOWN16:
+    ESBYTE[DI] = CL; 
+    DI++;
+    CL = BL;
+    $ TEST AL,8
+    $ JZ DOWN8
+    CL = BH;
+    DOWN8:
+    ESBYTE[DI] = CL; 
+    DI++;
+    CL = BL;
+    $ TEST AL,4
+    $ JZ DOWN4
+    CL = BH;
+    DOWN4:
+    ESBYTE[DI] = CL; 
+    DI++;
+    CL = BL;
+    $ TEST AL,2
+    $ JZ DOWN2
+    CL = BH;
+    DOWN2:
+    ESBYTE[DI] = CL; 
+    DI++;
+    CL = BL;
+    $ TEST AL,1
+    $ JZ DOWN1
+    CL = BH;
+    DOWN1:
+    ESBYTE[DI] = CL; 
+    DI++;
+    ESBYTE[DI] = BL; 
+    DI += 320 - 5;
+    }
+}
+
+
+: void put5x5letter19 (word x,y; byte letter,fgcolor,bgcolor)
+{
+ES = 0xA000;
+AX = y*320 + x;
+DI = AX;
+BH = fgcolor;
+BL = bgcolor; 
+AX = letter - 32 * 5 + #font_5x5;
+SI = AX;
+AH = 5;
+loop(AH)
+    {$ LODSB
+    CL = BL;
+    $ TEST AL,16
+    $ JZ DOWN16
+    CL = BH;
+    DOWN16:
+    ESBYTE[DI] = CL; 
+    DI++;
+    CL = BL;
+    $ TEST AL,8
+    $ JZ DOWN8
+    CL = BH;
+    DOWN8:
+    ESBYTE[DI] = CL; 
+    DI++;
+    CL = BL;
+    $ TEST AL,4
+    $ JZ DOWN4
+    CL = BH;
+    DOWN4:
+    ESBYTE[DI] = CL; 
+    DI++;
+    CL = BL;
+    $ TEST AL,2
+    $ JZ DOWN2
+    CL = BH;
+    DOWN2:
+    ESBYTE[DI] = CL; 
+    DI++;
+    CL = BL;
+    $ TEST AL,1
+    $ JZ DOWN1
+    CL = BH;
+    DOWN1:
+    ESBYTE[DI] = CL; 
+    DI++;
+    ESBYTE[DI] = BL; 
+    DI += 320 - 5;
+    }
+}
+
+
+: void _over5x5letter19 (word x,y; byte letter,color)
+{
+AX = y*320 + x;
+DI = AX;
+BH = color;
+AX = letter - 32 * 5 + #font_5x5;
+SI = AX;
+AH = 5;
+loop(AH)
+    {$ LODSB
+    $ TEST AL,16
+    $ JZ DOWN16
+    ESBYTE[DI] = BH; 
+    DOWN16:
+    DI++;
+    $ TEST AL,8
+    $ JZ DOWN8
+    ESBYTE[DI] = BH; 
+    DOWN8:
+    DI++;
+    $ TEST AL,4
+    $ JZ DOWN4
+    ESBYTE[DI] = BH; 
+    DOWN4:
+    DI++;
+    $ TEST AL,2
+    $ JZ DOWN2
+    ESBYTE[DI] = BH; 
+    DOWN2:
+    DI++;
+    $ TEST AL,1
+    $ JZ DOWN1
+    ESBYTE[DI] = BH; 
+    DOWN1:
+    DI += 320 - 4;
+    }
+}
+
+
+: void over5x5letter19 (word x,y; byte letter,color)
+{
+ES = 0xA000;
+AX = y*320 + x;
+DI = AX;
+BH = color;
+AX = letter - 32 * 5 + #font_5x5;
+SI = AX;
+AH = 5;
+loop(AH)
+    {$ LODSB
+    $ TEST AL,16
+    $ JZ DOWN16
+    ESBYTE[DI] = BH; 
+    DOWN16:
+    DI++;
+    $ TEST AL,8
+    $ JZ DOWN8
+    ESBYTE[DI] = BH; 
+    DOWN8:
+    DI++;
+    $ TEST AL,4
+    $ JZ DOWN4
+    ESBYTE[DI] = BH; 
+    DOWN4:
+    DI++;
+    $ TEST AL,2
+    $ JZ DOWN2
+    ESBYTE[DI] = BH; 
+    DOWN2:
+    DI++;
+    $ TEST AL,1
+    $ JZ DOWN1
+    ESBYTE[DI] = BH; 
+    DOWN1:
+    DI += 320 - 4;
+    }
+}
+
+
+: void _put5x5str19 (word x,y,straddr; byte fgcolor,bgcolor)
+{
+AX = y*320 + x;
+DI = AX;
+BH = fgcolor;
+BL = bgcolor; 
+$ PUSH BP
+BP = straddr;
+loop()
+    {CX = DSBYTE[BP];
+    $ CMP CL,0
+    $ JE FINISH
+    AX = CX - 32 * 5 + #font_5x5;
+    SI = AX;
+    AH = 5;
+    loop(AH)
+	{$ LODSB
+	CL = BL;
+	$ TEST AL,16
+	$ JZ DOWN16
+	CL = BH;
+	DOWN16:
+	ESBYTE[DI] = CL; 
+	DI++;
+	CL = BL;
+	$ TEST AL,8
+	$ JZ DOWN8
+	CL = BH;
+	DOWN8:
+	ESBYTE[DI] = CL; 
+	DI++;
+	CL = BL;
+	$ TEST AL,4
+	$ JZ DOWN4
+	CL = BH;
+	DOWN4:
+	ESBYTE[DI] = CL; 
+	DI++;
+	CL = BL;
+	$ TEST AL,2
+	$ JZ DOWN2
+	CL = BH;
+	DOWN2:
+	ESBYTE[DI] = CL; 
+	DI++;
+	CL = BL;
+	$ TEST AL,1
+	$ JZ DOWN1
+	CL = BH;
+	DOWN1:
+	ESBYTE[DI] = CL; 
+	DI++;
+	ESBYTE[DI] = BL; 
+	DI += 320 - 5;
+	}
+    DI -= 320*5 -5 -1;   // the -1 is for one pixel spacing
+    BP++;
+    }
+FINISH:
+$ POP BP
+}
+
+
+: void put5x5str19 (word x,y,straddr; byte fgcolor,bgcolor)
+{
+ES = 0xA000;
+AX = y*320 + x;
+DI = AX;
+BH = fgcolor;
+BL = bgcolor; 
+$ PUSH BP
+BP = straddr;
+loop()
+    {CX = DSBYTE[BP];
+    $ CMP CL,0
+    $ JE FINISH
+    AX = CX - 32 * 5 + #font_5x5;
+    SI = AX;
+    AH = 5;
+    loop(AH)
+	{$ LODSB
+	CL = BL;
+	$ TEST AL,16
+	$ JZ DOWN16
+	CL = BH;
+	DOWN16:
+	ESBYTE[DI] = CL; 
+	DI++;
+	CL = BL;
+	$ TEST AL,8
+	$ JZ DOWN8
+	CL = BH;
+	DOWN8:
+	ESBYTE[DI] = CL; 
+	DI++;
+	CL = BL;
+	$ TEST AL,4
+	$ JZ DOWN4
+	CL = BH;
+	DOWN4:
+	ESBYTE[DI] = CL; 
+	DI++;
+	CL = BL;
+	$ TEST AL,2
+	$ JZ DOWN2
+	CL = BH;
+	DOWN2:
+	ESBYTE[DI] = CL; 
+	DI++;
+	CL = BL;
+	$ TEST AL,1
+	$ JZ DOWN1
+	CL = BH;
+	DOWN1:
+	ESBYTE[DI] = CL; 
+	DI++;
+	ESBYTE[DI] = BL; 
+	DI += 320 - 5;
+	}
+    DI -= 320*5 -5 -1;   // the -1 is for one pixel spacing
+    BP++;
+    }
+FINISH:
+$ POP BP
+}
+
+
+: void _over5x5str19 (word x,y,straddr; byte color)
+{
+AX = y*320 + x;
+DI = AX;
+BH = color;
+$ PUSH BP
+BP = straddr;
+loop()
+    {CX = DSBYTE[BP];
+    $ CMP CL,0
+    $ JE FINISH
+    AX = CX - 32 * 5 + #font_5x5;
+    SI = AX;
+    AH = 5;
+    loop(AH)
+	{$ LODSB
+	$ TEST AL,16
+	$ JZ DOWN16
+	ESBYTE[DI] = BH; 
+	DOWN16:
+	DI++;
+	$ TEST AL,8
+	$ JZ DOWN8
+	ESBYTE[DI] = BH; 
+	DOWN8:
+	DI++;
+	$ TEST AL,4
+	$ JZ DOWN4
+	ESBYTE[DI] = BH; 
+	DOWN4:
+	DI++;
+	$ TEST AL,2
+	$ JZ DOWN2
+	ESBYTE[DI] = BH; 
+	DOWN2:
+	DI++;
+	$ TEST AL,1
+	$ JZ DOWN1
+	ESBYTE[DI] = BH; 
+	DOWN1:
+	DI += 320 - 4;
+	}
+    DI -= 320*5 -5 -1;   // the -1 is for one pixel spacing
+    BP++;
+    }
+FINISH:
+$ POP BP
+}
+
+
+: void over5x5str19 (word x,y,straddr; byte color)
+{
+ES = 0xA000;
+AX = y*320 + x;
+DI = AX;
+BH = color;
+$ PUSH BP
+BP = straddr;
+loop()
+    {CX = DSBYTE[BP];
+    $ CMP CL,0
+    $ JE FINISH
+    AX = CX - 32 * 5 + #font_5x5;
+    SI = AX;
+    AH = 5;
+    loop(AH)
+	{$ LODSB
+	$ TEST AL,16
+	$ JZ DOWN16
+	ESBYTE[DI] = BH; 
+	DOWN16:
+	DI++;
+	$ TEST AL,8
+	$ JZ DOWN8
+	ESBYTE[DI] = BH; 
+	DOWN8:
+	DI++;
+	$ TEST AL,4
+	$ JZ DOWN4
+	ESBYTE[DI] = BH; 
+	DOWN4:
+	DI++;
+	$ TEST AL,2
+	$ JZ DOWN2
+	ESBYTE[DI] = BH; 
+	DOWN2:
+	DI++;
+	$ TEST AL,1
+	$ JZ DOWN1
+	ESBYTE[DI] = BH; 
+	DOWN1:
+	DI += 320 - 4;
+	}
+    DI -= 320*5 -5 -1;   // the -1 is for one pixel spacing
+    BP++;
+    }
+FINISH:
+$ POP BP
+}
+
+/* end of VGAFONT.H-- */

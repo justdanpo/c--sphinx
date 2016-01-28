@@ -1,0 +1,204 @@
+?warning FALSE
+?define EVENT TRUE
+/*****************************************************************************
+* .NAME   : ScanMouse
+* .TITLE  : Если нажата кнопка на мыши - генерирует событие.
+*****************************************************************************/
+struct{
+	byte dblOnRelease;  // при отпускании выдать doubleClick
+	char moveWindowFlag;// флаг перемещения окна
+	int lbuttons;       // предыдущее состояние кнопок
+	int lmrow;          // последние координаты
+	int lmcol;          // мыши
+	long lastClick;     // время последнего нажатия
+}OldMo=0;
+word onKeyTail=0;
+
+void ScanMouse()
+?ifdef DEBUG
+char buf[20];
+?endif
+{
+// считаваем статус мыши
+	msstatus(#Event.buttons,#Event.mrow,#Event.mcol);
+// высчитаем относительные координаты
+	IF(_winfo.total){
+// абсолютные координаты
+		BX=wlrow();
+		Event.mwrow=Event.mrow-BX;
+		BX=wlcol();
+		Event.mwcol=Event.mcol-BX;
+	}
+	ELSE{
+		Event.mwrow=-10000;
+		Event.mwcol=-10000;
+	} // нет открытых окон!
+	Event.mouseWhat=evMouseNothing;
+	IF(Event.buttons!=0){
+// нажатие произошло
+		IF(OldMo.lbuttons==0){
+			Event.mouseWhat=evMousePress;
+// произошел double click?
+			IF(timer()-OldMo.lastClick<7)OldMo.dblOnRelease=YES; // при отпускании выдать doubleClick
+	    ELSE OldMo.dblOnRelease=NO;
+// запомним время нажатия
+			OldMo.lastClick=timer();
+		}
+// автособытие
+		ELSE Event.mouseWhat=evMouseAuto;
+	}
+// отпускание
+	ELSE IF(OldMo.lbuttons!=0)Event.mouseWhat=evMouseRelease;
+// выдать doubleClick
+	IF(Event.mouseWhat==evMouseRelease)&&(OldMo.dblOnRelease)Event.doubleClick=YES;
+	ELSE Event.doubleClick=NO;
+// нажатые кнопки запомним
+	OldMo.lbuttons=Event.buttons;
+?ifdef DEBUG
+	IF(OldMo.lmrow!=Event.mrow)||(OldMo.lmcol!=Event.mcol){
+		mshidecur();
+		FARCORELEFT();
+		EAX=AX*16;
+		LONGTOSTR(EAX,#buf);
+		DSBYTE[BX]=' ';
+		BX++;
+		INTTOSTR(Event.mrow,BX);
+		DSBYTE[BX]=' ';
+		BX++;
+		INTTOSTR(Event.mcol,BX);
+		STRSETSZ(#buf,,DEBUGSIZEINF-3);
+		AH=0;
+		printc(byte _vinfo.numrows-1,byte _vinfo.numcols-sizeof(progFootNote)-3-DEBUGSIZEINF,0x1F,'│');
+		AH=0;
+		prints(byte _vinfo.numrows-1,byte _vinfo.numcols-sizeof(progFootNote)-1-DEBUGSIZEINF,0x1F,#buf);
+		msshowcur();
+	}
+?endif
+// запоминаем координаты мыши
+	IF(Event.mouseWhat!=evMouseNothing)Event.what=evMouse;
+	OldMo.lmrow=Event.mrow;
+	OldMo.lmcol=Event.mcol;
+}
+
+byte hRead(word proc)
+{
+?ifdef BACKGROUND
+	ShowMessage();
+?endif
+	Event.what=evNothing;
+	for(;;){
+		do{
+// вызов пользовательской процедуры
+			ScanMouse();
+			IF(proc!=0)$call proc
+			UserProc();
+			IF(Event.what==evMouse)&&(Event.mouseWhat==evMouseAuto)BREAK;
+// не сканировать клавиатуру, если приходит автособытие от мыши
+			ScanKeyboard();
+		}while(Event.what==evNothing);
+		AL=Event.what;
+		if(AL==evMouse){
+			IF(Event.doubleClick!=0){
+				IF(OldMo.moveWindowFlag){
+					OldMo.moveWindowFlag=NO;
+					MoveWindowFinish();
+				}
+?ifdef BACKGROUND
+				IF(Event.mrow==0)&&(Event.mcol<2)ABORT();
+?endif
+				IF(Event.mwrow+Window.border==0)&&(Event.mwcol+Window.border<2)
+				   &&((_winfo.total!=0){
+					 	rWindow();
+						Event.what=evCloseWin;
+						BREAK;
+				}
+			}
+// если нажатие на заголовке окна - перемещение
+			IF(Event.mouseWhat==evMousePress)&&(Window.border)&&(Event.mwrow==-1)&&
+				(0<Event.mwcol)&&(wcols()+1>=Event.mwcol){
+				OldMo.moveWindowFlag=YES;
+				MoveWindowStart();
+			}
+// при перемещении окна отпускание мыши значит окончание перемещения
+			ELSE IF(OldMo.moveWindowFlag)&&(Event.what==evMouse){
+				IF(Event.mouseWhat==evMouseRelease){
+					OldMo.moveWindowFlag=NO;
+					MoveWindowFinish();
+				}
+// автособытие при перемещении окна - таскать за собой рамку
+				ELSE IF(Event.mouseWhat==evMouseAuto)MoveWindowDo();
+			}
+			ELSE IF(Event.mouseWhat!=evMouseNothing)BREAK;
+		}
+		ELSE BREAK;
+// при перемещении никакие другие события не обрабатывать
+		Event.what=evNothing;
+	}
+	return Event.what;
+}
+
+/*****************************************************************************
+* .NAME   : ScanKeyboard
+* .TITLE  : При нажатии на клавишу генерирует событие.
+*****************************************************************************/
+void ScanKeyboard()
+{
+// в буфере компьютера есть код
+	AH=0x11;
+	$int 0x16
+	IF(NOTZEROFLAG){
+		AH=0x10;
+		$int 0x16
+		Event.keyCode=AX; // извлечь из буфера
+		IF(AX==k_esc)&&(_winfo.total==0)ABORT();
+		IF(AX==0x2D00)ABORT();	//Alt+X
+// поиск закрепленных за клавишей функций
+		FOR(DI=0;DI<onKeyTail;DI++){
+			IF(Event.keyCode==onKey[DI].xch)&&(onKey[DI].func!=0){
+				$call onKey[DI].func
+				BREAK;
+			}
+		}
+		Event.what=evKeyboard;
+	}
+}
+
+/*****************************************************************************
+* .NAME   : KbSetKey
+* .TITLE  : Привязывает к клавише функцию
+*****************************************************************************/
+:void KbSetKey(word xch,fn)
+{
+// просмотр массива onkeys
+	FOR(DX=0;DX<onKeyTail;DX++){
+// если уже есть - заменим
+		IF(onKey[DX].xch==xch){
+			IF(fn==0){	//удалить обработчик
+				FOR(;DX<onKeyTail;DX++){
+					onKey[DX]=onKey[DX+1];
+				}
+				onKey[DX]=0;
+				onKeyTail--;
+			}
+			ELSE onKey[DX].func=fn;
+			return ;
+		}
+	}
+	IF(onKeyTail!=ON_KEYS){
+// занесение
+		onKey[DX].xch=xch;
+		onKey[DX].func=fn;
+		onKeyTail++;
+	}
+}
+
+/* **************************************************************************
+	Ждать отпускания кнопки мыши
+ ****************************************************************************/
+void MoClear()
+{
+	do{
+		Event.what=evNothing;
+		ScanMouse();
+	}while(Event.what!=evNothing);
+}

@@ -1,0 +1,62 @@
+/*
+    SPHINX C-- example program
+    NAME:  XMS.C--
+    DESCRIPTION:  This program gives an example of some of the Extended
+                  Memory Standard (XMS) procedures available from C--.
+                  An XMS driver (such as QEMM.SYS, HIMEM.SYS or 386MAX.SYS)
+                  supporting version 2.0 or greater of the XMS standard is
+                  required.
+*/
+
+?print "Building XMS.COM, the XMS example program.\n"
+
+?include "WRITE.H--"
+?include "DOS.H--"
+
+byte moveok = "EMB Move was OK!\n";
+
+?define SIZE_OF_BLOCK 100   /* size of block to allocate, in K bytes */
+
+
+main ()
+word EMBhandle;
+{
+WRITELN();
+IF( XMSgetversion() < 0x0200 )
+    {WRITESTR("XMS driver 2.0 or greater required.\n");
+    EXIT(-1);}
+ELSE WRITESTR("XMS driver detected.\n");
+
+displayavailableEMB();
+
+IF( XMSallocateEMB(SIZE_OF_BLOCK) == 0 )
+    {WRITESTR("Error allocating EMB of 100K size.\n");
+    EXIT(-1);}
+WRITESTR("100K EMB allocated OK!\n");
+EMBhandle = DX; 
+
+displayavailableEMB();
+
+IF( XMSmoveEMB(0,0,EMBhandle, DS,#moveok,0, 0,12) == 1) 
+    WRITESTR(#moveok);  // should display "EMB Move was OK!\n";
+IF( XMSmoveEMB(DS,#moveok+1,0, 0,0,EMBhandle, 0,12) == 1) 
+    WRITESTR(#moveok);  // should now display "EEMB Move wasOK!\n";
+XMSfreeEMB( EMBhandle );
+
+WRITESTR("XMS demo finished.\n");
+}
+
+
+void displayavailableEMB ()
+word largestEMB,totalEMB;
+{largestEMB = XMSqueryfreeEMB();
+totalEMB = DX;
+WRITESTR("Largest free EMB available is: ");
+WRITEWORD(largestEMB);
+WRITESTR("K\n");
+WRITESTR("Total amount of free EMB available is: ");
+WRITEWORD(totalEMB);
+WRITESTR("K\n");
+}
+
+/* end of XMS.C-- */

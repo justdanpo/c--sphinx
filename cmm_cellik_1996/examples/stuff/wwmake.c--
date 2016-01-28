@@ -1,0 +1,501 @@
+/*
+    NAME:  WWMAKE.C--
+    DESCRIPTION:  Random map generator for world war game.
+*/
+
+?use80386     // hey, why not?
+?resize     TRUE
+?assumeDSSS FALSE
+?parsecommandline TRUE
+
+?include "RANDOM.H--"
+?include "VIDEO.H--"
+?include "WRITE.H--"
+?include "MOUSE.H--"
+?include "FILE.H--"
+?include "DOS.H--"
+?include "KEYCODES.H--"
+
+?define LOGICALSCREENWIDTH    512
+?define LOGICALSCREENHEIGHT   512
+?define THECLEARCOLOR         31
+?include "VGAX.H--"
+
+
+byte landicon = FROM "LANDFLAG.III";
+byte watericon = FROM "SEAFLAG.III";
+byte mouseicon = FROM "WWMOUSE.III";
+
+?define  MAXNATIONS  255  // 255 is the maximum max value
+?define  MAXISLANDS MAXNATIONS 
+?define  MAXADDSEAZONES MAXNATIONS
+
+word nations;       // can't be above MAXNATIONS-THECLEARCOLOR
+word islands;
+word addseazones;
+byte nationflags[MAXNATIONS+1];  /* position 0 used as counter, this is a
+                                    scratch array used for calculating
+                                    neighbours */
+word xs[MAXNATIONS+1],ys[MAXNATIONS+1];  // location of info box
+byte nation_sea[MAXNATIONS+1];          // flag TRUE if nation is water
+
+?define MAXBORDERS 16
+?define BORDERARRAYSIZE MAXNATIONS+1*MAXBORDERS
+byte nation_borders[BORDERARRAYSIZE]; /* nation_borders is a 2 dim array
+                                         256x16 the first 256 bytes (y = 0)
+                                         are used as counters. */
+
+word screenbuf;           // buffer for screen 256 K
+word screenoffset = 0;    // the panned offset of the screen
+word topx=0,topy=0;       // coordinated of top left corner screen offset
+
+?define  SAVEFILE  "WW.SAV"
+
+
+void ZERO_BYTEARRAY ()  // AX == address of byte array
+{
+DI = AX;
+CX = MAXNATIONS+1;
+ES = DS;
+AL = 0;
+$ REPZ
+$ STOSB
+}
+
+
+word str_to_word (word str)
+word ret;
+{
+ret = 0;
+SI = str;
+IF( DSBYTE[SI] != 0 )
+    {do {
+        ret = 10*ret;
+        ret += DSBYTE[SI] - '0';
+        SI++;
+        } while( DSBYTE[SI] != 0 );
+    }
+return( ret );
+}
+
+
+void main ()
+word count;
+word maxbord;
+{
+screenbuf = GETMEM(0x4000);  // 256k buffer for screen
+IF( screenbuf == 0 )
+    {WRITESTR("Not enough memory!\n");
+    EXIT(1);
+    }
+
+IF( PARAMCOUNT() != 4 )
+    {WRITESTR("usage>  WWMAKE <output file> <zones> <islands> <sea zones>\n");
+    EXIT(2);
+    }
+
+nations = str_to_word(PARAMSTR(1));
+IF( nations > MAXNATIONS )
+    {WRITESTR("Number of zones too large, maximum value is ");
+    WRITEWORD(nations);
+    WRITESTR(".\n");
+    EXIT(3);
+    }
+
+islands = str_to_word(PARAMSTR(2));
+IF( islands > MAXISLANDS )
+    {WRITESTR("Number of islands too large, maximum value is ");
+    WRITEWORD(MAXISLANDS);
+    WRITESTR(".\n");
+    EXIT(4);
+    }
+
+addseazones = str_to_word(PARAMSTR(3));
+IF( addseazones > MAXADDSEAZONES )
+    {WRITESTR("Number of additional sea zones too large, maximum value is ");
+    WRITEWORD(MAXADDSEAZONES);
+    WRITESTR(".\n");
+    EXIT(5);
+    }
+
+WRITESTR("\nZones:  ");
+WRITEWORD(nations);
+WRITESTR("\nIslands:  ");
+WRITEWORD(islands);
+WRITESTR("\nAdditional SeaZones:  ");
+WRITEWORD(addseazones);
+WRITESTR("\n\n*** Any Key to Continue, or <ESC> to ABORT ***");
+
+IF( BIOSREADKEY() == k_esc )
+    {WRITESTR("\n\nAborted.\n");
+    EXIT(6);
+    }
+
+@ RANDOMIZE();
+RESETMOUSE();
+set320x240mode(FALSE);
+CLEARSCREEN();
+
+generate_base(nations);
+maxbord = calc_neighbours(nations);
+IF( maxbord > MAXBORDERS )
+    {SETVIDEOMODE(vid_text80c);
+    WRITESTR("\nSorry there is an error, maximum neighbours exceeded (there was ");
+    WRITEWORD(maxbord);
+    WRITESTR(").\n");
+    EXIT(1);
+    }
+generate_islands(islands,addseazones,nations);
+draw_borders();
+getscreen(screenbuf);
+SETVIDEOMODE(vid_text80c);
+WRITESTR("Saving...");
+IF( saveworld(screenbuf,PARAMSTR(0)) == FALSE )
+    {WRITESTR("\nError Saving World.\n");
+    }
+ELSE WRITESTR("\nWorld Saved.\n");
+WRITESTR("\nSPHINX programming 1994\n");
+}
+
+
+?define FILEHEADERSIZE 15
+byte fileheader = "WW world file.\026";
+
+word saveworld (word bufseg,filenameaddr)
+word filehandle;
+byte count;
+{
+filehandle = FCREATE( , ,FA_NORMAL,filenameaddr);   /* create file write */
+IF(filehandle == 0)                    /* if file did not open */
+    return(FALSE);
+IF( FWRITE( ,filehandle,FILEHEADERSIZE,#fileheader) != FILEHEADERSIZE )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(FALSE);}
+IF( FWRITE( ,filehandle,2,#nations) != 2 )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(FALSE);}
+$ PUSH DS
+count = 8;
+loop(count)
+    {DS = bufseg;
+    IF( FWRITE( ,filehandle,0x8000,0) != 0x8000 )
+        {$ POP DS
+        FCLOSE( ,filehandle);  /* close the file */
+        return(FALSE);}
+    bufseg += 0x800;
+    }   
+$ POP DS
+IF( FWRITE( ,filehandle,MAXNATIONS+1*2,#xs) != MAXNATIONS+1*2 )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(FALSE);}
+IF( FWRITE( ,filehandle,MAXNATIONS+1*2,#ys) != MAXNATIONS+1*2 )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(FALSE);}
+
+IF( FWRITE( ,filehandle,BORDERARRAYSIZE,#nation_borders) != BORDERARRAYSIZE )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(FALSE);}
+
+IF( FWRITE( ,filehandle,MAXNATIONS+1,#nation_sea) != MAXNATIONS+1 )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(FALSE);}
+FCLOSE( ,filehandle);  /* close the file */
+return(TRUE);
+}
+
+
+void getscreen (word bufseg)
+{SETREADMASK( ,0);
+COPYFARW(bufseg,0,VGA_SEG,0,0x8000);
+SETREADMASK( ,1);
+COPYFARW(0x1000+bufseg,0,VGA_SEG,0,0x8000);
+SETREADMASK( ,2);
+COPYFARW(0x2000+bufseg,0,VGA_SEG,0,0x8000);
+SETREADMASK( ,3);
+COPYFARW(0x3000+bufseg,0,VGA_SEG,0,0x8000);
+}
+
+
+void CLEARSCREEN ()
+{SETWRITEMASK( ,0xF);
+ES = 0xA000;
+CX = 0x8000;
+AX = 0;
+DI = 0;
+$REPZ
+$STOSW
+}
+
+
+void bar_16x16 (word x,y; byte color)
+{
+SETWRITEMASK( ,0xF);
+ES = 0xA000;
+AX = x/4;
+DI = AX;
+AX = LOGICALSCREENWIDTH/4*y;
+DI += AX;
+AL = color;
+CX = 16;
+loop(CX)
+    {$ STOSB
+    $ STOSB
+    $ STOSB
+    $ STOSB
+    DI += LOGICALSCREENWIDTH/4 - 4;
+    }
+}
+
+
+void draw_borders ()
+int x,y;
+byte flag,ok,color;
+{
+x = 0;
+y = 0;
+ok = FALSE;
+do {
+    IF( x >= LOGICALSCREENWIDTH )
+        {x = 0;
+        y++;
+        }
+    IF( y >= LOGICALSCREENHEIGHT )
+        ok = TRUE;
+    else{AL = getpixel_x(x,y);
+        if( AL != 1 )
+            {color = AL;
+            flag = FALSE;
+            IF( x > 0 ) 
+                AL = getpixel_x(x-1,y);
+            ELSE AL = getpixel_x(LOGICALSCREENWIDTH-1,y);
+            IF( AL != color )   
+                IF( AL != 0 )
+                    flag = TRUE;
+            IF( y > 0 ) 
+                AL = getpixel_x(x,y-1);
+            ELSE AL = getpixel_x(x,LOGICALSCREENHEIGHT-1);
+            IF( AL != color )   
+                IF( AL != 0 )
+                    flag = TRUE;
+            IF( flag == TRUE )
+                putpixel_x(x,y,0);
+            }
+        x++;
+        }
+    } while( ok == FALSE );
+}
+
+
+void _neighbours (byte nation)
+/* sets nationflags accordingly */
+int x,y;
+byte ok;
+{
+DI = 0;
+do {nationflags[DI] = FALSE;
+    DI++;
+    } while( DI <= MAXNATIONS );
+
+x = 0;
+y = 0;
+ok = FALSE;
+do {
+
+    IF( x >= LOGICALSCREENWIDTH )
+        {x = 0;
+        y++;
+        }
+    IF( y >= LOGICALSCREENHEIGHT )
+        ok = TRUE;
+    else if( getpixel_x(x,y) == nation )
+        {
+        AL = getpixel_x(x-1,y);
+        AH = 0;
+        BX = AX;
+        IF( AL != nation )
+            nationflags[BX] = TRUE;
+        AL = getpixel_x(x,y-1);
+        AH = 0;
+        BX = AX;
+        IF( AL != nation )
+            nationflags[BX] = TRUE;
+        AL = getpixel_x(x+1,y);
+        AH = 0;
+        BX = AX;
+        IF( AL != nation )
+            nationflags[BX] = TRUE;
+        AL = getpixel_x(x,y+1);
+        AH = 0;
+        BX = AX;
+        IF( AL != nation )
+            nationflags[BX] = TRUE;
+        }
+
+    x++;
+    } while( ok == FALSE );
+
+DI = 0;
+do {IF( nationflags[DI] == TRUE )
+        nationflags[0]++;
+    DI++;
+    } while( DI < MAXNATIONS );
+}
+
+
+word calc_neighbours (word numnations)
+word i,j;
+{
+i = 256 - numnations;
+do {
+    _neighbours(i);
+    DI = i;
+    nation_borders[DI] = nationflags[0];
+    AX = i * MAXBORDERS;
+    DI = AX;
+    IF( nationflags[0] > 0 )
+        {IF( nationflags[0] > MAXBORDERS )
+            {return(nationflags[0]);
+            }
+        SI = 1;
+        do {
+            IF( nationflags[SI] )
+                {nation_borders[DI] = SI;
+                DI++;
+                }
+            SI++;
+            } while( SI <= MAXNATIONS );
+        }
+    i++;
+    } while( i <= MAXNATIONS );
+
+return(0);
+}
+
+
+void generate_islands (word Islands,additional_seazones,num_nations)
+word count;
+{
+ES = DS;
+CX = MAXNATIONS+1;
+DI = #nation_sea;
+AL = FALSE;
+$ REPZ
+$ STOSB     // set nation_sea array to FALSE
+
+IF( Islands > 0 )
+    {loop(Islands)
+        {_neighbours(0x100-Islands);
+        IF( nationflags[0] > 0 )
+            {SI = 1;
+            do {
+                IF( nationflags[SI] == TRUE )
+                    nation_sea[SI] = TRUE;
+                SI++;
+                } while( SI < MAXNATIONS+1 );
+            }
+        }
+    }
+IF( additional_seazones > 0 )
+    {loop(additional_seazones)
+        {AX = RAND() % num_nations;
+        BX = 0xFF - AX;
+        nation_sea[BX] = TRUE;
+        }
+    }
+}
+
+
+?define XMOD   LOGICALSCREENWIDTH-16
+?define YMOD   LOGICALSCREENHEIGHT-16
+
+void generate_base (word locations)
+byte done;
+int x,y,dx,dy;
+int color;
+byte ok;
+word blacks;
+{
+done = FALSE;
+CLEARSCREEN();
+color = 255;
+if( locations > 0 )
+    {loop(locations)
+        {
+        do {
+            AX = RAND()%XMOD/4*4;
+            x = AX;
+            AX = RAND()%YMOD;
+            y = AX;
+            SI = color+1;
+            ok = TRUE;
+            if( SI < 256 )
+                {do {
+                    BX = SI+SI;
+                    IF( x-16 <= xs[BX] )
+                        IF( y-16 <= ys[BX] )
+                            IF( x+16 >= xs[BX] )
+                                IF( y+16 >= ys[BX] )
+                                    ok = FALSE;                    
+                    SI++;
+                    } while( SI < 256 );
+                }
+            } while( ok == FALSE );
+        bar_16x16(x,y,color);
+        BX = color+BX;
+        xs[BX] = x;
+        ys[BX] = y;
+        color--;
+        }
+    }
+x = 0;
+y = 0;
+ok = FALSE;
+blacks = TRUE;
+do {
+    IF( x >= LOGICALSCREENWIDTH )
+        {x = 0;
+        y++;
+        }
+    IF( y >= LOGICALSCREENHEIGHT )
+        y = 0;
+    IF( x == 0 )
+        IF( y == 0 )
+            {IF( blacks == FALSE )
+                ok = TRUE;
+            blacks = FALSE;
+            }
+    AL = getpixel_x(x,y);
+    if( AL != 0 )
+        {color = AL;
+        dx = x;
+        dy = y;
+        AL = RAND();
+        IF( AL > 256/4*3 )
+            {IF( dx > 0 )
+                dx--;
+            ELSE dx = LOGICALSCREENWIDTH-1;
+            }
+        ELSE IF( AL > 256/4*2 )
+            {IF( dx < LOGICALSCREENWIDTH-1 )
+                dx++;
+            ELSE dx = 0;
+            }
+        ELSE IF( AL > 256/4 )
+            {IF( dy > 0 )
+                dy--;
+            ELSE dy = LOGICALSCREENHEIGHT-1;
+            }
+        ELSE{IF( dy < LOGICALSCREENHEIGHT-1 )
+                dy++;
+            ELSE dy = 0;
+            }
+        IF( getpixel_x(dx,dy) == 0 )   
+            putpixel_x(dx,dy,color);
+        }
+    ELSE blacks = TRUE;
+    x++;
+    } while( ok == FALSE );
+}
+
+
+/* end of WWMAKE.C-- */

@@ -1,0 +1,556 @@
+// ------------------------------------------------------------------- //
+//        STRING32.H-- для Sphinx C--                                  //
+//        Функции для работы со строками под Win32                     //
+//        Основан на SYSUTILS.PAS из Borland Delphi                    //
+//        Предложения и плевки отправляйте на hd_keeper@mail.ru        //
+// ------------------------------------------------------------------- //
+
+#warning FALSE
+
+:dword fastcall strlen( EDI)
+{
+  asm {
+    XOR ECX, ECX
+    XOR EAX, EAX
+    DEC ECX
+    REPNE SCASB
+    SUB EAX, 2
+    SUB EAX, ECX
+  }
+}
+
+:dword fastcall strend( EDI)
+{
+  asm {
+    XOR ECX, ECX
+    XOR EAX, EAX
+    DEC ECX
+    REPNE SCASB
+    LEA EAX, DSDWORD[ EDI-1]
+  }
+}
+
+:dword fastcall strcpy( EDI, ESI)
+{
+  asm {
+    MOV EDX, EDI
+    MOV EDI, ESI
+    XOR ECX, ECX
+    XOR EAX, EAX
+    DEC ECX
+    REPNE SCASB
+    XOR ECX, 0FFFFFFFFH
+    MOV EDI, EDX
+    MOV EDX, ECX
+    MOV EAX, EDI
+    SHR ECX, 2
+    REP MOVSD
+    MOV ECX, EDX
+    AND ECX, 3
+    REP MOVSB
+  }
+}
+
+:dword fastcall strcpyn( EDI, ESI, ECX)
+{
+  asm {
+    MOV EDX, EDI
+    MOV EDI, ESI
+    MOV EBX, ECX
+    XOR EAX, EAX
+    TEST ECX, ECX
+    JZ L1
+    REPNE SCASB
+    JNE L1
+    INC ECX
+L1: SUB EBX, ECX
+    MOV EDI, EDX
+    MOV EDX, EDI
+    MOV ECX, EBX
+    SHR ECX, 2
+    REP MOVSD
+    MOV ECX, EBX
+    AND ECX, 3
+    REP MOVSB
+    STOSB
+    MOV EAX, EDX
+  }
+}
+
+:dword fastcall strmov( EDI, ESI)
+{
+  asm {
+    MOV EDX, EDI
+    MOV EDI, ESI
+    XOR ECX, ECX
+    XOR EAX, EAX
+    DEC ECX
+    REPNE SCASB
+    XOR ECX, 0FFFFFFFFH
+    MOV EDI, EDX
+    MOV EBX, EDX
+    MOV EDX, ECX
+    CMP EDI, ESI
+    JG L1
+    JE L2
+    SHR ECX, 2
+    REP MOVSD
+    MOV ECX, EDX
+    AND ECX, 3
+    REP MOVSB
+    JMP SHORT L2
+L1: LEA ESI, DSDWORD[ ESI+ECX-1]
+    LEA EDI, DSDWORD[ EDI+ECX-1]
+    AND ECX, 3
+    STD
+    REP MOVSB
+    SUB ESI, 3
+    SUB EDI, 3
+    MOV ECX, EDX
+    SHR ECX, 2
+    REP MOVSD
+    CLD
+L2: MOV EAX, EBX
+  }
+}
+
+:dword fastcall strmovn( EDI, ESI, ECX)
+{
+  asm {
+    MOV EDX, EDI
+    MOV EDI, ESI
+    MOV EBX, ECX
+    XOR EAX, EAX
+    TEST ECX, ECX
+    JZ L0
+    REPNE SCASB
+    JNE L0
+    INC ECX
+L0: SUB EBX, ECX
+    MOV EDI, EDX
+    MOV EDX, EDI
+    MOV ECX, EBX
+    CMP EDI, ESI
+    JG L1
+    JE L2
+    SHR ECX, 2
+    REP MOVSD
+    MOV ECX, EBX
+    AND ECX, 3
+    REP MOVSB
+    STOSB
+    JMP SHORT L2
+L1: LEA ESI, DSDWORD[ ESI+ECX-1]
+    LEA EDI, DSDWORD[ EDI+ECX]
+    AND ECX, 3
+    STD
+    STOSB
+    REP MOVSB
+    SUB ESI, 3
+    SUB EDI, 3
+    MOV ECX, EBX
+    SHR ECX, 2
+    REP MOVSD
+    CLD
+L2: MOV EAX, EDX
+  }
+}
+
+:dword fastcall strcat( EDI, ESI)
+{
+  asm {
+    MOV EBX, EDI
+    XOR ECX, ECX
+    XOR EAX, EAX
+    DEC ECX
+    REPNE SCASB
+    DEC EDI
+    MOV EDX, EDI
+    MOV EDI, ESI
+    XOR ECX, ECX
+    XOR EAX, EAX
+    DEC ECX
+    REPNE SCASB
+    XOR ECX, 0FFFFFFFFH
+    MOV EDI, EDX
+    MOV EDX, ECX
+    MOV EAX, EDI
+    SHR ECX, 2
+    REP MOVSD
+    MOV ECX, EDX
+    AND ECX, 3
+    REP MOVSB
+    MOV EAX, EBX
+  }
+}
+
+:long fastcall strcmp( ESI, EDI)
+{
+  asm {
+    MOV EBX, EDI
+    XOR ECX, ECX
+    XOR EAX, EAX
+    DEC ECX
+    REPNE SCASB
+    XOR ECX, 0FFFFFFFFH
+    MOV EDI, EBX
+    XOR EBX, EBX
+    REPE CMPSB
+    MOV AL, DSBYTE[ ESI-1]
+    MOV BL, DSBYTE[ EDI-1]
+    SUB EAX, EBX
+  }
+}
+
+:long fastcall strcmpi( ESI, EDI)
+{
+  asm {
+    MOV EBX, EDI
+    XOR ECX, ECX
+    XOR EAX, EAX
+    DEC ECX
+    REPNE SCASB
+    XOR ECX, 0FFFFFFFFH
+    MOV EDI, EBX
+    XOR EBX, EBX
+L1: REPE CMPSB
+    JE L4
+    MOV AL, DSBYTE[ ESI-1]
+    CMP AL, 'a'
+    JB L2
+    CMP AL, 'z'
+    JA L2
+    SUB AL, 20H
+L2: MOV BL, DSBYTE[ EDI-1]
+    CMP BL, 'a'
+    JB L3
+    CMP BL, 'z'
+    JA L3
+    SUB BL, 20H
+L3: SUB EAX, EBX
+    JE L1
+L4:
+  }
+}
+
+:long fastcall strcmpn( ESI, EDI, ECX)
+{
+  asm {
+    MOV EBX, EDI
+    XOR EAX, EAX
+    MOV EDX, ECX
+    OR ECX, ECX
+    JE L1
+    REPNE SCASB
+    SUB EDX, ECX
+    MOV ECX, EDX
+    MOV EDI, EBX
+    XOR EBX, EBX
+    REPE CMPSB
+    MOV AL, DSBYTE[ ESI-1]
+    MOV BL, DSBYTE[ EDI-1]
+    SUB EAX, EBX
+L1:
+  }
+}
+
+:long fastcall strcmpni( ESI, EDI, ECX)
+{
+  asm {
+    MOV EBX, EDI
+    MOV EDX, ECX
+    XOR EAX, EAX
+    OR ECX, ECX
+    JE L4
+    REPNE SCASB
+    SUB EDX, ECX
+    MOV ECX, EDX
+    MOV EDI, EBX
+    XOR EBX, EBX
+L1: REPE CMPSB
+    JE L4
+    MOV AL, DSBYTE[ ESI-1]
+    CMP AL, 'a'
+    JB L2
+    CMP AL, 'z'
+    JA L2
+    SUB AL, 20H
+L2: MOV BL, DSBYTE[ EDI-1]
+    CMP BL, 'a'
+    JB L3
+    CMP BL, 'z'
+    JA L3
+    SUB BL, 20H
+L3: SUB EAX, EBX
+    JE L1
+L4:
+  }
+}
+
+:dword fastcall strchr( EDI, BL)
+{
+  asm {
+    MOV EDX, EDI
+    XOR EAX, EAX
+    XOR ECX, ECX
+    DEC ECX
+    REPNE SCASB
+    XOR ECX, 0FFFFFFFFH
+    MOV EDI, EDX
+    MOV EAX, EBX
+    XOR EDX, EDX
+    REPNE SCASB
+    MOV EAX, EDX
+    JNE L1
+    MOV EAX, EDI
+    DEC EAX
+L1:
+  }
+}
+
+:dword fastcall strchrr( EDI, BL)
+{
+  asm {
+    XOR EAX, EAX
+    XOR ECX, ECX
+    MOV EDX, EAX
+    DEC ECX
+    REPNE SCASB
+    STD
+    XOR ECX, 0FFFFFFFFH
+    DEC EDI
+    MOV EAX, EBX
+    REPNE SCASB
+    MOV EAX, EDX
+    JNE L1
+    MOV EAX, EDI
+    INC EAX
+L1: CLD
+  }
+}
+
+:dword fastcall strstr( EBX, EDX)
+{
+  asm {
+    MOV EDI, EDX
+    XOR ECX, ECX
+    XOR EAX, EAX
+    DEC ECX
+    REPNE SCASB
+    NOT ECX
+    DEC ECX
+    JE L2
+    MOV ESI, ECX
+    XOR ECX, ECX
+    MOV EDI, EBX
+    DEC ECX
+    REPNE SCASB
+    NOT ECX
+    SUB ECX, ESI
+    JBE L2
+    MOV EDI, EBX
+    LEA EBX, DSDWORD[ ESI-1]
+L1: MOV ESI, EDX
+    LODSB
+    REPNE SCASB
+    JNE L2
+    MOV EAX, ECX
+    PUSH EDI
+    MOV ECX, EBX
+    REPE CMPSB
+    POP EDI
+    MOV ECX, EAX
+    JNE L1
+    LEA EAX, DSDWORD[ EDI-1]
+    JMP SHORT L3
+L2: XOR EAX, EAX
+L3:
+  }
+}
+
+:dword fastcall strupr( ESI)
+{
+  asm {
+    MOV EDX, ESI
+L1: LODSB
+    OR AL, AL
+    JE L2
+    CMP AL, 'a'
+    JB L1
+    CMP AL, 'z'
+    JA L1
+    SUB AL, 20H
+    MOV DSBYTE[ ESI-1], AL
+    JMP SHORT L1
+L2: MOV EAX, EDX
+  }
+}
+
+:dword fastcall strlwr( ESI)
+{
+  asm {
+    MOV EDX, ESI
+L1: LODSB
+    OR AL, AL
+    JE L2
+    CMP AL, 'A'
+    JB L1
+    CMP AL, 'Z'
+    JA L1
+    ADD AL, 20H
+    MOV DSBYTE[ ESI-1], AL
+    JMP SHORT L1
+L2: MOV EAX, EDX
+  }
+}
+
+:dword fastcall strtok( EDX, ESI, EBX)
+{
+  asm {
+    XOR ECX, ECX
+    MOV EDI, EBX
+    XOR EAX, EAX
+    DEC ECX
+    REPNE SCASB
+    XOR ECX, 0FFFFFFFFH
+    DEC ECX
+    PUSH ECX
+L1: LODSB
+    OR AL, AL
+    JZ L4
+    MOV EDI, EBX
+    MOV ECX, SSDWORD[ ESP]
+    REPNE SCASB
+    JZ L1
+    DEC ESI
+L2: LODSB
+    MOV EDI, EBX
+    MOV ECX, SSDWORD[ ESP]
+    REPNE SCASB
+    JZ L3
+    MOV DSBYTE[ EDX], AL
+    INC EDX
+    JMP SHORT L2
+L3: MOV EAX, ESI
+L4: POP ECX
+  } DSBYTE[ EDX] = 0;
+}
+
+:void fastcall memsetz( EDI, ECX)
+{
+  asm {
+    XOR EAX, EAX
+    MOV EDX, ECX
+    SHR ECX, 2
+    REP STOSD
+    MOV ECX, EDX
+    AND ECX, 3
+    REP STOSB
+  }
+}
+
+:void fastcall memset( EDI, ECX, AL)
+{
+  asm {
+    MOV AH, AL
+    MOVZX EDX, AX
+    SHL EAX, 16
+    OR EAX, EDX
+    MOV EDX, ECX
+    SHR ECX, 2
+    REP STOSD
+    MOV ECX, EDX
+    AND ECX, 3
+    REP STOSB
+  }
+}
+
+:void fastcall memcpy( EDI, ESI, ECX)
+{
+  asm {
+    MOV EDX, ECX
+    SHR ECX, 2
+    REP MOVSD
+    MOV ECX, EDX
+    AND ECX, 3
+    REP MOVSB
+  }
+}
+
+:void fastcall memsetd( EDI, ECX, EAX)
+{
+  asm {
+    REP STOSD
+  }
+}
+
+:void fastcall memcpyd( EDI, ESI, ECX)
+{
+  asm {
+    REP MOVSD
+  }
+}
+
+:void fastcall memmov( EDI, ESI, ECX)
+{
+  asm {
+    MOV EAX, ECX
+    CMP EDI, ESI
+    JG L1
+    JE L2
+    SAR ECX, 2
+    JS L2
+    REP MOVSD
+    MOV ECX, EAX
+    AND ECX, 3
+    REP MOVSB
+    JMP SHORT L2
+L1: LEA ESI, DSDWORD[ ESI+ECX-4]
+    LEA EDI, DSDWORD[ EDI+ECX-4]
+    SAR ECX, 2
+    JS L2
+    STD
+    REP MOVSD
+    MOV ECX, EAX
+    AND ECX, 3
+    ADD ESI, 3
+    ADD EDI, 3
+    REP MOVSB
+    CLD
+L2:
+  }
+}
+
+:long fastcall memcmp( ESI, EDI, ECX)
+{
+  asm {
+    MOV EAX, ECX
+    SHR ECX, 2
+    REPE CMPSD
+    MOV ECX, EAX
+    AND ECX, 3
+    REPE CMPSB
+    XOR EAX, EAX
+    XOR ECX, ECX
+    MOV AL, DSBYTE[ ESI-1]
+    MOV CL, DSBYTE[ EDI-1]
+    SUB EAX, ECX
+  }
+}
+
+#define strncpy strcpyn
+#define strnmov strmovn
+#define stricmp strcmpi
+#define strncmp strcmpn
+#define strncmpi strcmpni
+#define stricmpn strcmpni
+#define strnicmp strcmpni
+#define strincmp strcmpni
+#define strcmpin strcmpni
+#define strrchr strchrr
+#define memzset memsetz
+#define memset0 memsetz
+#define mem0set memsetz
+#define memset32 memsetd
+#define memcpy32 memcpyd
+

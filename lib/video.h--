@@ -1,0 +1,88 @@
+/*  SPHINX Programming (C) 1994.
+    NAME:  VIDEO.H--
+    DESCRIPTION:  This file contains constant definitions for the different
+                  video mode values for use with SETVIDEOMODE and
+                  GETVIDEOMODE.  SETVIDEOMODE() and GETVIDEOMODE() are
+                  defined.
+                  Some segment values are also defined.
+    LAST MODIFIED:  20 Mar 1994
+    PROCEDURES DEFINED IN THIS FILE:
+        : byte GETVIDEOMODE()
+        : void SETVIDEOMODE(byte videomode)
+*/
+?ifndef _VIDEO_
+?define _VIDEO_ TRUE
+?warning FALSE
+
+// define some video mode segment addresses:
+?define  MDA_SEG  0xB000
+?define  CGA_SEG  0xB800
+?define  EGA_SEG  0xA000
+?define  VGA_SEG  0xA000
+
+// define all video mode values up to and including VGA:
+enum { vid_text40bw, vid_text40c,
+       vid_text80bw, vid_text80c,
+       vid_320x200_4, vid_320x200_4_RGB, vid_640x200_2,
+       vid_text80m,
+       vid_160x200_16_pcjr, vid_320x200_16_pcjr, vid_640x200_4_pcjr,
+       vid_reserved1, vid_reserved2,
+       vid_320x200_16, vid_640x200_16, vid_640x350_2, vid_640x350_16,
+       vid_640x480_2, vid_640x480_16, vid_320x200_256 };
+
+// define the lone VESA video standard mode defined for SETVIDEOMODE:
+
+?define  vid_800x600_16_VESA   0x6A
+
+// define some enhanced video mode values for the ATI VGA wonder:
+
+?define  vid_text132x25c_ATI   0x23
+?define  vid_text132x25m_ATI   0x27
+?define  vid_text132x44c_ATI   0x33
+?define  vid_text132x44m_ATI   0x37
+?define  vid_800x600_16_ATI_1  0x53
+?define  vid_800x600_16_ATI_2  0x54
+?define  vid_640x400_256_ATI   0x61
+?define  vid_640x480_256_ATI   0x62
+?define  vid_800x600_256_ATI   0x63
+?define  vid_1024x768_16_ATI   0x65
+?define  vid_1024x768_4_ATI    0x67
+
+// SuperVGA text and graphics modes for Western Digital WD30C31 (?)
+// (Diamond SpeedStar 24X) chipset
+?define  vid_text132x25c_WD   0x55   // 512k Paradise
+?define  vid_text132x43c_WD   0x54   // 512k Paradise
+?define  vid_640x400_256_WD   0x5E   // 512k Paradise
+?define  vid_640x480_256_WD   0x5F   // 512k Paradise
+?define  vid_800x600_16_WD    0x58   // 512k Paradise
+?define  vid_800x600_256_WD   0x5C
+?define  vid_1024x768_16_WD   0x5D   // 512k Paradise
+?define  vid_1024x768_256_WD  0x60
+?define  vid_1280x960_16_WD   0x6C
+?define  vid_1280x1024_16_WD  0x64
+?define  vid_640x480_32k_WD   0x62
+?define  vid_800x600_32k_WD   0x63
+?define  vid_640x480_16m_WD   0x72
+
+:void SETVIDEOMODE()   // AL = videomode
+/* Attempts to set the screen to the videomode given.  There is no error
+return, use GETVIDEOMODE() to determine success. */
+{
+	AH=0;
+	$INT 0x10
+}
+// RETURNS:  AX = undefined;
+
+:byte GETVIDEOMODE()
+/* Obtains current videomode along with active display page and number of
+character columns. */
+{
+	AH=0xF;
+	$INT 0x10
+}
+/* RETURNS:  AH = # of character column in current mode
+   	     AL = video mode
+	     BH = active display page (usually 0) */
+
+?endif
+/* end of VIDEO.H-- */

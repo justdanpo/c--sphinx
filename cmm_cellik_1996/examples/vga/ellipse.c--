@@ -1,0 +1,129 @@
+/*
+    C-- source code for ELLIPSE.COM, a VGA palette cycling demonstration.
+    Warning:  80386 or greater CPU required.
+*/
+
+?print "Building ELLIPSE.COM\n"
+?print "WARNING:  80386 or greater CPU required to execute!\n"
+
+?assumeDSSS TRUE     // assume SS is equal to DS at all times
+?alignword  TRUE     // align word's and int's to even addresses
+?use80386            // optimize code using 80386 instructions
+
+?include "KEYCODES.H--"
+?include "VIDEO.H--"
+?include "VGA.H--"
+?include "VGA386.H--"
+?include "WRITE.H--"
+?include "RANDOM.H--"
+?include "DOS.H--"
+
+?define CHANGE_RANGE   2      /* random range of palette change */
+
+?define PALSIZE    256*3    /* size of palette buffer 256 colours * RGB */
+byte palette[PALSIZE];      /* buffer for palette */
+
+byte randvalue;
+
+word xsize,ysize;
+?define XMAX 320
+?define YMAX 200
+byte color=66;
+word xloc,yloc;
+int xgo=1,ygo=1;
+byte speed=5;
+byte i;
+word count;
+byte squares;
+
+
+
+main ()
+byte quit;
+{
+IF(byte GETCPU() < 3 )  /* check if 80386 instructions available */
+    {WRITESTR("80386 or greater CPU required.");
+    EXIT(-1);}
+@ SETVIDEOMODE( vid_320x200_256 );    /* set video mode */
+IF( byte @ GETVIDEOMODE() != vid_320x200_256)
+    {WRITESTR("Unable to enter 320x200 256 colour video mode.");
+    EXIT(-1);}
+@ GETVGAPALETTE( ,0,256,#palette);
+
+@ RANDOMIZE();   /* seed the random number generator */
+quit = FALSE;
+newsettings();
+do {
+    i = 0;
+    do {
+        ellipse19_386(xloc+xsize,yloc+ysize,xsize,ysize,color);
+//      ellipse19_386(xloc+xsize,yloc+ysize,xsize-1,ysize-1,color);
+//      ellipse19_386(xloc+xsize,yloc+ysize,xsize+1,ysize+1,color);
+/*  Uncomment above two lines for more solid looking ellipses, at the
+    expense of speed.  */
+        color++;
+        IF( color == 0 )
+            color++;
+        xloc += xgo;
+        yloc += ygo;
+        IF( XMAX-xsize-xsize-1 <= xloc )
+            {-xgo;
+            xloc += xgo;}
+        IF( YMAX-ysize-ysize <= yloc )
+            {-ygo;
+            yloc += ygo;}
+        i++;
+        } while( i < speed );
+    @ COPYFAR(DS,#palette[3],DS,#palette[6],PALSIZE-6);
+    palette[PALSIZE-3] += RAND() % CHANGE_RANGE;
+    palette[PALSIZE-2] += RAND() % CHANGE_RANGE;
+    palette[PALSIZE-1] += RAND() % CHANGE_RANGE;
+
+    @ WAITVSYNC();
+    @ SETVGADAC(0, ,PALSIZE, , ,#palette);
+    IF( @ KBHIT() != 0 )
+        quit = dokeys();
+    } while( quit == FALSE );
+
+@ SETVIDEOMODE( vid_text80c );    /* return to text mode */
+WRITESTR("SPHINX Programming 1993");
+}
+
+
+byte dokeys()
+word key;
+byte ch;
+{key = BIOSREADKEY();
+ch = key;
+if( ch == '+' )
+    {if(speed < 50)
+        speed++;
+    }
+else if( ch == '-' )
+    {if(speed > 0)
+        speed--;
+    }
+ELSE IF( ch == ' ' )
+    {CLEARSCREEN19();
+    newsettings();
+    }
+ELSE IF( key == k_return )
+    newsettings();
+ELSE IF( key == k_esc )
+    return(TRUE);
+return(FALSE);
+}
+
+
+void newsettings()
+{squares = RAND() %4;
+ysize = RAND()%40 +1;       // xsize*20*4/32/3;
+xsize = RAND()%20 + ysize + 10;
+IF(xsize > 45)
+    squares = 0;
+xloc = XMAX /3;
+xloc += RAND() % 40;
+yloc = YMAX /2;
+}
+
+/* end of ELLIPSE.C-- */

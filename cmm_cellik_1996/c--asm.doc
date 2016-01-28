@@ -1,0 +1,474 @@
+
+         HELP FILE ON C-- INLINE ASSEMBLY (Last modifed 18 Sept 1994)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+C-- inline assembly supports all of the 8088/8086 assembly codes, plus most
+of the 80286, 80386 and 80486 enhanced instructions.  All codes must start
+with the $ inline assembly specifier.  The list below shows all of the
+assembly op codes supported by C--:
+
+$CS:         /* Use Code Segment */
+$DS:         /* Use Data Segment */
+$ES:         /* Use Extra Segment */
+$FS:         /* Use Extra Segment 2 (386+) */
+$GS:         /* Use Extra Segment 3 (386+) */
+$SS:         /* Use Stack Segment */
+
+$AAA         /* ASCII Adjust After Addition */
+$AAD         /* ASCII Adjust After Division */
+$AAM         /* ASCII Adjust After Multiplication */
+$AAS         /* ASCII Adjust After Subtraction */
+
+$ADC wordreg,value16    /* Add with carry value16 to wordreg */
+$ADC bytereg,value8     /* Add with carry value8 to bytereg */
+$ADC var16,imm16        /* Add with carry imm16 to 16 bit variable */
+$ADC var16,wordreg      /* Add with carry wordreg to 16 bit variable */
+$ADC var8,imm8          /* Add with carry imm8 to 8 bit variable */
+$ADC var8,bytereg       /* Add with carry bytereg to 8 bit variable */ 
+$ADC reg32,value32      /* Add with carry value32 to 32 bit reg (386+) */
+$ADC var32,imm32        /* Add with carry imm32 to 32 bit variable (386+) */
+$ADC var32,reg32        /* Add with carry reg32 to 32 bit variable (386+) */
+
+$ADD wordreg,value16    /* Add value16 to wordreg */
+$ADD bytereg,value8     /* Add value8 to bytereg */
+$ADD var8,imm8          /* Add imm8 to 8 bit variable */
+$ADD var8,bytereg       /* Add bytereg to 8 bit variable */ 
+$ADD var16,imm16        /* Add imm16 to 16 bit variable */
+$ADD var16,wordreg      /* Add wordreg to 16 bit variable */
+$ADD reg32,value32      /* Add value32 to 32 bit reg (386+) */
+$ADD var32,imm32        /* Add imm32 to 32 bit variable (386+) */
+$ADD var32,reg32        /* Add reg32 to 32 bit variable (386+) */
+
+$ADRSIZ     /* toggle address size (386+) */
+$ADRSIZE    /* toggle address size (386+) same as $ADRSIZ */
+
+$AND wordreg,value16    /* AND value16 to wordreg */
+$AND bytereg,value8     /* AND value8 to bytereg */
+$AND var8,imm8          /* AND imm8 to 8 bit variable */
+$AND var8,bytereg       /* AND bytereg to 8 bit variable */ 
+$AND var16,imm16        /* AND imm16 to 16 bit variable */
+$AND var16,wordreg      /* AND wordreg to 16 bit variable */
+$AND reg32,value32      /* AND value32 to 32 bit reg (386+) */
+$AND var32,imm32        /* AND imm32 to 32 bit variable (386+) */
+$AND var32,reg32        /* AND reg32 to 32 bit variable (386+) */
+
+$BOUND reg16,var        /* Check Bounds */
+
+$BSWAP reg32            /* Swap Byte Order (486+) */
+
+$CALL imm16             /* Near Call */
+$CALL FAR imm16:imm16   /* Far Call */
+$CALL wordreg           /* CALL Near Address In Word Register */
+$CALL var               /* Indirect Near Call */
+$CALL FAR var           /* Indirect Far Call
+
+$CBD         /* Convert Byte To Double Word (386+), AL to EAX */
+$CBW         /* Convert Byte To Word, AL to AX */
+$CDQ         /* Convert Double Word To Quad Word (386+), EAX to EDX:EAX */
+$CLC         /* Clear Carry Flag */
+$CLD         /* Clear Direction Flag */
+$CLI         /* Clear Interrupt Flag (disable interrupts) */
+$CLTS        /* Clear Task Switched Flag (286+) */
+$CMC         /* Complement Carry Flag */
+$CWD         /* Convert Word To Double Word, AX to DX:AX */
+
+$CMP bytereg,value8     /* Compare value8 to bytereg */
+$CMP wordreg,value16    /* Compare value16 to wordreg */
+$CMP var8,imm8          /* Compare imm8 to 8 bit variable */
+$CMP var8,bytereg       /* Compare bytereg to 8 bit variable */ 
+$CMP var16,imm16        /* Compare imm16 to 16 bit variable */
+$CMP var16,wordreg      /* Compare wordreg to 16 bit variable */
+$CMP reg32,value32      /* Compare value32 to 32 bit reg (386+) */
+$CMP var32,imm32        /* Compare imm32 to 32 bit variable (386+) */
+$CMP var32,reg32        /* Compare reg32 to 32 bit variable (386+) */
+
+$CMPSB       /* Compare String Byte */
+$CMPSW       /* Compare String Word */
+$CMPSD       /* Compare String Double Word (386+) */
+
+$CMPXCHG varreg8,bytereg      /* Compare and Exchange two bytes (486+) */ 
+$CMPXCHG varreg16,wordreg     /* Compare and Exchange two words (486+) */
+$CMPXCHG varreg32,reg32       /* Compare and Exchange two dwords (486+) */
+
+$DAA         /* Decimal Adjust After Addition */
+$DAS         /* Decimal Adjust After Subtraction */
+
+$DB imm8     /* Data Byte (a method for putting a byte value in code) */
+$DW imm16    /* Data Word (a method for putting a word value in code) */
+
+$DEC varreg8   /* Decrement an 8 bit memory variable or register */
+$DEC varreg16  /* Decrement a 16 bit memory variable or register */
+$DEC varreg32  /* Decrement a 32 bit memory variable or register (386+) */
+
+$DIV varreg8   /* Divide AX by an 8 bit memory var or register */
+$DIV varreg16  /* Divide DX-AX by a 16 bit memory var or register */
+$DIV varreg32  /* Divide EDX-EAX by a 32 bit memory var or register (386+) */
+
+$ENTER imm16,imm8   /* Make Stack Frame (286+) */
+
+$HLT         /* Halt Processor */
+
+$IDIV varreg8   /* Integer Divide AL by an 8 bit memory var or register */
+$IDIV varreg16  /* Integer Divide AX by a 16 bit memory var or register */
+$IDIV varreg32  /* Integer Divide EAX by a 32 bit memory var or reg (386+) */
+
+$IMUL varreg8   /* Integer Multiply AL by an 8 bit memory var or register */
+$IMUL varreg16  /* Integer Multiply AX by a 16 bit memory var or register */
+$IMUL varreg32  /* Integer Multiply EAX by a 32 bit mem var or reg (386+) */
+
+$IN AL,imm8   /* Read A Byte Into AL From A Constant Port Number */
+$IN AX,imm8   /* Read A Word Into AX From A Constant Port Number */
+$IN EAX,imm8  /* Read A Word Into EAX From A Constant Port Number (386+) */
+$IN AL,DX     /* Read A Byte Into AL From Port DX */
+$IN AX,DX     /* Read A Word Into AX From Port DX */
+$IN EAX,DX    /* Read A Word Into EAX From Port DX (80386+) */
+
+$INC varreg   /* Increment a memory variable or register */
+
+$INSB      /* Input String Byte (286+) */
+$INSW      /* Input String Word (286+) */
+$INSD      /* Input String Double Word (386+) */
+
+$INT imm8  /* Call To Interrupt */
+$INTO      /* Interrupt 4 On Overflow */
+
+$INVD      /* Invalidate Cache (486+) */
+$INVLPG    /* Invalidate Page Entry In Translation Lookaside Buffer (486+) */
+
+$IRET        /* Return From Interrupt */
+
+$JMP SHORT imm8        /* Direct Short Jump */
+$JMP imm16             /* Direct Near Jump */
+$JMP FAR imm16:imm16   /* Direct Far Jump */
+$JMP wordreg           /* Jump To Near Address In Word Register */
+$JMP var16             /* Indirect Near Jump */
+$JMP FAR var           /* Indirect Far Jump */
+$JMP var32             /* Indirect Far Jump */
+
+$JNO imm8        /* Jump Short On Not Overflow */
+$JNO imm16       /* Jump Near On Not Overflow (386+) */
+
+$JO imm8         /* Jump Short On Overflow */
+$JO imm16        /* Jump Near On Overflow (386+) */
+
+$JB imm8         /* Jump Short On Below */
+$JB imm16        /* Jump Near On Below (386+) */
+
+$JNAE imm8       /* Jump Short On Not Above Or Equal */
+$JNAE imm16      /* Jump Near On Not Above Or Equal (386+) */
+
+$JNB imm8        /* Jump Short On Not Below */
+$JNB imm16       /* Jump Near On Not Below (386+) */
+
+$JAE imm8        /* Jump Short On Above Or Equal */
+$JAE imm16       /* Jump Near On Above Or Equal (386+) */
+
+$JE imm8         /* Jump Short On Equal */
+$JE imm16        /* Jump Near On Equal (386+) */
+
+$JZ imm8         /* Jump Short On Zero */
+$JZ imm16        /* Jump Near On Zero (386+) */
+
+$JNE imm8        /* Jump Short On Not Equal */
+$JNE imm16       /* Jump Near On Not Equal (386+) */
+
+$JNZ imm8        /* Jump Short On Not Zero */
+$JNZ imm16       /* Jump Near On Not Zero (386+) */
+
+$JBE imm8        /* Jump Short On Below Or Equal */
+$JBE imm16       /* Jump Near On Below Or Equal (386+) */
+
+$JNA imm8        /* Jump Short On Not Above */
+$JNA imm16       /* Jump Near On Not Above (386+) */
+
+$JNBE imm8       /* Jump Short On Not Below Or Equal */
+$JNBE imm16      /* Jump Near On Not Below Or Equal (386+) */
+
+$JA imm8         /* Jump Short On Above */
+$JA imm16        /* Jump Near On Above (386+) */
+
+$JS imm8         /* Jump Short On Sign */
+$JS imm16        /* Jump Near On Sign (386+) */
+
+$JNS imm8        /* Jump Short On Not Sign */
+$JNS imm16       /* Jump Near On Not Sign (386+) */
+
+$JP imm8         /* Jump Short On Parity */
+$JP imm16        /* Jump Near On Parity (386+) */
+
+$JPE imm8        /* Jump Short On Parity Even */
+$JPE imm16       /* Jump Near On Parity Even (386+) */
+
+$JNP imm8        /* Jump Short On Not Parity */
+$JNP imm16       /* Jump Near On Not Parity (386+) */
+
+$JPO imm8        /* Jump Short On Parity Odd */
+$JPO imm16       /* Jump Near On Parity Odd (386+) */
+
+$JL imm8         /* Jump Short On Less */
+$JL imm16        /* Jump Near On Less (386+) */
+
+$JNGE imm8       /* Jump Short On Not Greater Or Equal */
+$JNGE imm16      /* Jump Near On Not Greater Or Equal (386+) */
+
+$JNL imm8        /* Jump Short On Not Less */
+$JNL imm16       /* Jump Near On Not Less (386+) */
+
+$JGE imm8        /* Jump Short On Greater Or Equal */
+$JGE imm16       /* Jump Near On Greater Or Equal (386+) */
+
+$JLE imm8        /* Jump Short On Less Or Equal */
+$JLE imm16       /* Jump Near On Less Or Equal (386+) */
+
+$JNG imm8        /* Jump Short On Not Greater */
+$JNG imm16       /* Jump Near On Not Greater (386+) */
+
+$JNLE imm8       /* Jump Short On Not Less Or Equal */
+$JNLE imm16      /* Jump Near On Not Less Or Equal (386+) */
+
+$JG imm8         /* Jump Short On Greater */
+$JG imm16        /* Jump Near On Greater (386+) */
+
+$JCXZ imm8       /* Jump Short On CX == 0 */
+$JCXZ imm16      /* Jump Near On CX == 0 (386+) */
+
+$LAHF        /* Load Flags Into AH Register */
+
+$LDS reg16,var     /* Load DS pointer */
+$LEA reg16,var     /* Load Effective Address */
+
+$LEAVE       /* Release Stack Frame (286+) */
+
+$LES reg16,var     /* Load ES pointer */
+$LFS reg16,var     /* Load FS pointer (386+) */
+$LGS reg16,var     /* Load GS pointer (386+) */
+
+$LODSB     /* Load String Byte:  AL = DSBYTE[DI]; DI++; */
+$LODSW     /* Load String Word:  AX = DSWORD[DI]; DI+=2; */
+$LODSD     /* Load String Double Word (386+):  EAX = DSDWORD[DI]; DI+=4; */
+
+$LOCK      /* Bus Lock */
+
+$LOOP imm8       /* Loop CX Times */
+$LOOPE imm8      /* Loop CX Times While Equal */
+$LOOPNE imm8     /* Loop CX Times While Not Equal */
+$LOOPNZ imm8     /* Loop CX Times While Not Zero */
+$LOOPZ imm8      /* Loop CX Times While Zero */
+
+$LSS reg16,var     /* Load SS pointer (386+) */
+
+$MOV wordreg,value16   /* move value16 into word register */
+$MOV bytereg,value8    /* move value8 into byte register */
+$MOV var16,wordreg     /* move word register into 16 bit variable */
+$MOV var8,bytereg      /* move byte register into 8 bit variable */
+$MOV var16,imm16       /* move constant value into 16 bit variable */
+$MOV var8,imm8         /* move constant value into 8 bit variable */
+$MOV var16,segreg      /* move segment register into 16 bit variable */
+$MOV wordreg,segreg    /* move segment register into word register */
+$MOV var16,seg386      /* move 386 seg reg into 16 bit var (386+) */
+$MOV wordreg,seg386    /* move 386 seg reg into word reg (386+) */
+$MOV wordreg,imm16     /* move constant value into word register */
+$MOV bytereg,imm8      /* move constant value into byte register */
+$MOV segreg,var16      /* move word variable into segment register */
+$MOV segreg,wordreg    /* move word reg into segment register */
+$MOV seg386,var16      /* move word variable into 386 seg reg (386+) */
+$MOV seg386,wordreg    /* move word register into 386 seg reg (386+) */
+$MOV reg32,reg32       /* move 32 bit reg into 32 bit reg (386+) */
+$MOV reg32,debugreg    /* move debug reg into 32 bit reg (386+) */
+$MOV reg32,testreg     /* move test reg into 32 bit reg (386+) */
+$MOV reg32,controlreg  /* move control reg into 32 bit reg (386+) */
+$MOV debugreg,reg32    /* move 32 bit reg into debug reg (386+) */
+$MOV testreg,reg32     /* move 32 bit reg into test reg (386+) */
+$MOV controlreg,reg32  /* move 32 bit reg into control reg (386+) */
+
+$MOVSB       /* Move String Byte: ESBYTE[DI] = DSBYTE[SI]; DI++; SI++; */
+$MOVSW       /* Move String Word: ESWORD[DI] = DSWORD[SI]; DI+=2; SI+=2; */
+$MOVSD       /* Move String Double Word (80386+):
+                                 ESDWORD[DI] = DSDWORD[SI]; DI+=4; SI+=4; */
+
+$MUL varreg8   /* Multiply AL by an 8 bit memory variable or register,
+                  result stored in AX */
+$MUL varreg16  /* Multiply AX by a 16 bit memory variable or register,
+                  high 16 bits of result stored in DX, low 16 bits of
+                  result stored in AX */
+$MUL varreg32  /* Multiply EAX by a 32 bit memory variable or register,
+                  high 32 bits of result stored in EDX, low 32 bits of
+                  result stored in EAX (80386+) */
+
+$NEG varreg    /* Negate a memory variable or register */
+
+$NOP           /* No Operation */
+
+$NOT varreg    /* Not a memory variable or register */
+
+$OPSIZ     /* toggle operand size (386+) */
+$OPSIZE    /* toggle operand size (386+) */
+
+$OR wordreg,value16    /* Or value16 to wordreg */
+$OR bytereg,value8     /* Or value8 to bytereg */
+$OR var16,imm16        /* Or imm16 to 16 bit variable */
+$OR var16,wordreg      /* Or wordreg to 16 bit variable */
+$OR var8,imm8          /* Or imm8 to 8 bit variable */
+$OR var8,bytereg       /* Or bytereg to 8 bit variable */ 
+$OR reg32,value32      /* Or value32 to 32 bit reg (386+) */
+$OR var32,imm32        /* Or imm32 to 32 bit variable (386+) */
+$OR var32,reg32        /* Or reg32 to 32 bit variable (386+) */
+
+$OUT imm8,AL   /* Write AL To A Constant Port Number */
+$OUT imm8,AX   /* Write AX To A Constant Port Number */
+$OUT imm8,EAX  /* Write EAX To A Constant Port Number (386+) */
+$OUT DX,AL     /* Write AL To Byte Port DX */
+$OUT DX,AX     /* Write AX To Word Port DX */
+$OUT DX,EAX    /* Write EAX To Word Port DX (386+) */
+
+$OUTSB       /* Output String Byte (286+) */
+$OUTSW       /* Output String Word (286+) */
+$OUTSD       /* Output String Double Word (386+) */
+
+$POP wordreg  /* POP Word Register Off Stack */
+$POP var16    /* POP 16 bit Variable Off Stack */
+$POP reg32    /* POP 32 bit Word Register Off Stack (386+) */
+$POP segreg   /* POP Segment Register Off Stack */
+$POP seg386   /* POP 386 Segment Register (FS or GS) Off Stack (386+) */
+$POPA         /* POPs all wordreg registers off stack (286+) */
+$POPAD        /* POPs all reg32 registers off stack (386+) */
+$POPF         /* POP Flags Off Stack */
+$POPFD        /* POP 32 bit Flags Off Stack */
+
+$PUSH wordreg  /* PUSH Word Register Onto Stack */
+$PUSH var16    /* PUSH 16 bit Variable Onto Stack */
+$PUSH reg32    /* PUSH 32 bit Word Register Onto Stack (386+) */
+$PUSH segreg   /* PUSH Segment Register Onto Stack */
+$PUSH seg386   /* PUSH 386 Segment Register (FS or GS) Onto Stack (386+) */
+$POPA          /* PUSHes all wordreg registers onto stack (286+) */
+$POPAD         /* PUSHes all reg32 registers onto stack (386+) */
+$PUSHF         /* PUSH Flags Onto Stack */
+$PUSHFD        /* PUSH 32 bit Flags Onto Stack (386+) */
+
+$RCL varreg,1      /* Rotate Through Carry Left By One */
+$RCL varreg,imm8   /* Rotate Through Carry Left By imm8 (286+) */
+$RCL varreg,CL     /* Rotate Through Carry Left By CL */
+
+$RCR varreg,1      /* Rotate Through Carry Right By One */
+$RCR varreg,imm8   /* Rotate Through Carry Right By imm8 (286+) */
+$RCR varreg,CL     /* Rotate Through Carry Right By CL */
+
+$REP         /* Repeat While Zero */
+$REPE        /* Repeat While Equal */
+$REPZ        /* Repeat While Zero */
+$REPNE       /* Repeat While Not Equal */
+$REPNZ       /* Repeat While Not Zero */
+
+$RET         /* Near Return */
+$RETF        /* Far Return */
+
+$ROL varreg,1      /* Rotate Left By One */
+$ROL varreg,imm8   /* Rotate Left By imm8 (286+) */
+$ROL varreg,CL     /* Rotate Left By CL */
+
+$ROR varreg,1      /* Rotate Right By One */
+$ROR varreg,imm8   /* Rotate Right By imm8 (286+) */
+$ROR varreg,CL     /* Rotate Right By CL */
+
+$SAHF        /* Store AH Register Into Flags */
+
+$SAL varreg,1      /* Shift Left Arithmatic By One */
+$SAL varreg,imm8   /* Shift Left Arithmatic By imm8 (286+) */
+$SAL varreg,CL     /* Shift Left Arithmatic By CL */
+
+$SAR varreg,1      /* Shift Right Arithmatic By One */
+$SAR varreg,imm8   /* Shift Right Arithmatic By imm8 (286+) */
+$SAR varreg,CL     /* Shift Right Arithmatic By CL */
+
+$SCASB       /* Scan String Byte */
+$SCASW       /* Scan String Word */
+$SCASD       /* Scan String Double Word (386+) */
+
+$SHL varreg,1      /* Shift Left Logical By One */
+$SHL varreg,imm8   /* Shift Left Logical By imm8 (286+) */
+$SHL varreg,CL     /* Shift Left Logical By CL */
+
+$SHR varreg,1      /* Shift Right Logical By One */
+$SHR varreg,imm8   /* Shift Right Logical By imm8 (286+) */
+$SHR varreg,CL     /* Shift Right Logical By CL */
+
+$STC         /* Set Carry Flag */
+$STD         /* Set Direction Flag */
+$STI         /* Set Interrupt Flag */
+
+$STOSB   /* Store String Byte: ESBYTE[DI] = AL; DI++; */
+$STOSW   /* Store String Word: ESWORD[DI] = AX; DI+=2; */
+$STOSD   /* Store String Double Word (386+): ESDWORD[DI] = EAX; DI+=4; */
+
+$SBB wordreg,value16    /* Subtract with borrow value16 to wordreg */
+$SBB bytereg,value8     /* Subtract with borrow value8 to bytereg */
+$SBB var16,imm16        /* Subtract with borrow imm16 to 16 bit variable */
+$SBB var16,wordreg      /* Subtract with borrow wordreg to 16 bit variable */
+$SBB var8,imm8          /* Subtract with borrow imm8 to 8 bit variable */
+$SBB var8,bytereg       /* Subtract with borrow bytereg to 8 bit variable */ 
+$SBB reg32,value32      /* Subtract with borrow value32 to 32 bit reg (386+) */
+$SBB var32,imm32        /* Subtract with borrow imm32 to 32 bit variable (386+) */
+$SBB var32,reg32        /* Subtract with borrow reg32 to 32 bit variable (386+) */
+
+$SUB wordreg,value16    /* Subtract value16 to wordreg */
+$SUB bytereg,value8     /* Subtract value8 to bytereg */
+$SUB var16,imm16        /* Subtract imm16 to 16 bit variable */
+$SUB var16,wordreg      /* Subtract wordreg to 16 bit variable */
+$SUB var8,imm8          /* Subtract imm8 to 8 bit variable */
+$SUB var8,bytereg       /* Subtract bytereg to 8 bit variable */ 
+$SUB reg32,value32      /* Subtract value32 to 32 bit reg (386+) */
+$SUB var32,imm32        /* Subtract imm32 to 32 bit variable (386+) */
+$SUB var32,reg32        /* Subtract reg32 to 32 bit variable (386+) */
+
+$TEST wordreg,value16   /* AND word register and value16 to flags */
+$TEST bytereg,value8    /* AND byte register and value16 to flags */
+
+$WAIT        /* Wait For Co-Processor */
+
+$WBINVD      /* Write-Back and Invalidate Cache (486+) */
+
+$XADD varreg8,bytereg       /* Exchange and Add (486+) */
+$XADD varreg16,regwordreg   /* Exchange and Add (486+) */
+$XADD varreg32,reg32        /* Exchange and Add (486+) */
+
+$XLATB       /* Table LookUp Translation (same as XLAT) */
+
+$XOR wordreg,value16    /* Xor value16 to wordreg */
+$XOR bytereg,value8     /* Xor value8 to bytereg */
+$XOR var16,imm16        /* Xor imm16 to 16 bit variable */
+$XOR var16,wordreg      /* Xor wordreg to 16 bit variable */
+$XOR var8,imm8          /* Xor imm8 to 8 bit variable */
+$XOR var8,bytereg       /* Xor bytereg to 8 bit variable */ 
+$XOR reg32,value32      /* Xor value32 to 32 bit reg (386+) */
+$XOR var32,imm32        /* Xor imm32 to 32 bit variable (386+) */
+$XOR var32,reg32        /* Xor reg32 to 32 bit variable (386+) */
+
+
+imm32      represents a 32 bit constant value.
+imm16      represents a 16 bit constant value.
+imm8       represents an 8 bit constant value.
+reg32      represents any one of EAX,EBX,ECX,EDX,ESP,EBP,EDI or ESI.
+wordreg    represents any one of AX,BX,CX,DX,SP,BP,DI or SI.
+bytereg    represents any one of AL,BL,CL,DL,AH,BH,CH or DH.
+segreg     represents any one of DS,CS,ES or SS.
+seg386     represents one of the two extra 80386 segments registers, FS or GS.
+testreg    represents any one of TR0,TR1,TR2,TR3,TR4,TR5,TR6 or TR7.
+debugreg   represents any one of DR0,DR1,DR2,DR3,DR4,DR5,DR6 or DR7.
+controlreg represents any one of CR0,CR1,CR2,CR3,CR4,CR5,CR6 or CR7.
+var        represents any memory variable.
+value32    represents any one of dword, long, imm32 or reg32.
+value16    represents any one of word, int, imm16 or wordreg.
+value8     represents any one of byte, char, imm8 or bytereg.
+varreg32   represents any one of dword, long or reg32.
+varreg16   represents any one of word, int or wordreg.
+varreg8    represents any one of byte, char or bytereg.
+varreg     represents any one of varreg32, varreg16 or varreg8.
+var32      represents a dword or long memory variable
+var16      represents a word or int memory variable
+var8       represents a byte or char memory variable
+(286+)     80286 or higher processor required.
+(386+)     80386 or higher processor required.
+(486+)     80486 or higher processor required.
+
+
+/* end of C--ASM.DOC */

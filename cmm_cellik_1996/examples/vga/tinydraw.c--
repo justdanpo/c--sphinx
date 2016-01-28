@@ -1,0 +1,2109 @@
+/*
+    SPHINX Programming (C) 1995
+    NAME:  TINYDRAW.C--
+    DESCRIPTION:  The under 20K, 320x200-256 drawing program for creating
+                  and editing:
+                       *.CUT image files
+                       *.III icon files
+                       *.SCR screen files
+                       *.PAL palette files
+                       *.COM picture files (self displaying)
+                       *.PCX picture and cut files
+    RUN FILE SIZE:  19523 bytes.
+    SYSTEM REQUIREMENTS:
+        - 8086, but for colour cycling option or flood file 80286+ CPU
+          required, for ellipses, 80386+ required.
+        - VGA or better display
+        - 20K free disk space
+        - 300K free memory
+        - Microsoft Compatable Mouse and Driver
+    PROPERTY OF:  Peter Cellik
+    Last Modified:  15 Feb 1995
+*/
+
+
+? print "Building TINYDRAW.COM, the 320x200 256 colour drawing program.\n"
+
+? use8086          // restrict code to 8086, for the good old PC's and XT's
+? resize TRUE      // resize memory block
+? resizemessage  "Unable to resize program memory block.\n"
+? stack 20*1024    // 20k stack
+? alignword TRUE   // align words
+? parsecommandline TRUE // do not parse the command line
+
+?include "KEYCODES.H--"   // include keyboard key codes
+?include "FILE.H--"       // include readfile() and writefile()
+?include "VIDEO.H--"      // include video mode values
+?include "VGA.H--"        // include some graphics procedures
+?include "VGAFONT.H--"    // include small vga font support
+?include "DOS.H--"        // include DTA_ADDRESS
+?include "WRITE.H--"      // text display procedures
+?include "GWRITE.H--"     // text display in graphics mode
+?include "STRING.H--"     // get some string functions
+?include "RANDOM.H--"     // random number generator
+?include "MOUSE.H--"      // mouse stuff
+?include "VGAFILL.H--"    // flood fill routine
+?include "VGA386.H--"     // ellipse commands
+?include "PCX.H--"        // PCX file format support
+?include "MATH.H--"       // ABS stuff
+
+byte bye = "\nThis version of TINYDRAW is FREEWARE.\n"
+             "Feel free to copy it and share it with your friends,\n"
+             "so long as it is not modified in any way.\n"
+             "If you have any loose cash, suggestions or questions\n"
+             "you can contact me at the following address:\n\n"             
+             "PETER CELLIK\n"
+             "RR#2 Site 33 C11\n"
+             "Gabriola Is.  B.C.\n"
+             "V0R 1X0\n"
+             "CANADA\n\n\n"
+             "Have a nice day, or two.\n";
+
+word screenbuf1ptr,screenbuf2ptr;
+word iiibufptr,cutbufptr;
+
+?define  CLEARCOLOR  45   // transparent color for icons
+
+enum { d_UNDO,d_FILLEDDOTS, d_OPENDOTS, d_RANDOMFILLEDDOTS, d_RANDOMOPENDOTS,
+       d_SETDOTSIZE, d_TEXT, d_SMALLTEXT, d_DRAWLINE, d_LINE,
+       d_XORLINE, d_ORIGINLINE, d_INCORIGINLINE,
+       d_BOX, d_BAR, d_XORBOX, d_XORBAR, d_FLOODFILL, d_ELLIPSE,
+       d_CUTIII, d_CUTCUT, d_PUTIII, d_PUTCUT, d_DRAWIII, d_DRAWCUT,
+       d_RESIZECUT,
+       d_SAVEIII, d_LOADIII, d_SAVECUT, d_LOADCUT, d_SAVEPCXCUT, d_LOADPCXCUT,
+       d_SAVECOM, d_LOADCOM, d_SAVEPCX, d_LOADPCX,
+       d_SAVESCR, d_LOADSCR, d_SAVEPAL, d_LOADPAL, d_CYCLE, d_LOADPCXPAL,
+       d_NUKE, d_EXIT, OPTIONS };
+byte commandstr = "UNDO             <u>\000"
+                  "Draw Filled Dots <d>\000"  "Draw UnFilled Dots  \000"
+                  "Random Filled Dots  \000"  "Random UnFilled Dots\000"
+                  "Set Dot Size     <D>\000"  "Put Text         <t>\000"
+                  "Put Small Text   <T>\000"
+                  "Curved Line      <l>\000"  "Straight Line    <L>\000"
+                  "XOR Straight Line   \000"
+                  "Origin Line         \000"  "Incrementing Origin \000"  
+                  "Rectangle        <r>\000"  "Filled Rectangle <R>\000"
+                  "XOR Rectangle       \000"  "XOR Filled Rectangle\000"
+                  "Flood Fill       <f>\000"  "Ellipse          <e>\000"
+                  "Cut Icon         <C>\000"  "Cut CUT          <c>\000"
+                  "Put Icon         <P>\000"  "Put CUT          <p>\000"
+                  "Draw With Icon      \000"  "Draw With CUT       \000"
+                  "Resize CUT          \000"
+                  "Save Icon       <F8>\000"  "Load Icon       <F7>\000"  
+                  "Save CUT        <F6>\000"  "Load CUT        <F5>\000"
+                  "Save CUT as PCX <F4>\000"  "Load CUT from PCX   \000"
+                  "Save Picture    <F2>\000"  "Load Picture    <F3>\000"
+                  "Save Picture as PCX \000"  "Load PCX Picture    \000"
+                  "Save Screen         \000"  "Load Screen         \000"
+                  "Save Palette    <F9>\000"  "Load Palette   <F10>\000"
+	          "Toggle Cycling <tab>\000"  "Load PCX Palette    \000"
+                  "Clear Picture    <N>\000"
+                  "EXIT TINY DRAW <ESC>\000";
+?define  COLORSELECTSTART  OPTIONS+1/2*8
+byte drawtype = d_DRAWLINE;
+word dotxsize = 1, dotysize = 1;
+
+byte colour = 8;     /* current colour */
+
+?define FILENAMELEN 36
+byte scrfilename[FILENAMELEN] = "NAMELESS.SCR";  /* screen file name */
+byte palfilename[FILENAMELEN] = "NAMELESS.PAL";  /* palette file name */
+byte iiifilename[FILENAMELEN] = "NAMELESS.III";  /* icon file name */
+byte cutfilename[FILENAMELEN] = "NAMELESS.CUT";  /* cut file name */
+byte comfilename[FILENAMELEN] = "NAMELESS.COM";  /* com file name */
+byte pcxfilename[FILENAMELEN] = "NAMELESS.PCX";  /* pcx file name */
+
+?define  SCREENSIZE  64000  /* size of screen in bytes */
+
+?define PALSIZE    256*3    /* size of palette buffer 256 colours * RGB */
+byte palette[PALSIZE] = FROM "TINYDRAW.PAL";  // buffer for palette 
+byte palettehold[PALSIZE];              // temp buffer for palette 
+
+byte did = TRUE;    /* was something done on the screen flag */
+byte quit = FALSE;  /* finished flag */
+
+word undobuf = 0;   /* segment address modifier for screen buffer */ 
+word iiisize = 0;   // size in bytes of current icon image (III)
+word cutsize = 0;   // size in bytes of current cut image (CUT)
+
+/************************* start of timer int ****************************/
+byte cycleit = TRUE;      /* temp off/on used by main program */
+byte cycleon = FALSE;     /* activate/disactivate flag */
+
+?define TIMERINT  0x8
+byte busy=0,cyclecount=0,redblue=0;
+word oldtimerhandle[2];
+byte holdR,holdG,holdB;
+?define  DACSTART    46
+?define  CYCLESTART  DACSTART*3
+?define  DACS        2+8+8*3  
+byte flashflip=0;
+?define  FLASHCOLOR  46
+?define  FLASH       FLASHCOLOR*3
+?define  FLASHCOLOR2 47
+?define  FLASH2      FLASHCOLOR2*3
+
+
+interrupt timerhandle ()
+{
+$ PUSHF
+$ CS:
+$ CALL FAR oldtimerhandle;
+$ PUSH ES
+$ PUSH DS
+$ PUSHA
+DS = CS;
+if( busy == FALSE )
+    {busy = TRUE;
+    if( cycleit )
+      if( cycleon )
+        {holdR = palette[CYCLESTART  +24+6];
+        holdG = palette[CYCLESTART+1+24+6];
+        holdB = palette[CYCLESTART+2+24+6];
+        COPYFAR(DS,#palette[CYCLESTART+24+6],DS,#palette[CYCLESTART+3+24+6],7*3);
+        palette[CYCLESTART+48+3] = holdR;
+        palette[CYCLESTART+48+4] = holdG;
+        palette[CYCLESTART+48+5] = holdB;
+        redblue = 1 - redblue;
+        IF( redblue == 1 )
+            {holdR = palette[CYCLESTART+6];
+            holdG = palette[CYCLESTART+1+6];
+            holdB = palette[CYCLESTART+2+6];
+            COPYFAR(DS,#palette[CYCLESTART+6],DS,#palette[CYCLESTART+3+6],3*3);
+            palette[CYCLESTART  +6+9] = holdR;
+            palette[CYCLESTART+1+6+9] = holdG;
+            palette[CYCLESTART+2+6+9] = holdB;}
+        ELSE{holdR = palette[CYCLESTART+6+12];
+            holdG = palette[CYCLESTART+1+6+12];
+            holdB = palette[CYCLESTART+2+6+12];
+            COPYFAR(DS,#palette[CYCLESTART+6+12],DS,#palette[CYCLESTART+6+12+3],3*3);
+            palette[CYCLESTART+6+12+9] = holdR;
+            palette[CYCLESTART+1+6+12+9] = holdG;
+            palette[CYCLESTART+2+6+12+9] = holdB;} 
+        flashflip = 1-flashflip;
+        IF( flashflip == 1 )
+            {palette[FLASH] = RAND()&63;
+            palette[FLASH+1] = RAND()&63;
+            palette[FLASH+2] = RAND()&63;}
+        ELSE{palette[FLASH2] = RAND()&63;
+            palette[FLASH2+1] = RAND()&63;
+            palette[FLASH2+2] = RAND()&64;}
+        @ WAITVSYNC();
+        @ SETVGADAC(DACSTART, ,DACS, , ,#palette[CYCLESTART]);
+        }
+    busy = FALSE;
+    }
+$ POPA
+$ POP DS
+$ POP ES
+}
+
+
+/**************************** MOUSE routines ******************************/ 
+
+word x,y;      /* global variable for mouse pointer x and y coordinates */ 
+byte buttons;  /* global variable mouse button status */ 
+
+void getmouse ()
+{@ GETMOUSEXY();
+y = DX;
+buttons = BL;
+x = CX /2;     /* adjust x after so as not to undefine the regs */
+}
+
+
+void waitmouse ()
+/* wait until both mouse buttons are released, or a key is pressed */
+byte done;
+{done = FALSE;
+do {getmouse();
+    IF( buttons == 0 )
+        done = TRUE;
+    IF( KBHIT() )
+        {BIOSREADKEY();
+        done = TRUE;}    
+    } while( done == FALSE );
+}
+
+/********************* main() routines **********************************/ 
+
+void SETCOLOR ()    // AL contains new current colour to be set 
+/* set the current drawing colour and border colour */
+{colour = AL; 
+cycleit = FALSE;
+SETBORDERCOLOR(AL);
+cycleit = TRUE;
+}
+
+
+word red_colour,green_colour,blue_colour;
+
+void find_colours_to_use ()
+/* Find colours visible for menu.  Most red, green and blue from colour 0. */
+word i;
+int try;
+int red_delta,green_delta,blue_delta;
+{
+red_colour = 0;
+green_colour = 0;
+blue_colour = 0;
+red_delta = 0;
+green_delta = 0;
+blue_delta = 0;
+
+i = 1;
+do {
+    SI = i + i + i;
+    try = ABS(palette[SI]-palette[0]) * 3;
+    try -= palette[SI+1];
+    try -= palette[SI+2];
+    IF( try > red_delta )
+        {red_delta = try;
+        red_colour = i;
+        }
+    try = ABS(palette[SI+1]-palette[1]) * 3;
+    try -= palette[SI];
+    try -= palette[SI+2];
+    IF( try > green_delta )
+        {green_delta = try;
+        green_colour = i;
+        }
+    try = ABS(palette[SI+2]-palette[2]) * 3;
+    try -= palette[SI];
+    try -= palette[SI+1];
+    IF( try > blue_delta )
+        {blue_delta = try;
+        blue_colour = i;
+        }
+    i++;
+    } while( i < FLASHCOLOR );
+
+i = FLASHCOLOR +2 +8 +8;  // skip over cycling colours
+do {
+    SI = i + i + i;
+    try = ABS(palette[SI]-palette[0]) * 2;
+    try -= palette[SI+1];
+    try -= palette[SI+2];
+    IF( try > red_delta )
+        {red_delta = try;
+        red_colour = i;
+        }
+    try = ABS(palette[SI+1]-palette[1]) * 2;
+    try -= palette[SI];
+    try -= palette[SI+2];
+    IF( try > green_delta )
+        {green_delta = try;
+        green_colour = i;
+        }
+    try = ABS(palette[SI+2]-palette[2]) * 2;
+    try -= palette[SI];
+    try -= palette[SI+1];
+    IF( try > blue_delta )
+        {blue_delta = try;
+        blue_colour = i;
+        }
+    i++;
+    } while( i < 256 );
+}
+
+
+/********** start screen text ***********/
+
+void startscreen ()
+word i;
+byte done;
+{HIDEMOUSE();
+GWRITESTR("TINYDRAW  ",31);
+GWRITESTR("Version 1.10  ",15);
+GWRITESTR("By: Peter Cellik",7);
+xorbar19(0,0,320,8,16);
+i = 64;
+do {
+    line19(0,i-64+8,319,8,i);
+    line19(319,199+64-i,0,199,i);
+    i++; 
+    } while( i < 256 );
+SHOWMOUSE();
+done = FALSE;
+do {
+    IF( KBHIT() <> 0 )
+        done = TRUE;
+    getmouse();
+    IF( buttons <> 0 )
+        done = TRUE;
+    } while (done == FALSE);
+HIDEMOUSE();
+clearscreen();
+SHOWMOUSE();
+}
+
+
+byte getbuffers ()
+{
+@ALLOCBESTFIT();
+screenbuf1ptr = GETMEM(4000);
+IF( screenbuf1ptr == 0 )
+    return(1);
+screenbuf2ptr = GETMEM(4000);
+IF( screenbuf2ptr == 0 )
+    return(1);
+iiibufptr = GETMEM(4001);
+IF( iiibufptr == 0 )
+    return(1);
+cutbufptr = GETMEM(4001);
+IF( cutbufptr == 0 )
+    return(1);
+return(0);
+}
+
+
+void loadstartupfiles ()
+word count,length,numparams;
+byte str[80];
+{
+HIDEMOUSE();
+numparams = PARAMCOUNT();
+count = 0;
+do {
+    strcpy(#str,PARAMSTR(count));
+    length = STRLEN(#str);
+    if( length > 4 )
+        {
+        STR_UP(#str);
+        IF( STRCMP(#str+length-4,".PAL") == 0 )
+            {strcpy(#palfilename,#str);
+            readpalfile();}
+        else IF( STRCMP(#str+length-4,".SCR") == 0 )
+            {strcpy(#scrfilename,#str);
+            readscrfile();}
+        else IF( STRCMP(#str+length-4,".COM") == 0 )
+            {strcpy(#comfilename,#str);
+            readcomfile();}
+        ELSE IF( STRCMP(#str+length-4,".III") == 0 )
+            {strcpy(#iiifilename,#str);
+            readiiifile();}
+        ELSE IF( STRCMP(#str+length-4,".CUT") == 0 )
+            {strcpy(#cutfilename,#str);
+            readcutfile();}
+        ELSE IF( STRCMP(#str+length-4,".PCX") == 0 )
+            {strcpy(#pcxfilename,#str);
+            readpcxfile();}
+        ELSE BEEP();
+        }
+    ELSE BEEP();
+    count++;
+    } while( count < numparams ); 
+comeback();
+}
+
+
+main ()
+{
+IF( byte getbuffers() == 1 )   /* allocate screen and cut buffers */
+    {WRITESTR("Not enough free memory, 300k required.\n");
+    EXIT(-1);
+    }
+@ SETVIDEOMODE( vid_320x200_256 );    /* set video mode */
+IF( @ GETVIDEOMODE() != vid_320x200_256)  /* check if mode setting worked */
+    {WRITESTR("Unable to enter 320x200 256 colour video mode.");
+    EXIT(-1);}
+clearscreen();
+WAITVSYNC();
+SETVGAPALETTE( ,0,256,#palette);  
+@ GETINTVECT(#oldtimerhandle,TIMERINT);
+SETINTVECT( ,TIMERINT,CS,#timerhandle);
+
+@ RESETMOUSE();
+SHOWMOUSE();
+go();
+remember();
+SETBORDERCOLOR(colour);
+
+IF( byte GETCPU() >= 2 )
+    cycleon = TRUE - cycleon;
+
+IF( PARAMCOUNT() == 0 )
+    {startscreen();
+    docommandscreen();
+    }
+ELSE loadstartupfiles();
+
+IF( quit == FALSE )
+    {do {doit();
+        } while( quit == FALSE );
+    }
+
+SETINTVECT( ,TIMERINT,oldtimerhandle[2],oldtimerhandle[0]);
+HIDEMOUSE();
+@ SETVIDEOMODE( vid_text80c );    /* return to text mode */
+WRITESTR("SPHINX Programming 1995\n");
+WRITESTR("\nTINYDRAW was compiled using ");
+WRITESTR(__COMPILER__);      /* display compiler name and version */
+WRITELN();   
+WRITESTR(#bye);              /* display ending message */
+}
+
+
+byte reallyquit ()
+{
+find_colours_to_use();
+go();
+putwindow(5*8,8*8,29*8,1*8);
+GOTOXY(5,8);
+GWRITESTR("Exit TinyDraw?  [Y]es or [N]o",red_colour);
+AX = BIOSREADKEY();
+IF( AL == 'Y' )
+    return(TRUE);
+IF( AL == 'y' )
+    return(TRUE);
+comeback();
+return(FALSE);
+}
+
+
+byte dothekey ()
+{AX = BIOSREADKEY();
+
+IF(AX==k_up)
+    SETCOLOR( colour+1 );
+else IF(AX==k_down)
+    SETCOLOR( colour-1 );
+else IF(AX==k_F1)
+    helpscreen();
+else IF(AX==k_F2)
+    savecom();
+else IF(AX==k_F3)
+    loadcom();
+else IF(AX==k_F4)
+    savepcxcut();
+else IF(AX==k_F5)
+    loadcut();
+else IF(AX==k_F6)
+    savecut();
+else IF(AX==k_F7)
+    loadiii();
+else IF(AX==k_F8)
+    saveiii();
+else IF(AX==k_F9)
+    loadpal();
+else IF(AX==k_F10)
+    savepal();
+else IF(AX==k_tab)
+    {IF( byte GETCPU() >= 2 )
+        cycleon = TRUE - cycleon;
+    ELSE BEEP();}
+else IF(AX==k_backspace)
+    doundo();
+else IF(AX==k_delete)
+    {HIDEMOUSE();
+    getmouse();
+    SETCOLOR( GETPIXEL19( ,x, ,y) );
+    SHOWMOUSE();}
+else IF(AL=='u')
+    doundo();
+else IF(AL=='U')
+    doundo();
+else IF(AL=='t')
+    drawtype = d_TEXT;
+else IF(AL=='T')
+    drawtype = d_SMALLTEXT;
+else IF(AL=='d')
+    drawtype = d_FILLEDDOTS;
+else IF(AL=='D')
+    drawtype = d_SETDOTSIZE;
+else IF(AL=='l')
+    drawtype = d_DRAWLINE;
+else IF(AL=='L')
+    drawtype = d_LINE;
+else IF(AL=='R')
+    drawtype = d_BAR;
+ELSE IF(AL=='r')
+    drawtype = d_BOX;
+ELSE IF(AL=='c')
+    drawtype = d_CUTCUT;
+ELSE IF(AL=='C')
+    drawtype = d_CUTIII;
+ELSE IF(AL=='p')
+    drawtype = d_PUTCUT;
+ELSE IF(AL=='P')
+    drawtype = d_PUTIII;
+ELSE IF(AL=='f')
+    {IF( byte GETCPU() >= 2 )
+        drawtype = d_FLOODFILL;
+    ELSE BEEP();}
+ELSE IF(AL=='e')
+    {IF( byte GETCPU() >= 3 )
+        drawtype = d_ELLIPSE;
+    ELSE BEEP();}
+ELSE IF(AL=='N')
+    donuke();
+ELSE IF(AX==k_esc)
+    quit = reallyquit();
+ELSE BEEP();
+}
+
+
+void doit ()
+{IF( KBHIT() != 0 )
+    dothekey();
+else{getmouse();
+    if(buttons==1)
+        {if( drawtype == d_FILLEDDOTS )
+            dodots(TRUE,FALSE);
+        else IF( drawtype == d_OPENDOTS )
+            dodots(FALSE,FALSE);
+        else IF( drawtype == d_RANDOMFILLEDDOTS )
+            dodots(TRUE,TRUE);
+        else IF( drawtype == d_RANDOMOPENDOTS )
+            dodots(FALSE,TRUE);
+        else IF( drawtype == d_TEXT )
+            dotext();
+        else IF( drawtype == d_SMALLTEXT )
+            dosmalltext();
+        else IF( drawtype == d_DRAWIII )
+            drawcutoriii(TRUE);
+        else IF( drawtype == d_DRAWCUT )
+            drawcutoriii(FALSE);
+        else IF( drawtype == d_CUTIII )
+            cutiii();
+        ELSE IF( drawtype == d_PUTIII )
+            putcutoriii(TRUE);
+        ELSE IF( drawtype == d_PUTCUT )
+            putcutoriii(FALSE);
+        ELSE IF( drawtype == d_SETDOTSIZE )
+            dotwodrag(); 
+        ELSE IF( drawtype == d_CUTCUT )
+            dotwodrag(); 
+        ELSE IF( drawtype == d_DRAWLINE )
+            dodrawline(); 
+        ELSE IF( drawtype == d_ORIGINLINE )
+            dooriginline(FALSE); 
+        ELSE IF( drawtype == d_INCORIGINLINE )
+            dooriginline(TRUE); 
+        ELSE IF( drawtype == d_FLOODFILL )
+            dofloodfill(); 
+        ELSE dotwocoord();
+        }
+    ELSE IF(buttons==2)
+        docommandscreen();
+    }
+}
+
+
+void dotwocoord ()
+word holdx,holdy;   /* used for holding mouse status */
+word deltax,deltay,startx,starty,oldx,oldy;
+word olddeltax,olddeltay,oldstartx,oldstarty;
+{holdx = x;
+holdy = y;
+startx = x;
+starty = y;
+oldx = startx;
+oldy = starty;
+deltax = 1;
+deltay = 1;
+HIDEMOUSE();
+IF( drawtype == d_BAR )
+    bar19(startx,starty,deltax,deltay,colour);
+else IF( drawtype == d_BOX )  
+    box19(startx,starty,deltax,deltay,colour);
+else IF( drawtype == d_XORLINE )  
+    xorline19(holdx,holdy,x,y,colour);
+else IF( drawtype == d_XORBOX )  
+    xorbox19(startx,starty,deltax,deltay,colour);
+else IF( drawtype == d_ELLIPSE )  
+    ellipse19_386(deltax/2+startx,deltay/2+starty,deltax/2,deltay/2,colour);
+ELSE IF( drawtype == d_XORBAR )  
+    xorbar19(startx,starty,deltax,deltay,colour);
+ELSE IF( drawtype == d_LINE )  
+    line19(holdx,holdy,x,y,colour);
+ELSE IF( drawtype == d_RESIZECUT )
+    {$ PUSH DS
+    DS = iiibufptr;
+    putresized19(holdx,holdy,deltax,deltay,0);
+    $ POP DS
+    }
+ELSE BEEP();
+do {getmouse();
+    BL = FALSE;
+    IF( oldx <> x )
+        BL = TRUE;
+    IF( oldy <> y )
+        BL = TRUE;
+    if( BL == TRUE )
+        {oldx = x;
+        oldy = y;
+        IF( drawtype == d_ELLIPSE )
+            {deltax++;
+            deltay++;
+            }
+        $ PUSH DS
+        IF( undobuf == 0 )
+            DS = screenbuf1ptr;
+        ELSE DS = screenbuf2ptr;
+        trans19(startx,starty,deltax,deltay);     
+        $ POP DS
+        IF( drawtype == d_ELLIPSE )
+            {deltax--;
+            deltay--;
+            }
+        IF( x > holdx )
+            {deltax = x-holdx+1;
+            startx = holdx;}  
+        ELSE IF( x < holdx )
+            {deltax = holdx-x+1;
+            startx = x;}  
+        ELSE{deltax = 1;
+            startx = holdx;}
+
+        IF( y > holdy )
+            {deltay = y-holdy+1;
+            starty = holdy;}  
+        ELSE IF( y < holdy )
+            {deltay = holdy-y+1;
+            starty = y;}  
+        ELSE{deltay = 1;
+            starty = holdy;}
+
+        IF( drawtype == d_BAR )
+            bar19(startx,starty,deltax,deltay,colour);
+        else IF( drawtype == d_BOX )  
+            box19(startx,starty,deltax,deltay,colour);
+        else IF( drawtype == d_XORLINE )  
+            xorline19(holdx,holdy,x,y,colour);
+        else IF( drawtype == d_XORBOX )  
+            xorbox19(startx,starty,deltax,deltay,colour);
+        else IF( drawtype == d_ELLIPSE )  
+            ellipse19_386(deltax/2+startx,deltay/2+starty,deltax/2,deltay/2,colour);
+        ELSE IF( drawtype == d_XORBAR )  
+            xorbar19(startx,starty,deltax,deltay,colour);
+        ELSE IF( drawtype == d_LINE )  
+            line19(holdx,holdy,x,y,colour);
+        ELSE IF( drawtype == d_RESIZECUT )
+            {$ PUSH DS
+            DS = cutbufptr;
+            putresized19(startx,starty,deltax,deltay,0);
+            $ POP DS
+            }
+        ELSE BEEP();
+        }
+   } while( buttons != 0 ); 
+
+IF( drawtype == d_RESIZECUT )
+    {getimage19(startx,starty,deltax,deltay,cutbufptr,0);
+    cutsize = deltax*deltay+4;
+    drawtype = d_PUTCUT;
+    $ PUSH DS
+    IF( undobuf == 0 )
+        DS = screenbuf1ptr;
+    ELSE DS = screenbuf2ptr;
+    trans19(startx,starty,deltax,deltay);     
+    $ POP DS
+    @ SHOWMOUSE();
+    }
+ELSE remember();
+}
+
+
+void dotwodrag ()
+word holdx,holdy;   /* used for holding mouse status */
+word deltax,deltay,startx,starty;
+word olddeltax,olddeltay,oldstartx,oldstarty;
+byte dragcolor;
+{holdx = x;
+holdy = y;
+startx = x;
+starty = y;
+deltax = 1;
+deltay = 1;
+HIDEMOUSE();
+dragcolor = RAND();
+xorbox19(startx,starty,deltax,deltay,dragcolor); 
+do {
+    olddeltax = deltax;
+    olddeltay = deltay;
+    oldstartx = startx;
+    oldstarty = starty;
+    getmouse();    
+    IF( x > holdx )
+        {deltax = x-holdx+1;
+        startx = holdx;}  
+    ELSE IF( x < holdx )
+        {deltax = holdx-x+1;
+        startx = x;}  
+    ELSE{deltax = 1;
+        startx = holdx;}
+
+    IF( y > holdy )
+        {deltay = y-holdy+1;
+        starty = holdy;}  
+    ELSE IF( y < holdy )
+        {deltay = holdy-y+1;
+        starty = y;}  
+    ELSE{deltay = 1;
+        starty = holdy;}
+    xorbox19(oldstartx,oldstarty,olddeltax,olddeltay,dragcolor); 
+    dragcolor = RAND();
+    xorbox19(startx,starty,deltax,deltay,dragcolor); 
+   
+   } while( buttons != 0 ); 
+xorbox19(startx,starty,deltax,deltay,dragcolor); 
+
+IF( drawtype == d_SETDOTSIZE )
+    {dotxsize = deltax;
+    dotysize = deltay;
+    drawtype = d_FILLEDDOTS;
+    }
+ELSE IF( drawtype == d_CUTCUT )
+    {getimage19(startx,starty,deltax,deltay,cutbufptr,0);
+    ES = cutbufptr;
+    cutsize = ESWORD[0]*ESWORD[2]+4;
+    drawtype = d_PUTCUT;
+    }
+SHOWMOUSE();
+}
+
+
+void go ()    /* Hide mouse and ensure that undo buffer is up to date */
+{HIDEMOUSE();
+DL = FALSE;
+IF( did == TRUE )
+    {undobuf = 1 - undobuf;
+    IF( undobuf == 0 )
+        COPYFARW(screenbuf1ptr,0,VGA_SEG,0,32000);
+    ELSE COPYFARW(screenbuf2ptr,0,VGA_SEG,0,32000);
+    did = FALSE;
+    }
+}
+
+
+void comeback ()   /* restore screen after go(); */
+{IF( undobuf == 0 )
+    COPYFARW(VGA_SEG,0,screenbuf1ptr,0,32000);
+ELSE COPYFARW(VGA_SEG,0,screenbuf2ptr,0,32000);
+@ SHOWMOUSE();
+}
+
+
+void remember ()   /* force update of undo buffer */
+{@ SHOWMOUSE();
+did = TRUE;
+go();
+@ SHOWMOUSE();
+}
+
+
+void docommandscreen ()
+byte done,chold,hidden;
+word commandhold,poscommand,poscolour;
+word startx,starty,deltax,deltay,key;
+{
+find_colours_to_use();
+go();
+GOTOXY(0,0);
+DI = 0;
+SI = 0;
+do {IF( DI == drawtype )
+        GWRITESTR(#commandstr[SI],red_colour);
+    ELSE{IF( SI & 1 == 0 )
+            GWRITESTR(#commandstr[SI],green_colour);
+        ELSE GWRITESTR(#commandstr[SI],blue_colour);
+        }
+    DI++;
+    SI += 21;
+    } while( DI < OPTIONS );
+
+deltax = 0;
+do {bar19(deltax%64*5,deltax/64*5+COLORSELECTSTART,5,5,deltax);
+    deltax++;
+    } while( deltax < 256 );
+
+waitmouse();
+@ SHOWMOUSE();
+done = 0;
+commandhold = OPTIONS;
+startx = 1000;
+hidden = FALSE;
+do {
+    IF( startx <> 1000 )
+        {WAITVSYNC();
+        xorbox19(startx,starty,deltax,deltay,chold);
+        }
+    chold = RAND();
+    getmouse();
+    AX = y/8 * 40;
+    BX = AX;
+    AX = x/8 + BX;
+    BX = AX;
+    poscommand = BX/20;
+    IF( poscommand < OPTIONS )
+        {startx = poscommand & 1 * 160;
+        starty = poscommand / 2 * 8;
+        IF( hidden == FALSE )
+            {HIDEMOUSE();
+            hidden = TRUE;}
+        deltax = 160;
+        deltay = 8;
+        WAITVSYNC();
+        xorbox19(startx,starty,160,8,chold);
+        }
+    else{
+        poscolour = y - COLORSELECTSTART / 5 * 64 * 5 + x / 5;
+        IF( poscolour < 256 )
+            {startx = poscolour % 64 * 5;
+            starty = poscolour / 64 * 5 + COLORSELECTSTART;
+            IF( hidden == FALSE )
+                {HIDEMOUSE();
+                hidden = TRUE;}
+            deltax = 5;
+            deltay = 5;
+            WAITVSYNC();
+            xorbox19(startx,starty,5,5,chold);
+            }
+        ELSE{startx = 1000;
+            IF( hidden == TRUE )
+                {SHOWMOUSE();
+                hidden = FALSE;
+                }
+            } 
+        }
+
+    IF( buttons == 1 )
+        {IF( poscommand < OPTIONS )
+            {commandhold = poscommand;
+            done = TRUE;}
+        ELSE IF( poscolour < 256 )
+            {SETCOLOR( poscolour );
+            waitmouse();}
+        ELSE done = TRUE;
+        }
+    ELSE IF( buttons == 2 )
+        done = TRUE;
+    if( KBHIT() <> 0 )
+        {key = BIOSREADKEY();
+        if( poscolour < 256 )
+            {AX = poscolour *3;
+            DI = AX;
+            cycleit = FALSE;
+            if( key == k_up )
+                palette[DI+1] = palette[DI+1] +1 & 63;
+            else IF( key == k_down )
+                palette[DI+1] = palette[DI+1] -1 & 63;
+            ELSE IF( key == k_pageup )
+                palette[DI+2] = palette[DI+2] +1 & 63;
+            ELSE IF( key == k_pagedown )
+                palette[DI+2] = palette[DI+2] -1 & 63;
+            ELSE IF( key == k_home )
+                palette[DI] = palette[DI] +1 & 63;
+            ELSE IF( key == k_end )
+                palette[DI] = palette[DI] -1 & 63;
+            ELSE IF( key == k_esc )
+                done = TRUE;
+            SETVGAPALETTE( ,poscolour,1,#palette[DI]);  
+            cycleit = TRUE;
+            }
+        ELSE IF( key == k_esc )
+            done = TRUE;
+        }
+   } while( done == FALSE );
+IF( hidden == FALSE )
+    HIDEMOUSE();
+comeback();
+waitmouse();
+IF( commandhold == d_EXIT )
+    quit = reallyquit();
+else IF( commandhold == d_UNDO )
+    doundo();
+else IF( commandhold == d_NUKE )
+    donuke();
+else IF( commandhold == d_SAVECOM )
+    savecom();
+else IF( commandhold == d_LOADCOM )
+    loadcom();
+else IF( commandhold == d_SAVEPCX )
+    savepcx();
+else IF( commandhold == d_LOADPCX )
+    loadpcx();
+else IF( commandhold == d_SAVEPCXCUT )
+    savepcxcut();
+else IF( commandhold == d_LOADPCXCUT )
+    loadpcxcut();
+else IF( commandhold == d_SAVESCR )
+    savescr();
+else IF( commandhold == d_LOADSCR )
+    loadscr();
+else IF( commandhold == d_LOADPCXPAL )
+    loadpcxpal();
+else IF( commandhold == d_CYCLE )
+    {IF( byte GETCPU() >= 2 )
+        cycleon = TRUE - cycleon;
+    ELSE BEEP();}
+else IF( commandhold == d_FLOODFILL )
+    {IF( byte GETCPU() >= 2 )
+        drawtype = d_FLOODFILL;
+    ELSE BEEP();}
+else IF( commandhold == d_ELLIPSE )
+    {IF( byte GETCPU() >= 3 )
+        drawtype = d_ELLIPSE;
+    ELSE BEEP();}
+ELSE IF( commandhold == d_SAVEPAL )
+    savepal();
+ELSE IF( commandhold == d_LOADPAL )
+    loadpal();
+ELSE IF( commandhold == d_SAVEIII )
+    saveiii();
+ELSE IF( commandhold == d_LOADIII )
+    loadiii();
+ELSE IF( commandhold == d_SAVECUT )
+    savecut();
+ELSE IF( commandhold == d_LOADCUT )
+    loadcut();
+ELSE IF( commandhold <> OPTIONS )
+    drawtype = commandhold;
+}
+
+
+void helpscreen ()
+{BEEP();      // help?  You must be kidding.
+}
+
+
+/******************* COMPLEX DRAW TYPES HANDLED ***************************/ 
+
+void dodots ( byte filleddots; byte randomcolour )
+byte colourhold;
+{HIDEMOUSE();
+colourhold = colour;
+do {getmouse();
+    IF( randomcolour == TRUE )
+        colour = RAND();
+    IF( filleddots == TRUE )
+        bar19(x,y,dotxsize,dotysize,colour);
+    ELSE box19(x,y,dotxsize,dotysize,colour);
+    } while( buttons <> 0 );
+colour = colourhold;
+remember();
+}
+
+
+void dofloodfill ()
+{HIDEMOUSE();
+fill19(x,y,colour);
+remember();
+waitmouse();
+}
+
+
+void doundo ()
+{go();
+undobuf = 1 - undobuf;
+comeback();
+}
+
+
+void donuke ()
+{go();
+clearscreen();
+remember();
+}
+
+
+void cutiii ()
+word holdx,holdy;   /* used for holding mouse status */
+word deltax,deltay,startx,starty;
+word olddeltax,olddeltay,oldstartx,oldstarty;
+word xsize,ycount,planes;
+byte dragcolor;
+{holdx = x;
+holdy = y;
+startx = x;
+starty = y;
+deltax = 4;
+deltay = 1;
+HIDEMOUSE();
+dragcolor = RAND();
+xorbox19(startx,starty,deltax,deltay,dragcolor); 
+do {
+    olddeltax = deltax;
+    olddeltay = deltay;
+    oldstartx = startx;
+    oldstarty = starty;
+    getmouse();    
+    IF( x > holdx )
+        {deltax = x-holdx/4*4+4;
+        startx = holdx;}  
+    ELSE IF( x < holdx )
+        {deltax = holdx-x/4*4+4;
+        startx = x;}  
+    ELSE{deltax = 4;
+        startx = holdx;}
+
+    IF( y > holdy )
+        {deltay = y-holdy+1;
+        starty = holdy;}  
+    ELSE IF( y < holdy )
+        {deltay = holdy-y+1;
+        starty = y;}  
+    ELSE{deltay = 1;
+        starty = holdy;}
+    xorbox19(oldstartx,oldstarty,olddeltax,olddeltay,dragcolor); 
+    dragcolor = RAND();
+    xorbox19(startx,starty,deltax,deltay,dragcolor); 
+   
+   } while( buttons != 0 ); 
+xorbox19(startx,starty,deltax,deltay,dragcolor); 
+iiisize = deltax*deltay +2;
+
+$ PUSH DS
+ES = iiibufptr;
+DS = VGA_SEG;
+xsize = deltax /4;
+ESBYTE[0] = xsize;
+ESBYTE[1] = deltay;
+DI = 2;
+planes = 0;
+do {
+    ycount = 0;
+    do {
+        AX = starty+ycount*320 +startx +planes;
+        SI = AX;
+        CX = xsize;
+        loop(CX)
+            {$ MOVSB
+            SI += 3;
+            }
+        ycount++;
+        } while( ycount < deltay );
+    planes++;
+    } while( planes < 4 );
+$ POP DS
+
+SHOWMOUSE();
+drawtype = d_PUTIII;
+}
+
+
+void putiii ()  /* put iii image at location specified by mouse x and y */
+word xsize,ysize;
+word startx,starty;
+word planes,ycount;
+{
+startx = x;
+starty = y;
+$ PUSH DS
+DS = iiibufptr;
+ES = VGA_SEG;
+xsize = DSBYTE[0];
+ysize = DSBYTE[1];
+SI = 2;
+planes = 0;
+do {
+    ycount = 0;
+    do {
+        AX = starty+ycount*320 +startx +planes;
+        DI = AX;
+        CX = xsize;
+        loop(CX)
+            {$ LODSB
+            IF( AL <> CLEARCOLOR )
+                $ STOSB
+            ELSE DI++;
+            DI += 3;
+            }
+        ycount++;
+        } while( ycount < ysize );
+    planes++;
+    } while( planes < 4 );
+$ POP DS
+}
+
+
+void putcutoriii (byte iiiflag)
+word xsize,ysize,lastx,lasty;
+{
+HIDEMOUSE();
+lastx = x;
+lasty = y;
+
+IF( iiiflag == FALSE )
+    {IF( cutsize == 0 )
+        {BEEP();
+        SHOWMOUSE();
+        return;}
+    DI = lastx;
+    SI = lasty;
+    $ PUSH DS
+    DS = cutbufptr;
+    xsize = DSWORD[0];
+    ysize = DSWORD[2];
+    putimage19(DI,SI,0);
+    $ POP DS
+    }
+ELSE{IF( iiisize == 0 )
+        {BEEP();
+        SHOWMOUSE();
+        return;}
+    ES = iiibufptr;
+    xsize = ESBYTE[0]*4;
+    ysize = ESBYTE[1];
+    putiii();
+    } 
+do {getmouse();
+    BL = FALSE;
+    IF( x <> lastx )
+        BL = TRUE;
+    IF( y <> lasty )
+        BL = TRUE;
+    IF( BL == TRUE )
+        {$ PUSH DS
+        IF( undobuf == 0 )
+            DS = screenbuf1ptr;
+        ELSE DS = screenbuf2ptr;
+        trans19(lastx,lasty,xsize,ysize);     
+        $ POP DS
+        IF( iiiflag == FALSE )
+            {DI = x;
+            SI = y;
+            BL = colour;
+            $ PUSH DS
+            DS = cutbufptr;
+            overimage19(DI,SI,0,BL);
+            $ POP DS
+            }
+        ELSE putiii();
+        lastx = x;
+        lasty = y;
+        }
+    } while (buttons <> 0);
+
+remember();
+}
+
+
+void drawcutoriii (byte iiiflag)
+{
+HIDEMOUSE();
+do {getmouse();
+    IF( iiiflag == FALSE )
+        {IF( cutsize == 0 )
+            {BEEP();
+            SHOWMOUSE();
+            return;}
+        DI = x;
+        SI = y;
+        BL = colour;
+        $ PUSH DS
+        DS = cutbufptr;
+        overimage19(DI,SI,0,BL);
+        $ POP DS
+        }
+    ELSE{IF( iiisize == 0 )
+            {BEEP();
+            SHOWMOUSE();
+            return;}
+        putiii();
+        } 
+    } while (buttons <> 0);
+remember();
+}
+
+
+void dooriginline (byte inc)
+word holdx,holdy,oldx,oldy;
+byte thecolour;
+{holdx = x;
+holdy = y;
+HIDEMOUSE();
+thecolour = colour;
+do {getmouse();
+    IF( inc == TRUE )
+        {IF( oldx <> x )
+            thecolour++;
+        ELSE IF( oldy <> y )
+            thecolour++;
+        }
+    line19(holdx,holdy,x,y,thecolour); 
+    oldx = x;
+    oldy = y;
+    } while ( buttons <> 0 );
+remember();
+}
+
+
+void dodrawline ()
+word holdx,holdy;
+{holdx = x;
+holdy = y;
+HIDEMOUSE();
+do {
+    IF( KBHIT() != 0 )
+        {AX = BIOSREADKEY();
+        IF(AX==k_up)
+            SETCOLOR( colour+1 );
+        ELSE IF(AX==k_down)
+            SETCOLOR( colour-1 );
+        }
+    getmouse();
+    line19(holdx,holdy,x,y,colour); 
+    holdx = x;
+    holdy = y;
+    } while ( buttons <> 0 );
+remember();
+}
+
+
+?define FONTSIZE 8   // BIOS font is an 8x8 pixel font
+
+void dotext ()
+word textx,texty,startx,hold;
+byte done;
+byte undercursor[FONTSIZE*FONTSIZE+4];
+{
+textx = x/FONTSIZE;
+texty = y/FONTSIZE;
+startx = textx;
+HIDEMOUSE();
+done = FALSE;
+do {
+    getimage19(textx*FONTSIZE,texty*FONTSIZE,FONTSIZE,FONTSIZE,SS,#undercursor);
+    do {
+        box19(textx*FONTSIZE,texty*FONTSIZE,FONTSIZE,FONTSIZE,RAND());
+        } while ( KBHIT() == 0 );
+    putimage19(textx*FONTSIZE,texty*FONTSIZE,#undercursor);
+
+    AX = BIOSREADKEY();
+    IF( AX == k_backspace )
+        {IF( textx >= 1 )
+            textx--;
+        ELSE{textx = 39;
+            texty--;}
+        $ PUSH DS
+        IF( undobuf == 0 )
+            DS = screenbuf1ptr;
+        ELSE DS = screenbuf2ptr;
+        trans19(textx*FONTSIZE,texty*FONTSIZE,FONTSIZE,FONTSIZE);
+        $ POP DS}
+    else IF( AX == k_delete )
+        {$ PUSH DS
+        IF( undobuf == 0 )
+            DS = screenbuf1ptr;
+        ELSE DS = screenbuf2ptr;
+        trans19(textx*FONTSIZE,texty*FONTSIZE,FONTSIZE,FONTSIZE);
+        $ POP DS}
+    ELSE IF( AX == k_esc )
+        done = TRUE;
+    ELSE IF( AX == k_return )
+        {textx = startx;
+        texty++;}
+    ELSE IF( AX == k_up )
+        texty--;
+    ELSE IF( AX == k_down )
+        texty++; 
+    ELSE IF( AX == k_left )
+        {IF( textx >= 1 )
+            textx--;
+        ELSE{textx = 39;
+            texty--;}
+        }
+    ELSE IF( AX == k_right )
+        textx++; 
+    ELSE{hold = AX;
+        GOTOXY(textx,texty);
+        GWRITE(hold,colour);
+        textx++;
+        } 
+
+    IF( texty >= 25 )
+        texty = 0;
+    IF( textx >= 40 )
+        textx = 0;
+    
+    } while( done == FALSE ); 
+remember();
+}
+
+
+?define SMALLFONTWIDTH  6
+?define SMALLFONTHEIGHT 5
+
+void dosmalltext ()
+word textx,texty,startx,hold;
+byte done;
+byte undercursor[SMALLFONTWIDTH*SMALLFONTHEIGHT+4];
+{
+textx = x;
+texty = y;
+startx = textx;
+HIDEMOUSE();
+done = FALSE;
+do {
+    getimage19(textx,texty,SMALLFONTWIDTH,SMALLFONTHEIGHT,SS,#undercursor);
+    do {
+        box19(textx,texty,SMALLFONTWIDTH,SMALLFONTHEIGHT,RAND());
+        } while ( KBHIT() == 0 );
+    putimage19(textx,texty,#undercursor);
+
+    AX = BIOSREADKEY();
+    IF( AX == k_backspace )
+        {IF( textx >= SMALLFONTWIDTH )
+            textx -= SMALLFONTWIDTH;
+        ELSE{textx =  320-SMALLFONTWIDTH;
+            texty -= SMALLFONTHEIGHT;}
+        $ PUSH DS
+        IF( undobuf == 0 )
+            DS = screenbuf1ptr;
+        ELSE DS = screenbuf2ptr;
+        trans19(textx,texty,SMALLFONTWIDTH,SMALLFONTHEIGHT);
+        $ POP DS}
+    else IF( AX == k_delete )
+        {$ PUSH DS
+        IF( undobuf == 0 )
+            DS = screenbuf1ptr;
+        ELSE DS = screenbuf2ptr;
+        trans19(textx,texty,SMALLFONTWIDTH,SMALLFONTHEIGHT);
+        $ POP DS}
+    else IF( AX == k_esc )
+        done = TRUE;
+    ELSE IF( AX == k_return )
+        {textx = startx;
+        texty += SMALLFONTHEIGHT;}
+    ELSE IF( AX == k_up )
+        texty -= SMALLFONTHEIGHT;
+    ELSE IF( AX == k_down )
+        texty += SMALLFONTHEIGHT; 
+    ELSE IF( AX == k_left )
+        {IF( textx >= SMALLFONTWIDTH )
+            textx -= SMALLFONTWIDTH;
+        ELSE{textx =  320-SMALLFONTWIDTH;
+            texty -= SMALLFONTHEIGHT;}
+        }
+    ELSE IF( AX == k_right )
+        textx += SMALLFONTWIDTH; 
+    ELSE{hold = AX;
+        over5x5letter19(textx,texty,hold,colour);
+        textx += SMALLFONTWIDTH;
+        } 
+
+    IF( textx >= 320 )
+        {textx = 0;
+        texty += SMALLFONTHEIGHT;};
+    IF( texty >= 200 )
+        texty = 0;
+    
+    } while( done == FALSE ); 
+remember();
+}
+
+/************************* FILE ROUTINES START ***************************/
+
+byte saving = "SAVING ...";
+byte entersaveesc = "<ENTER> to Save, <ESC> to Abort.";
+byte savemes1 = "Enter ";
+byte savemes2 = " File Name To Save:";
+
+byte savescrmes = "Screen";
+
+void savescr ()
+{
+find_colours_to_use();
+go();
+putwindow(16,32,36*8,24);
+GOTOXY(2,4);
+GWRITESTR(#savemes1,red_colour);
+GWRITESTR(#savescrmes,red_colour);
+GWRITESTR(#savemes2,red_colour);
+GOTOXY(2,6);
+GWRITESTR(#entersaveesc,red_colour);
+IF( byte readstr(2,5,#scrfilename,FILENAMELEN-1,TRUE,green_colour) == FALSE )
+    {comeback();
+    return;}
+putwindow(15*8,10*8,80,8);
+GOTOXY(15,10);
+GWRITESTR(#saving,red_colour);
+
+IF( undobuf == 0 )
+    {IF( writefile(#scrfilename,screenbuf1ptr,0,SCREENSIZE)<>SCREENSIZE )
+        BEEP();
+    }
+ELSE{IF( writefile(#scrfilename,screenbuf2ptr,0,SCREENSIZE)<>SCREENSIZE )
+        BEEP();
+    }
+comeback();
+}
+
+
+byte loading = "LOADING ...";
+
+void loadscr ()
+{find_colours_to_use();
+go();
+IF( byte getfilename("*.SCR",64000,#scrfilename) )
+    {putwindow(14*8,10*8,88,8);
+    GOTOXY(14,10);
+    GWRITESTR(#loading,red_colour);
+    readscrfile();
+    }
+comeback();
+waitmouse();
+}
+
+
+byte savepalmes = "Palette";
+
+void savepal ()
+{find_colours_to_use();
+go();
+putwindow(16,32,36*8,24);
+GOTOXY(2,4);
+GWRITESTR(#savemes1,red_colour);
+GWRITESTR(#savepalmes,red_colour);
+GWRITESTR(#savemes2,red_colour);
+GOTOXY(2,6);
+GWRITESTR(#entersaveesc,red_colour);
+IF( byte readstr(2,5,#palfilename,FILENAMELEN-1,TRUE,green_colour) == FALSE )
+    {comeback();
+    return;}
+putwindow(15*8,10*8,80,8);
+GOTOXY(15,10);
+GWRITESTR(#saving,red_colour);
+cycleit = FALSE;
+COPYFARW(DS,#palettehold,DS,#palette,PALSIZE/2);
+cycleit = TRUE;
+IF( writefile(#palfilename,DS,#palettehold,PALSIZE) <> PALSIZE)
+    BEEP();   
+comeback();
+}
+
+
+void loadpal ()
+{find_colours_to_use();
+go();
+IF( byte getfilename("*.PAL",PALSIZE,#palfilename) )
+    {putwindow(14*8,10*8,88,8);
+    GOTOXY(14,10);
+    GWRITESTR(#loading,red_colour);
+    readpalfile();
+    }
+comeback();
+waitmouse();
+}
+
+
+void loadpcxpal ()
+{find_colours_to_use();
+go();
+IF( byte getfilename("*.PCX",0,#pcxfilename) )
+    {putwindow(14*8,10*8,88,8);
+    GOTOXY(14,10);
+    GWRITESTR(#loading,red_colour);
+    readpcxpalfile();
+    }
+comeback();
+waitmouse();
+}
+
+
+void saveiii ()
+{IF( iiisize == 0 )
+    {BEEP();
+    return;};
+find_colours_to_use();
+go();
+putwindow(16,32,36*8,24);
+GOTOXY(2,4);
+GWRITESTR(#savemes1,red_colour);
+GWRITESTR("Icon",red_colour);
+GWRITESTR(#savemes2,red_colour);
+GOTOXY(2,6);
+GWRITESTR(#entersaveesc,red_colour);
+IF( byte readstr(2,5,#iiifilename,FILENAMELEN-1,TRUE,green_colour) == FALSE )
+    {comeback();
+    return;}
+putwindow(15*8,10*8,80,8);
+GOTOXY(15,10);
+GWRITESTR(#saving,red_colour);
+IF( writefile(#iiifilename,iiibufptr,0,iiisize) <> iiisize )
+    BEEP();
+comeback();
+}
+
+
+void loadiii ()
+{find_colours_to_use();
+go();
+IF( byte getfilename("*.III",3,#iiifilename) )
+    {putwindow(14*8,10*8,88,8);
+    GOTOXY(14,10);
+    GWRITESTR(#loading,red_colour);
+    readiiifile();
+    }
+comeback();
+waitmouse();
+}
+
+
+void savecut ()
+{IF( cutsize == 0 )
+    {BEEP();
+    return;};
+find_colours_to_use();
+go();
+putwindow(16,32,36*8,24);
+GOTOXY(2,4);
+GWRITESTR(#savemes1,red_colour);
+GWRITESTR("Cut",red_colour);
+GWRITESTR(#savemes2,red_colour);
+GOTOXY(2,6);
+WRITESTR(#entersaveesc);
+IF( byte readstr(2,5,#cutfilename,FILENAMELEN-1,TRUE,green_colour) == FALSE )
+    {comeback();
+    return;}
+putwindow(15*8,10*8,80,8);
+GOTOXY(15,10);
+GWRITESTR(#saving,red_colour);
+IF( writefile(#cutfilename,cutbufptr,0,cutsize) <> cutsize )
+    BEEP();
+comeback();
+}
+
+
+void loadcut ()
+{find_colours_to_use();
+go();
+IF( byte getfilename("*.CUT",5,#cutfilename) )
+    {putwindow(14*8,10*8,88,8);
+    GOTOXY(14,10);
+    GWRITESTR(#loading,red_colour);
+    readcutfile();
+    }
+comeback();
+waitmouse();
+}
+
+
+void savepcxcut ()
+{IF( cutsize == 0 )
+    {BEEP();
+    return;};
+find_colours_to_use();
+go();
+putwindow(16,32,36*8,24);
+GOTOXY(2,4);
+GWRITESTR(#savemes1,red_colour);
+GWRITESTR("PCX Cut",red_colour);
+GWRITESTR(#savemes2,red_colour);
+GOTOXY(2,6);
+GWRITESTR(#entersaveesc,red_colour);
+IF( byte readstr(2,5,#pcxfilename,FILENAMELEN-1,TRUE,green_colour) == FALSE )
+    {comeback();
+    return;}
+putwindow(15*8,10*8,80,8);
+GOTOXY(15,10);
+GWRITESTR(#saving,red_colour);
+
+cycleit = FALSE;
+COPYFARW(DS,#palettehold,DS,#palette,PALSIZE/2);
+cycleit = TRUE;
+
+ES = cutbufptr;
+IF( savePCX(#pcxfilename,cutbufptr,4,ESWORD[0],ESWORD[2],DS,#palettehold) != pcx_e_ok )
+    BEEP();
+
+comeback();
+}
+
+
+void loadpcxcut ()
+{find_colours_to_use();
+go();
+IF( byte getfilename("*.PCX",0,#pcxfilename) )
+    {putwindow(14*8,10*8,88,8);
+    GOTOXY(14,10);
+    GWRITESTR(#loading,red_colour);
+    readpcxcutfile();
+    }
+comeback();
+waitmouse();
+}
+
+
+byte script = FROM "TINYDRAW.BIN";
+?define SCRIPTSIZE 75+1
+
+void savecom () 
+word filehandle;
+{find_colours_to_use();
+go();
+putwindow(16,32,36*8,24);
+GOTOXY(2,4);
+GWRITESTR(#savemes1,red_colour);
+GWRITESTR("Picture",red_colour);
+GWRITESTR(#savemes2,red_colour);
+GOTOXY(2,6);
+GWRITESTR(#entersaveesc,red_colour);
+IF( byte readstr(2,5,#comfilename,FILENAMELEN-1,TRUE,green_colour) == FALSE )
+    {comeback();
+    return;}
+putwindow(15*8,10*8,80,8);
+GOTOXY(15,10);
+GWRITESTR(#saving,red_colour);
+cycleit = FALSE;
+COPYFARW(DS,#palettehold,DS,#palette,PALSIZE/2);
+cycleit = TRUE;
+filehandle = FCREATE( , ,0,#comfilename);   /* create file to write */
+IF(filehandle != 0)                    /* if file openned OK */
+    {FWRITE( ,filehandle,SCRIPTSIZE,#script);
+    FWRITE( ,filehandle,PALSIZE,#palettehold);
+    $ PUSH DS
+    IF( undobuf == 0 )
+        DS = screenbuf1ptr;
+    ELSE DS = screenbuf2ptr;
+    FWRITE( ,filehandle,SCREENSIZE,0);
+    $ POP DS
+    FCLOSE( ,filehandle);  /* close the file */
+    }
+ELSE BEEP();
+comeback();
+}
+
+
+void loadcom ()
+{go();
+find_colours_to_use();
+if( byte getfilename("*.COM",SCRIPTSIZE+PALSIZE+SCREENSIZE,#comfilename) )
+    {putwindow(14*8,10*8,88,8);
+    GOTOXY(14,10);
+    GWRITESTR(#loading,red_colour);
+    readcomfile();
+    }
+comeback();
+waitmouse();
+}
+
+
+void savepcx () 
+word filehandle;
+{find_colours_to_use();
+go();
+putwindow(16,32,36*8,24);
+GOTOXY(2,4);
+GWRITESTR(#savemes1,red_colour);
+GWRITESTR("PCX Picture",red_colour);
+GWRITESTR(#savemes2,red_colour);
+GOTOXY(2,6);
+GWRITESTR(#entersaveesc,red_colour);
+IF( byte readstr(2,5,#pcxfilename,FILENAMELEN-1,TRUE,green_colour) == FALSE )
+    {comeback();
+    return;}
+putwindow(15*8,10*8,80,8);
+GOTOXY(15,10);
+GWRITESTR(#saving,red_colour);
+cycleit = FALSE;
+COPYFARW(DS,#palettehold,DS,#palette,PALSIZE/2);
+cycleit = TRUE;
+
+IF( undobuf == 0 )
+    {IF( savePCX(#pcxfilename,screenbuf1ptr,0,320,200,DS,#palettehold) != pcx_e_ok )
+        BEEP();
+    }
+ELSE{IF( savePCX(#pcxfilename,screenbuf2ptr,0,320,200,DS,#palettehold) != pcx_e_ok )
+        BEEP();
+    }
+
+comeback();
+}
+
+
+void loadpcx ()
+{find_colours_to_use();
+go();
+if( byte getfilename("*.PCX",0,#pcxfilename) )
+    {putwindow(14*8,10*8,88,8);
+    GOTOXY(14,10);
+    GWRITESTR(#loading,red_colour);
+    readpcxfile();
+    }
+comeback();
+waitmouse();
+}
+
+
+/********************* STRING reading ROUTINES START ***********************/
+
+byte readstr(byte xpos,ypos; word straddress,maxlength; byte upcase,attr )
+word pos,i,key;
+byte done;
+{pos = 0;
+done = 0;
+DH = ypos;
+DL = xpos;
+@ SETTEXTPOSITION( ,0, ,DX);
+pos = 0;
+DI = straddress;
+IF( DSBYTE[DI] != 0 )
+    {do {GWRITE(DSBYTE[DI],attr);
+        DI++;
+        pos++;
+        } while( DSBYTE[DI] != 0 );
+    }
+GWRITE('_',blue_colour);
+do {
+    key = BIOSREADKEY();
+    IF( key == k_return )
+        done = TRUE +1;
+    else IF( key == k_esc )
+        done = FALSE +1;
+    else IF( key == k_backspace )
+        {IF( pos > 0 )
+            {GWRITE(8,attr);
+            GWRITE(' ',attr);
+            GWRITE(8,attr);
+            GWRITE(8,attr);
+            GWRITE('_',blue_colour);
+            pos--;
+            }
+        }
+    else IF( key == k_left )
+        {IF( pos > 0 )
+            {GWRITE(8,attr);
+            GWRITE(' ',attr);
+            GWRITE(8,attr);
+            GWRITE(8,attr);
+            GWRITE('_',blue_colour);
+            pos--;
+            }
+        }
+    ELSE{
+        DL = key;
+        IF( DL <> 0 )
+            {IF( upcase == 1 )
+                {IF( DL >= 'a' )
+                    IF( DL <= 'z' )
+                        key -= 'a' - 'A';
+                }
+            IF( pos < maxlength )
+                {GWRITE(8,attr);
+                GWRITE(key,attr);
+                GWRITE('_',blue_colour);
+                BX = straddress+pos;
+                DSBYTE[BX] = key;
+                pos++;}
+            } 
+        }
+    } while( done == 0 );
+BX = straddress+pos;
+DSBYTE[BX] = 0;
+GWRITE(8,attr);
+GWRITE(' ',attr);
+return(done-1);
+}
+
+
+void putwindow(word xloc; word yloc; word xsize; word ysize)
+word i;
+{bar19(xloc,yloc,xsize,ysize,0);
+i = 1;
+do {box19(xloc-i,yloc-i,xsize+i+i,ysize+i+i,i);
+    i++;
+    } while( i <= 4 );
+}
+
+
+void clearscreen ()
+{@ FILLSCREEN19(byte CLEARCOLOR);
+}
+
+
+/******** filename selection and display starts *****************/
+
+?define MAXFILES 1000  /* error check for max value still to be done!!! */
+?define FILEWIDTH 12+1
+byte filelist[FILEWIDTH*MAXFILES];
+word filecount;
+byte fileloadinstruct1 = " Select File Name With LEFT Button  ";
+byte fileloadinstruct2 = "OR Press RIGHT Mouse Button To Abort";
+byte downtext = "DOWN";
+byte uptext = " UP ";
+byte nofiles = "* NO MATCHING FILES *";
+?define FILEBOXSTARTY  4
+?define FILEBOXSTARTX  10
+?define UPBOXSTARTX   25
+?define UPBOXSTARTY   5
+?define DOWNBOXSTARTX   25
+?define DOWNBOXSTARTY   7
+
+byte getfilename (word searchtype,minfilesize,destfilebuf)
+word start,len,selected;
+byte done,scrollflag;
+{putwindow(2*8,1*8,36*8,2*8);
+GOTOXY(2,1);
+GWRITESTR(#fileloadinstruct1,red_colour);
+GOTOXY(2,2);
+GWRITESTR(#fileloadinstruct2,red_colour);
+fillfilelist(searchtype,minfilesize);
+IF( filecount == 0 )
+    {putwindow(8*8,5*8,21*8,1*8);
+    GOTOXY(8,5);
+    GWRITESTR(#nofiles,red_colour);
+    do {getmouse();
+        } while(buttons == 0);
+    return(FALSE);}
+len = 20;
+scrollflag = TRUE;
+IF( filecount <= 20 )
+    {len = filecount;
+    scrollflag = FALSE;}
+start=0;
+putwindow(FILEBOXSTARTX*8,FILEBOXSTARTY*8,FILEWIDTH-1*8,len*8);
+displaypartoflist(start,start+len);
+IF(scrollflag == TRUE)
+    {putwindow(UPBOXSTARTX*8,UPBOXSTARTY*8,4*8,8);
+    GOTOXY(UPBOXSTARTX,UPBOXSTARTY);
+    GWRITESTR(#uptext,green_colour);
+    putwindow(DOWNBOXSTARTX*8,DOWNBOXSTARTY*8,4*8,8);
+    GOTOXY(DOWNBOXSTARTX,DOWNBOXSTARTY);
+    GWRITESTR(#downtext,green_colour);
+    }
+done = FALSE;
+waitmouse();
+SHOWMOUSE();
+do {getmouse();
+    IF(buttons == 2)
+        done = 1;
+    else if(buttons == 1)
+        {x = x/8;
+        y = y/8;
+        if(x>=FILEBOXSTARTX)
+            {x-=FILEBOXSTARTX;
+            IF(x<FILEWIDTH-1)
+                {IF(y>=FILEBOXSTARTY)
+                    {y-=FILEBOXSTARTY;
+                    IF(y<len)
+                        {copynear(destfilebuf,y+start*FILEWIDTH+#filelist,FILEWIDTH);
+                        done = 2;}
+                    }
+                }
+            ELSE{IF(scrollflag == TRUE)
+                    IF(x >= UPBOXSTARTX-FILEBOXSTARTX)
+                        IF(x < UPBOXSTARTX+4-FILEBOXSTARTX)
+                            {IF(y == UPBOXSTARTY)
+				{IF(start>0)
+				    {start--;
+                                    redisplaylist(start,len);}
+ 				}
+                            ELSE IF(y == DOWNBOXSTARTY)
+                                {IF(len+start<filecount)
+				    {start++;
+				    redisplaylist(start,len);}
+				}
+                            }
+                }
+            } 
+        }
+    IF(KBHIT()!=0)
+        {AX = BIOSREADKEY();
+        IF(AX == k_esc)
+            done = 1;
+        }
+    } while( done == FALSE );
+HIDEMOUSE();
+IF( done == 1 )
+    return(FALSE);
+return(TRUE);    
+}
+
+
+void redisplaylist (word start,len)
+{HIDEMOUSE();
+bar19(FILEBOXSTARTX*8,FILEBOXSTARTY*8,FILEWIDTH-1*8,len*8,0);
+displaypartoflist(start,start+len);
+SHOWMOUSE();
+}
+
+
+void displaypartoflist (word start,end)
+word count;
+{IF( end > filecount )
+    end = filecount;
+count = 0;
+IF( start < end )
+    do {GOTOXY(FILEBOXSTARTX,FILEBOXSTARTY+count);
+        GWRITESTR(start*FILEWIDTH+#filelist,red_colour);
+        start++;
+        count++;
+        } while(start < end);
+}
+
+
+void fillfilelist (word searchtype,minfilesize)
+/* fills filelist buffer with all matching filenames */
+{filecount = 0;
+IF( FINDFIRSTFILE( , ,0,searchtype) == 0 )
+    {do {IF(DSWORD[DTA_ADDRESS+0x1A] >= minfilesize)
+            {copynear(filecount*FILEWIDTH+#filelist,DTA_ADDRESS+0x1E,FILEWIDTH);
+            filecount++;}
+        } while( FINDNEXTFILE() == 0);
+    }
+}
+
+
+/********************* FILE LOADING PROCEDURES START **********************/
+
+
+void readcomfile ()
+/*
+Loads the COM file specified by the string 'comfilename'.
+*/
+word filehandle;
+{
+filehandle = FOPEN(0, , ,#comfilename);   /* open file to read */
+if(filehandle != 0)                       /* if file openned OK */
+    {FREAD( ,filehandle,SCRIPTSIZE,#palettehold);
+    IF( FREAD( ,filehandle,PALSIZE,#palettehold) != PALSIZE)
+        BEEP();
+    ELSE{undobuf = 1 - undobuf;
+        $ PUSH DS
+        IF( undobuf == 0 )
+            DS = screenbuf1ptr;
+        ELSE DS = screenbuf2ptr;
+        IF( FREAD( ,filehandle,SCREENSIZE,0) != SCREENSIZE )
+            {$ POP DS
+            BEEP();
+            undobuf = 1 - undobuf;}
+        ELSE{$ POP DS
+            cycleit = FALSE;
+            COPYFARW(DS,#palette,DS,#palettehold,PALSIZE/2);
+            WAITVSYNC();
+            SETVGAPALETTE( ,0,256,#palette);  
+            cycleon = FALSE; 
+            cycleit = TRUE;
+            }
+        }
+    FCLOSE( ,filehandle);  /* close the file */
+    }
+ELSE BEEP();
+}
+
+
+void readpcxfile ()
+/*
+Loads the PCX file specified by the string 'pcxfilename'.
+*/
+{
+IF( undobuf == 0 )
+    {IF( byte readPCX(#pcxfilename,screenbuf2ptr,0,64000,pcx_raw) != pcx_e_ok )
+        {BEEP();
+        return;
+        }
+    }
+else{IF( byte readPCX(#pcxfilename,screenbuf1ptr,0,64000,pcx_raw) != pcx_e_ok )
+        {BEEP();
+        return;
+        }
+    }
+IF( byte readPCXpalette(#pcxfilename,DS,#palettehold) != pcx_e_ok )
+    {BEEP();
+    return;
+    }
+
+undobuf = 1 - undobuf;
+cycleit = FALSE;
+COPYFARW(DS,#palette,DS,#palettehold,PALSIZE/2);
+WAITVSYNC();
+SETVGAPALETTE( ,0,256,#palette);  
+cycleon = FALSE; 
+cycleit = TRUE;
+}
+
+
+void readcutfile ()
+/*
+Loads the CUT file specified by the string 'cutfilename'.
+*/
+{cutsize = readfile(#cutfilename,cutbufptr,0,64004);
+IF( cutsize < 5 )
+    {BEEP();
+    cutsize = 0;}
+ELSE drawtype = d_PUTCUT;
+}
+
+
+void readpcxcutfile ()
+/*
+Loads the PCX file specified by the string 'pcxfilename'.
+*/
+{
+IF( byte readPCX(#pcxfilename,cutbufptr,0,64004,pcx_cut) != pcx_e_ok )
+    {BEEP();
+    cutsize = 0;
+    }
+ELSE{ES = cutbufptr;
+    cutsize = ESWORD[0] * ESWORD[2] + 4;
+    drawtype = d_PUTCUT;
+    }
+}
+
+
+void readiiifile ()
+/*
+Loads the III file specified by the string 'iiifilename'.
+*/
+{iiisize = readfile(#iiifilename,iiibufptr,0,64002);
+IF( iiisize < 3 )
+    {BEEP();
+    iiisize = 0;}
+ELSE drawtype = d_PUTIII;
+}
+
+
+void readpalfile ()
+/*
+Loads the PAL file specified by the string 'palfilename'.
+*/
+{IF( readfile(#palfilename,DS,#palettehold,PALSIZE) <> PALSIZE)
+    BEEP();
+ELSE{cycleit = FALSE;
+    COPYFARW(DS,#palette,DS,#palettehold,PALSIZE/2);
+    WAITVSYNC();
+    SETVGAPALETTE( ,0,256,#palette);  
+    cycleon = FALSE; 
+    cycleit = TRUE;
+    }
+}
+
+
+void readpcxpalfile ()
+/*
+Loads the PAL file specified by the string 'pcxfilename'.
+*/
+{
+IF( byte readPCXpalette(#pcxfilename,DS,#palettehold) != pcx_e_ok )
+    BEEP();
+ELSE{cycleit = FALSE;
+    COPYFARW(DS,#palette,DS,#palettehold,PALSIZE/2);
+    WAITVSYNC();
+    SETVGAPALETTE( ,0,256,#palette);  
+    cycleon = FALSE; 
+    cycleit = TRUE;
+    }
+}
+
+
+void readscrfile ()
+/*
+Loads the PAL file specified by the string 'palfilename'.
+*/
+{undobuf = 1 - undobuf;
+IF( undobuf == 0 )
+    {IF( readfile(#scrfilename,screenbuf1ptr,0,SCREENSIZE) <> SCREENSIZE)
+        {BEEP();
+        undobuf = 1 - undobuf;}
+    }
+ELSE{IF( readfile(#scrfilename,screenbuf2ptr,0,SCREENSIZE) <> SCREENSIZE)
+        {BEEP();
+        undobuf = 1 - undobuf;}
+    }
+}
+
+
+/* end of TINYDRAW.C-- */

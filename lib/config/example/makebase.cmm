@@ -1,0 +1,373 @@
+#resize TRUE
+#argc TRUE
+
+int FOPEN(AX,DX);
+
+#includepath "c:\c--\lib\config"
+#include "config.h--"
+#include "sprintf.h--"
+
+char mainbase[80];
+char userbase[80];
+char hardbase[80];
+char temppath[80];
+char paskprog[80];
+char indexbase[80];
+char tempmain[80];
+char tempidx[80];
+char buf1[20];
+char buf2[20];
+char buf3[20];
+int huser,hhard,hmain=0,hidx,htmain,htidx,allzap;
+
+char *cput[8]={
+	"86",
+	"186",
+	"286",
+	"386",
+	"486",
+	"P",
+	"P2",
+	"PP"};
+
+char *cdrm[2]={"","/CD"};
+char *sblaster[2]={"","/SB"};
+char *firm[5]={"i","u","c","a",""};
+char *videolist[9]={"","MDA","HGA","CGA","EGA","MCGA","VGA","XGA","SVGA"};
+char *flop[6]={"","360","1,2","720","1,4","2,8"};
+
+struct _UI_
+{
+	long nAdr;
+	int sAdr[3];
+	char cex[13];
+	char room[13];
+	char pfone[17];
+	char name[41];
+	char mainname[41];
+	char number[11];
+	word year;
+	byte day[2];
+}userinfo;
+
+struct _UI2_{
+	dword nAdr;
+	word adr[3];
+//--- CPU ---- 0
+	byte cpu;
+	byte firma;
+	dword regEAX;
+	dword regEDX;
+//--- BIOS ---- 10
+	byte model;
+	byte submodel;
+	byte rev;
+	byte dataBIOS[8];
+//-- Video ---  21
+	byte video;
+	word vram;
+//--- flop ---- 24
+	byte flop[2];
+//--- HDD ---   26
+	dword cul[4];
+	dword head[4];
+	dword sector[4];
+//-- OZU ---    74
+	dword smem;
+//-- CD ----    78
+	byte cdrom;
+//-- SB ----    79
+	byte sb;
+//-- BUS ---    80
+	byte bus;
+//-- резерв для будущих расширений 81
+	byte rezerv[29];
+//-- CPU частота 110
+	int mhz[2];
+//--- дата проверки 114
+	word year;
+	word day;
+}hardinfo;
+
+struct
+{
+	char s1[30],s2[30],s3[30];
+}outinfo;
+
+struct _HEADER_{
+	word version;
+	word maxzap;
+	word numzap;
+}uheader,hheader;
+
+struct LISTBAZA
+{
+	long nAdr;
+	int sAdr[3];
+}minadr;
+
+void fastcall Error()
+{
+	DWRITESTR();
+	DWRITESTR(".\n");
+	EXIT(byte 1);
+}
+
+word segadrhard,segadruser,segadrmain;
+word nummainadr=0;
+word cpmain=0,cphard=0,cpuser=0;
+byte flagb;
+#define BMAIN 1
+#define BHARD 2
+#define BUSER 4
+
+void main()
+{
+//открыть файл инициализации и считать пути
+	IF(OpenConfig(PARAMSTR(0))==0)Error("Не могу открыть файл конфигурации");
+	IF(FindArea("Base")==FALSE)Error("Секция 'Base' не найдена");
+	WHILE(GetLine()){
+		IF(TestLine("Main"))STRCPY(#mainbase,GetVarData());
+		ELSE IF(TestLine("User"))STRCPY(#userbase,GetVarData());
+		ELSE IF(TestLine("Hard"))STRCPY(#hardbase,GetVarData());
+		ELSE IF(TestLine("Index"))STRCPY(#indexbase,GetVarData());
+	}
+	IF(FindArea("Temp path")==FALSE)temppath[0]=0;
+	WHILE(GetLine()){
+		IF(TestLine("Temp"))STRCPY(#temppath,GetVarData());
+	}
+	IF(FindArea("Extern program")==FALSE)Error("Секция 'Extern program' не найдена");
+	WHILE(GetLine()){
+		IF(TestLine("Pack"))STRCPY(#paskprog,GetVarData());
+	}
+	CloseConfig();
+//отсортировать базы
+	IF(spawn(#paskprog,0,0)!=0)Error("\nОшибка перепаковки баз");
+//загрузить адреса базы машин
+	hhard=FOPEN(0,#hardbase);
+	IF(AX==0)Error("Не могу открыть базу машин");
+	IF(FREAD(,hhard,sizeof(_HEADER_),#hheader)!=sizeof(_HEADER_))Error("Ошибка чтения из базы машин");
+	segadrhard=LoadAdress(hheader.numzap,hhard,sizeof(_UI2_));
+	FSEEK(byte 0,hhard,0,6);
+//загрузить адреса базы пользователей
+	huser=FOPEN(0,#userbase);
+	IF(AX==0)Error("Не могу открыть базу пользователей");
+	IF(FREAD(,huser,sizeof(_HEADER_),#uheader)!=sizeof(_HEADER_))Error("Ошибка чтения из базы пользователей");
+	segadruser=LoadAdress(uheader.numzap,huser,sizeof(_UI_));
+	FSEEK(byte 0,huser,0,6);
+//загрузить адреса главной базы
+	hidx=FOPEN(0,#indexbase);
+	IF(AX!=0){
+		nummainadr=filelength(AX);
+		segadrmain=MALLOC(AX);
+		IF(READFAR(,hidx,nummainadr,segadrmain)!=nummainadr)Error("Ошибка чтения из базы индексов");
+		nummainadr/=sizeof(LISTBAZA);
+		FCLOSE(,hidx);
+		hmain=FOPEN(0,#mainbase);
+		IF(AX==0){
+			hidx=AX;
+			nummainadr=AX;
+			FREEMEM(segadrmain);
+		}
+	}
+	STRCPY(#tempmain,#temppath);
+	htmain=CREATETEMP(,,0,#tempmain);
+	IF(AX==0)ERRCREATEMP();
+	STRCPY(#tempidx,#temppath);
+	htidx=CREATETEMP(,,0,#tempidx);
+	IF(AX==0)ERRCREATEMP();
+//создать новую базу
+	WRITESTR("Создание главной базы\n");
+	allzap=0;
+	do{
+		minadr=-1;
+		flagb=0;
+		IF(cpmain!=nummainadr){
+			copyfar(DS,#minadr,segadrmain,cpmain*sizeof(LISTBAZA),sizeof(LISTBAZA));
+			flagb=BMAIN;
+		}
+		IF(cphard!=hheader.numzap){
+			CmpAdr(segadrhard,cphard*sizeof(LISTBAZA));
+			IF(AX==0)flagb|=BHARD;
+			ELSE IF(int AX<0){
+				copyfar(DS,#minadr,segadrhard,cphard*sizeof(LISTBAZA),sizeof(LISTBAZA));
+				flagb=BHARD;
+			}
+		}
+		IF(cpuser!=uheader.numzap){
+			CmpAdr(segadruser,cpuser*sizeof(LISTBAZA));
+			IF(AX==0)flagb|=BUSER;
+			ELSE IF(int AX<0){
+				copyfar(DS,#minadr,segadruser,cpuser*sizeof(LISTBAZA),sizeof(LISTBAZA));
+				flagb=BUSER;
+			}
+		}
+		IF(FWRITE(,htidx,sizeof(LISTBAZA),#minadr)!=sizeof(LISTBAZA))ERRTEMP();
+		IF(flagb&BMAIN!=0){
+			IF(FREAD(,hmain,90,#outinfo)!=90)ERRREAD();
+			cpmain++;
+		}
+		ELSE MEMSET(,#outinfo,90,byte 0x20);
+		IF(flagb&BHARD!=0){
+			MakeHardInfo();
+			cphard++;
+		}
+		IF(flagb&BUSER!=0){
+			MakeUserInfo();
+			cpuser++;
+		}
+		IF(FWRITE(,htmain,90,#outinfo)!=90)ERRTEMP();
+		allzap++;
+	}while(cpmain!=nummainadr)||(cphard!=hheader.numzap)||(cpuser!=uheader.numzap);
+	FCLOSE(,hhard);
+	FCLOSE(,huser);
+	FCLOSE(,htidx);
+	FCLOSE(,htmain);
+	IF(hmain!=0)FCLOSE(,hmain);
+	REMOVE(#mainbase);
+	REMOVE(#indexbase);
+	RENAME(,,,#tempmain,#mainbase);
+	RENAME(,,,#tempidx,#indexbase);
+	WRITESTR("Всего записано ");
+	WRITEWORD(allzap);
+	WRITESTR(" информационных блоков\n");
+}
+
+void ERRCREATEMP()
+{
+	Error("Невозможно создать временный файл");
+}
+
+ERRTEMP()
+{
+	Error("Ошибка записи во временный файл.");
+}
+
+ERRREAD()
+{
+	Error("Ошибка чтения из базы.");
+}
+
+word LoadAdress(word numzap,handl,sizezap)
+word segmb,i;
+{
+	segmb=MALLOC(sizeof(LISTBAZA)*numzap);
+//создать список адресов
+	FOR(i=0;i<numzap;i++){
+		EAX=i*sizezap+sizeof(uheader);
+		EDX><EAX;
+		FSEEK32(0,handl);
+		IF(readfar(handl,segmb,i*sizeof(LISTBAZA),sizeof(LISTBAZA))!=sizeof(LISTBAZA))ERRREAD();
+	}
+	return segmb;
+}
+
+int CmpAdr(word seg,ofs)
+{
+	ES=seg;
+	DI=ofs;
+	IF(ESDWORD[DI]<minadr.nAdr)return -1;
+	IF(ZEROFLAG){
+		IF(ESWORD[DI+4]<minadr.sAdr[0])return -1;
+		IF(ZEROFLAG){
+			IF(ESWORD[DI+6]<minadr.sAdr[2])return -1;
+			IF(ZEROFLAG){
+				IF(ESWORD[DI+8]<minadr.sAdr[4])return -1;
+				IF(ZEROFLAG)return 0;
+			}
+		}
+	}
+	return 1;
+}
+
+void MakeUserInfo()
+char buf[45];
+{
+	IF(FREAD(,huser,sizeof(_UI_),#userinfo)!=sizeof(_UI_))Error("Ошибка чтения из базы пользователей");
+	MEMSET(,#outinfo,60,byte 0x20);
+	sprintf(#buf,"%s %s %s",#userinfo.cex,#userinfo.room,#userinfo.pfone);
+	CopyString(#outinfo.s1,#buf);
+	CopyString(#outinfo.s2,#userinfo.name);
+}
+
+void MakeHardInfo()
+char buf[60];
+{
+	IF(FREAD(,hhard,sizeof(_UI2_),#hardinfo)!=sizeof(_UI2_))Error("Ошибка чтения из база машин");
+	MEMSET(,#outinfo.s3,30,byte 0x20);
+	IF(hardinfo.cpu>5){
+		IF(hardinfo.regEAX&0xF0==0x60)AL=7;
+		ELSE AL=6;
+		hardinfo.cpu=AL;
+	}
+	IF(hardinfo.cdrom!=0)hardinfo.cdrom=1;
+	sprintf(#buf,"%s%s-%u/%u/%s/%s%s%s%s%s",firm[hardinfo.firma],
+		cput[hardinfo.cpu],
+		mhz(),
+		word hardinfo.smem+384/1024,
+		SizeHDD(),
+		Flop(),
+		videolist[hardinfo.video],videomem(),
+		cdrm[hardinfo.cdrom],
+		sblaster[hardinfo.sb]);
+	CopyString(#outinfo.s3,#buf);
+
+}
+
+void CopyString(word dest,sour)
+{
+	STRLEN(sour);
+	IF(AX>30)AX=30;
+	CX=AX;
+	DI=30-AX>>1+dest;
+	SI=sour;
+	$rep $movsb
+}
+
+word mhz()
+{
+	CX=0;
+	IF(hardinfo.mhz[0]>49)CX++;
+	return hardinfo.mhz[2]+CX;
+}
+
+word SizeHDD()
+dword size;
+word ost;
+{
+	size=hardinfo.cul[0]*hardinfo.head[0]/2*hardinfo.sector[0]/1024;
+	sprintf(#buf1,"%luM",dword size);
+	IF(size>1023){
+		ost=dword size%1024/103;
+		size/=1024;
+		sprintf(#buf1,"%lu,%uG",dword size,ost);
+	}
+	return #buf1;
+}
+
+word videomem()
+{
+	IF(hardinfo.video!=8)||(hardinfo.vram==0)buf2[0]=0;
+	ELSE{
+		IF(hardinfo.vram>1023)sprintf(#buf2," %uM",hardinfo.vram/1024);
+		ELSE sprintf(#buf2," %uK",hardinfo.vram);
+	}
+	return #buf2;
+}
+
+word Flop()
+char bu1[10];
+char bu2[10];
+{
+	buf3[0]=0;
+	if(hardinfo.flop[0]!=0)||(hardinfo.flop[1]!=0){
+		bu1[0]=0;
+		bu1[1]=0;
+		IF(hardinfo.flop[0]!=0)sprintf(#bu1,"%s",flop[hardinfo.flop[0]]);
+		IF(hardinfo.flop[1]!=0)sprintf(#bu2,"%s",flop[hardinfo.flop[1]]);
+		IF(hardinfo.flop[0]==0)sprintf(#buf3,"%s/",#bu2);
+		ELSE IF(hardinfo.flop[1]==0)sprintf(#buf3,"%s/",#bu1);
+		ELSE sprintf(#buf3,"%s+%s/",#bu1,#bu2);
+	}
+	return #buf3;
+}

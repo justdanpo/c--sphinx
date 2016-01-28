@@ -1,0 +1,363 @@
+/*
+    SPHINX Programming (C) 1993.
+    TITLE:  STRING.H--
+    DESCRIPTION:  This file contains a collection of procedures for working
+                  with 0 terminating strings.
+    LAST MODIFIED:  11 Sept 1994
+    PROCEDURES DEFINED IN THIS FILE:
+        : word passtr(cstring_address,passtring_address)
+        : word PASSTR( , , , ,cstringoffset,passtringoffset)
+        : void strcat(deststring,sourcestring)
+        : void STRCAT( , , , ,deststring,sourcestring)
+        : char strcmp(string1,string2)
+        : char STRCMP(string1,string2)
+        : void strcpy(dest_string,source_string)
+        : void STRCPY( , , , ,dest_string,source_string)
+        : void STR_DOWN(string_address)
+        : word STRLEN(string_address)
+        : void strpas(passtring_address,cstring_address)
+        : void STRPAS( , , , ,passtring_address,cstring_address)
+        : void STR_UP(string_address)
+        :int STRTOINT(string_address)
+    NOTES:
+         In the future, add the following REG procedures for string handling:
+             STRWORD(number,string);
+             STRINT(number,string);
+             STRDIGITS STRWORD STRINT STRBYTE STRCHAR
+             STRPOS STRCAPS STRLOWS STRSTR STRINSERT STRDELETE
+             PASLEN PASCPY PASCAT PASCMP
+*/
+?ifndef _STRING_
+?define _STRING_ TRUE
+?warning FALSE
+
+:void STR_UP()  /* AX = address of string */
+/* Converts all lower case letters in a string to upper case. */
+{
+?ifdef codesize
+	BX><AX;
+?else
+	BX=AX;
+?endif
+	do{
+		AL=DSBYTE[BX];
+		IF(AL>='a')IF(AL<='z')DSBYTE[BX]=AL&0x5f;//-='a'-'A';
+ 		BX++;
+	}while(AL!=0);
+}
+/* returns:  AX,BX = undefined */
+
+:void STR_DOWN()  /* AX = address of string */
+/* Converts all upper case letters in a string to lower case. */
+{
+?ifdef codesize
+	BX><AX;
+?else
+	BX=AX;
+?endif
+	do{
+		AL=DSBYTE[BX];
+		IF(AL>='A')IF(AL<='Z')DSBYTE[BX]=AL|0x20;
+		BX++;
+	}while(AL!=0);
+}
+/* returns:  AX,BX = undefined */
+
+:word passtr (word cstringoffset,passtringoffset)
+/* copies a pascal type string to a C type (0 terminating) string. */
+{
+	ES=DS;
+	DI=cstringoffset;
+	SI=passtringoffset;
+	$LODSB
+	AH=0;
+	IF(AL>0 ){
+		CX=AX;
+		$REPZ
+		$MOVSB
+	}
+	DSBYTE[DI]=AH;
+}
+/* RETURNS:  AX = length of the string, not including 0 terminator.
+             DI,SI = undefined
+             CX = 0
+             ES = DS */
+
+:word PASSTR()       /* DI = cstringoffset, SI = passtringoffset */
+/* copies a pascal type string to a C type (0 terminating) string. */
+{
+	ES=DS;
+	$LODSB
+	AH=0;
+	IF(AL>0){
+		CX=AX;
+		$REPZ
+		$MOVSB
+	}
+	DSBYTE[DI]=AH;
+}
+/* RETURNS:  AX = length of the string, not including 0 terminator.
+             DI,SI = undefined
+             CX = 0
+             ES = DS */
+
+:void strpas (word passtringoffset,cstringoffset)
+/* Copies and converts a 0 terminating string to a pascal type string. */
+{
+	ES=DS;
+	SI=cstringoffset;
+	DI=passtringoffset;
+	BX=DI;
+	CL=0;
+	DI++;
+HERE:
+	$LODSB
+	$CMP AL,00
+	$JZ	DOWN
+	$STOSB
+	CL++;
+	$JMP HERE
+DOWN:
+	DSBYTE[BX]=CL;
+}
+/* RETURNS:  ES = DS
+             AX,BX,CX,DI,SI = undefined */
+
+:void STRPAS()   /* DI = passtringoffset, SI = cstringoffset */
+/* Copies and converts a 0 terminating string to a pascal type string. */
+{
+	ES=DS;
+	BX=DI;
+	CL=0;
+	DI++;
+HERE:
+	$LODSB
+	$CMP AL,00
+	$JZ	DOWN
+	$STOSB
+	CL++;
+	$JMP HERE
+DOWN:
+	DSBYTE[BX]=CL;
+}
+/* RETURNS:  ES = DS
+             AX,BX,CX,DI,SI = undefined */
+
+:word STRLEN()    /* AX = address of string */
+/* Determines the length of a 0 terminating string. */
+{
+	BX=AX;
+	BX--;
+	do{
+		BX++;
+	}while(DSBYTE[BX]!=0);
+	BX-=AX;
+?ifdef codesize
+	BX><AX;
+?else
+	AX=BX;
+?endif
+}
+/* RETURNS:  AX = length of string, not including 0 terminator. */
+
+:void strcpy(word dest_string,source_string)
+/* Copies a a 0 terminating string. */
+{
+	ES=DS;
+	SI=source_string;
+	DI=dest_string;
+	do{
+		$LODSB
+		$STOSB
+	}while(AL!=0);
+}
+/* RETURNS:  ES = DS
+             AX,DI,SI = undefined */
+
+:void STRCPY()    /* DI = dest_string, SI = source_string */
+/* Copies a a 0 terminating string. */
+{
+	ES=DS;
+	do{
+		$LODSB
+		$STOSB
+	}while(AL!=0);
+}
+/* RETURNS:  ES = DS
+             AX,DI,SI = undefined */
+
+:char strcmp(word string1,string2)
+/* Compares two 0 terminating strings. */
+{
+	SI=string1;
+	BX=string2;
+	BX--;
+TOP:
+	BX++;
+	$LODSB
+	$CMP AL,0
+	$JE HERE
+	$CMP DSBYTE[BX],AL
+	$JE TOP
+HERE:
+	AL-=DSBYTE[BX];
+}
+/* RETURNS:  AL = 0 if the strings are equal
+             AL > 0 if string 1 is greater than string 2
+             AL < 0 if string 2 is greater than string 1
+             BX,SI = undefined */
+
+:char STRCMP()   /* AX = string1, BX = string2 */
+/* Compares two 0 terminating strings. */
+{
+?ifdef codesize
+	SI><AX;
+?else
+	SI=AX;
+?endif
+	BX--;
+TOP:
+	BX++;
+	$LODSB
+	$CMP AL,0
+	$JE HERE
+	$CMP DSBYTE[BX],AL
+	$JE TOP
+HERE:
+	AL-=DSBYTE[BX];
+}
+/* RETURNS:  AL = 0 if the strings are equal
+             AL > 0 if string 1 is greater than string 2
+             AL < 0 if string 2 is greater than string 1
+             BX,SI = undefined */
+
+:void strcat(word deststring,sourcestring)
+/* Copies source string on to the end of deststring. */
+{
+	ES=DS;
+	SI=sourcestring;
+	DI=deststring;
+	DI--;
+	do{
+		DI++;
+	}while(DSBYTE[DI]!=0);
+	do{
+		$LODSB
+		$STOSB
+	}while(AL!=0);
+}
+/* RETURNS:  AL = 0
+             ES = DS
+             DI,SI,CX = undefined */
+
+:void STRCAT()     /* DI = deststring,  SI = sourcestring */
+/* Copies source string on to the end of deststring. */
+{
+	ES=DS;
+	DI--;
+	do{
+		DI++;
+	}while(DSBYTE[DI]!=0);
+	do{
+		$LODSB
+		$STOSB
+	}while(AL!=0);
+}
+/* RETURNS:  AL = 0
+             ES = DS
+             DI,SI,CX = undefined */
+
+:word STRCHR()
+/*AX- offset string BL-simbol
+ˆ™…’ ‘ŽŒ‚Ž‹ ‚ ‘’ŽŠ… …‘‹ˆ … €‰„… - 0 ˆ€—… ‘Œ…™…ˆ… ‘ˆŒ‚Ž‹€*/
+{
+?ifdef codesize
+	SI><AX;
+?else
+	SI=AX;
+?endif
+	$CLD
+	do{
+		$LODSB
+		IF(AL==BL){
+?ifdef codesize
+			SI><AX;
+?else
+			AX=SI;
+?endif
+			AX--;
+			$JMP SHORT EN
+		}
+	}while(AL);
+	AH=0;
+EN:
+}
+
+:word STRRCHR()
+// AX-offset string BL-simbol
+//ˆ™…’ Ž‘‹…„…… ‚•Ž†„…ˆ… ‘ˆŒ‚Ž‹€ ‚ ‘’ŽŠ…
+//‚Ž‡‚ ‘Œ…™…ˆ… ‘ˆŒ‚Ž‹€
+{
+?ifdef codesize
+	SI><AX;
+?else
+	SI=AX;
+?endif
+	CX=0;
+	$CLD
+	do{
+		$LODSB
+		IF(AL==BL){
+			CX=SI;
+			CX--;
+		}
+	}while(AL);
+?ifdef codesize
+	CX><AX;
+?else
+	AX=CX;
+?endif
+}
+
+:void STRNCPY()
+//AX-ªã¤  BX-®âªã¤  CX-áª®«ìª®
+{
+?ifdef codesize
+	DI><AX;
+?else
+	DI=AX;
+?endif
+	SI=BX;
+	$CLD
+	loop(CX){
+		$LODSB
+		$STOSB
+		$CMP AL,0
+		$JZ EN
+	}
+	AL=0;
+	$STOSB
+EN:
+}
+
+:int STRTOINT()
+{
+?ifdef codesize
+	DI><AX;
+?else
+	DI=AX;
+?endif
+	SI=DI;
+	IF(DSBYTE[SI]=='-')SI++;
+	AX=0;
+	BH=AL;
+	do{
+		BL=DSBYTE[SI]-'0';
+		AX=AX*10+BX;
+		SI++;
+	}while(DSBYTE[SI]>0);
+	IF(DSBYTE[DI]=='-')-AX;
+}
+
+?endif
+/* end of STRING.H-- */

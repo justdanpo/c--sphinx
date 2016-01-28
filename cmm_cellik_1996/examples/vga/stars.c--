@@ -1,0 +1,148 @@
+/*
+   STARS.C--
+   Description:
+       Star field simulator, VGA required.
+       Use '+ and '-' keys to speed up or slow down stars.
+       Press <ESC> to quit.
+*/
+
+?include "VGA.H--"
+?include "VIDEO.H--"
+?include "WRITE.H--"
+?include "RANDOM.H--"
+?include "KEYCODES.H--"
+?include "DOS.H--"
+
+
+?define   V  8 
+
+void plotxyz19 ( int x,y,z; byte color )
+int hold,hold2;
+{
+hold = z + 1 / V;
+IF( AX != 0 )
+    {hold2 = x / hold + 160;
+    BX = AX;
+    IF( BX < 320 )
+        {hold2 = y / hold + 100;
+        IF( AX < 200 )
+            {AX = AX*320;        //    \/
+            BX += AX;            //    \/ 
+            ES = 0xA000;         //    \/  
+            ESBYTE[BX] = color;  // SAME AS: putpixel19(BX,hold2,color);
+            }
+        }
+    }
+}
+
+?define PALSIZE 256*3
+byte palette[PALSIZE];
+
+
+void init_palette ()
+/* build palette of grey scale from intensity 0 to 63. */
+{
+BX = 0;
+DI = 0;
+do {
+    palette[DI] = 63-BX;
+    palette[DI+1] = 63-BX;
+    palette[DI+2] = 63-BX;
+    DI+=3;
+    palette[DI] = 63-BX;
+    palette[DI+1] = 63-BX;
+    palette[DI+2] = 63-BX;
+    DI+=3;
+    palette[DI] = 63-BX;
+    palette[DI+1] = 63-BX;
+    palette[DI+2] = 63-BX;
+    DI+=3;
+    palette[DI] = 63-BX;
+    palette[DI+1] = 63-BX;
+    palette[DI+2] = 63-BX;
+    DI+=3;
+    BX++;
+    } while( BX < 64 );
+palette[0] = 0;
+palette[1] = 0;
+palette[2] = 0;
+
+@ WAITVSYNC();
+@ SETVGADAC(0, ,PALSIZE, , ,#palette);
+}
+
+
+int count;
+int jump = 3;
+byte quit = FALSE;
+
+?define STARS  1000  // you may want to pump this to 3000 on faster machines
+
+int x[STARS];
+int y[STARS];
+int z[STARS];
+
+
+void init_stars ()
+{
+DI = 0;
+do {
+    x[DI] = RAND()%3025;
+    y[DI] = RAND()%3025;
+    z[DI] = RAND()%256+1;
+    DI += 2;
+    } while( DI < STARS*2 );
+}
+
+
+main ()
+{
+SETVIDEOMODE( vid_320x200_256 );    /* set video mode */
+IF( @ GETVIDEOMODE() != vid_320x200_256 )  /* check if entered the mode */
+    {WRITESTR("Unable to enter 256 colour mode, VGA required.");
+    EXIT(1);}
+init_palette();
+
+@ RANDOMIZE();
+
+init_stars();
+
+do {  
+    count = 0;
+    do {
+        DI = count+DI;
+        plotxyz19(x[DI],y[DI],z[DI],0);
+        SI = count;
+        DI = SI+SI;
+        z[DI] -= jump;
+        IF( z[DI] <= 0 ) 
+            {x[DI] = RAND()%3025;
+            y[DI] = RAND()%3025;
+            z[DI] = RAND()%20+236;
+            }
+        ELSE IF( z[DI] >= 256 ) 
+            {x[DI] = RAND()%3025;
+            y[DI] = RAND()%3025;
+            z[DI] = 0;
+            }
+        plotxyz19(x[DI],y[DI],z[DI],z[DI] );
+        count++;
+        } while ( count < STARS );
+
+    IF( KBHIT() <> 0 )
+        {AX = BIOSREADKEY();
+        IF( AL == '+' )
+            jump++;
+        ELSE IF( AL == '-' )
+            jump--;
+        ELSE IF( AX == k_esc )
+            quit = TRUE;
+        }
+
+    } while( quit == FALSE );
+
+SETVIDEOMODE( vid_text80c );
+WRITESTR("SPHINX Programming 1994\n");
+}
+
+/* end of STARS.C-- */

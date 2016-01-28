@@ -1,0 +1,287 @@
+?ifndef _STDIO_
+?define _STDIO_ TRUE
+?warning FALSE
+
+?define k_lft 19200
+?define k_bckspc 3592
+?define k_rtrn 7181
+
+:void GETS()
+/* ‚‚Ž„ˆ’ ‘’ŽŠ“ ‚ “”… ‘ •ŽŒ € Š€…
+ ‚•Ž„: AX - €„…‘ “”…€
+*/
+{
+	$PUSH SI
+?ifdef codesize
+	SI><AX;
+?else
+	SI=AX;
+?endif
+	CX=0;
+	do{
+		AH=0;
+		$INT 0X16
+		IF(AX==k_lft){
+ZAB:
+			$OR CX,CX
+			$JZ M1
+			CX--;
+			AX=0X0E08;
+			$INT 0X10
+			AX=0X0E20;
+			$INT 0X10
+			AX=0X0E08;
+			$INT 0X10
+			SI--;
+M1:
+		}
+		ELSE IF(AX==k_bckspc)$JMP SHORT ZAB
+		ELSE IF(AL>0X1F){
+			DSBYTE[SI]=AL;
+			CX++;
+			SI++;
+			AH=14;
+			$INT 0X10
+		}
+	}while(AX!=k_rtrn);
+	DSBYTE[SI]=0;
+	$POP SI
+}
+
+:void GETSHIDE()
+/* ‚‚Ž„ˆ’ ‘’ŽŠ“ ‚ “”… ‘ ‡€Ž‹…ˆ…Œ Š€€ “Š€‡€›Œ ‘ˆŒ‚Ž‹ŽŒ
+ ‚•Ž„: AX - €„…‘ “”…€
+			 BL - ‘ˆŒ‚Ž‹ ‡€Ž‹…ˆŸ
+*/
+{
+	$PUSH SI
+?ifdef codesize
+	SI><AX;
+?else
+	SI=AX;
+?endif
+	CX=0;
+	do{
+		AH=0;
+		$INT 0X16
+		IF(AX==k_lft){
+ZAB:
+			$OR CX,CX
+			$JZ M1
+			CX--;
+			AX=0X0E08;
+			$INT 0X10
+			AX=0X0E20;
+			$INT 0X10
+			AX=0X0E08;
+			$INT 0X10
+			SI--;
+M1:
+		}
+		ELSE IF(AX==k_bckspc)$JMP SHORT ZAB
+		ELSE IF(AL>0X1F){
+			DSBYTE[SI]=AL;
+			CX++;
+			SI++;
+			AL=BL;
+			AH=14;
+			$INT 0X10
+		}
+	}while(AX!=k_rtrn);
+	DSBYTE[SI]=0;
+	$POP SI
+}
+
+:word GETHEX()
+/* ‚‚Ž„ˆ’ ‘‹Ž‚Ž ‚ 16-ˆ—ŽŒ ‚ˆ„…
+ ‚ë•Ž„: AX - ‚‚…„…Ž… —ˆ‘‹Ž
+*/
+{
+	CX=0;
+	BX=0;
+	do{
+		AH=0;
+		$INT 0X16
+		IF(AX==k_lft){
+ZAB:
+			$OR CX,CX
+			$JZ M1
+			CX--;
+			$SHR BX,4
+			AX=0X0E08;
+			$INT 0X10
+			AX=0X0E20;
+			$INT 0X10
+			AX=0X0E08;
+			$INT 0X10
+M1:
+		}
+		ELSE IF(AX==k_bckspc)$JMP SHORT ZAB
+		ELSE IF(AL>=0X30){
+			IF(CL==4)BREAK;
+			IF(AL<='9'){
+				$SHL BX,4
+				AH=AL-0X30;
+				BL+=AH;
+				AH=0;
+			}
+			ELSE IF(AL>0X40){
+				AL&=0x5f;
+				IF(AL<'G'){
+					$SHL BX,4
+					AH=AL-0X37;
+					BL+=AH;
+					AH=0;
+				}
+			}
+			IF(AH==0){
+				CX++;
+				AH=14;
+				$INT 0X10
+			}
+		}
+	}while(AX!=k_rtrn);
+?ifdef codesize
+	BX><AX;
+?else
+	AX=BX;
+?endif
+}
+
+:dword GETHEXE()
+/* ‚‚Ž„ˆ’ „‚Ž‰Ž… ‘‹Ž‚Ž ‚ 16-ˆ—ŽŒ ‚ˆ„…
+ ‚ë•Ž„: EAX - ‚‚…„…Ž… —ˆ‘‹Ž
+*/
+{
+	CX=0;
+	EBX=0;
+	do{
+		AH=0;
+		$INT 0X16
+		IF(AX==k_lft){
+ZAB:
+			$OR CX,CX
+			$JZ M1
+			CX--;
+			$SHR EBX,4
+			AX=0X0E08;
+			$INT 0X10
+			AX=0X0E20;
+			$INT 0X10
+			AX=0X0E08;
+			$INT 0X10
+M1:
+		}
+		ELSE IF(AX==k_bckspc)$JMP SHORT ZAB
+		ELSE IF(AL>=0X30){
+			IF(CL==8)BREAK;
+			IF(AL<='9'){
+				$SHL EBX,4
+				AH=AL-0X30;
+				BL+=AH;
+				AH=0;
+			}
+			ELSE IF(AL>0X40){
+				AL&=0x5f;
+				IF(AL<'G'){
+					$SHL EBX,4
+					AH=AL-0X37;
+					BL+=AH;
+					AH=0;
+				}
+			}
+			IF(AH==0){
+				CX++;
+				AH=14;
+				$INT 0X10
+			}
+		}
+	}while(AX!=k_rtrn);
+?ifdef codesize
+	EBX><EAX;
+?else
+	EAX=EBX;
+?endif
+}
+
+:word GETHEXS()
+/* ‚‚Ž„ˆ’ ‘‹Ž‚Ž ‚ 16-ˆ—ŽŒ ‚ˆ„… …‡ ‚Ž‡ŒŽ†Ž‘’ˆ …„€Š’ˆŽ‚€ˆŸ
+ ‚ë•Ž„: AX - ‚‚…„…Ž… —ˆ‘‹Ž
+*/
+{
+	CX=0;
+	BX=0;
+	do{
+		AH=0;
+		$INT 0X16
+		IF(AL>=0X30){
+			IF(AL<='9'){
+				$SHL BX,4
+				AH=AL-0X30;
+				BL+=AH;
+				AH=0;
+			}
+			ELSE IF(AL>0X40){
+				AL&=0x5f;
+				IF(AL<'G'){
+					$SHL BX,4
+					AH=AL-0X37;
+					BL+=AH;
+					AH=0;
+				}
+			}
+			IF(AH==0){
+				CX++;
+				AH=14;
+				$INT 0X10
+			}
+		}
+	}while(CL!=4);
+?ifdef codesize
+	BX><AX;
+?else
+	AX=BX;
+?endif
+}
+
+:dword GETHEXES()
+/* ‚‚Ž„ˆ’ „‚Ž‰Ž… ‘‹Ž‚Ž ‚ 16-ˆ—ŽŒ ‚ˆ„… …‡ ‚Ž‡ŒŽ†Ž‘’ˆ …„€Š’ˆŽ‚€ˆŸ
+ ‚ë•Ž„: AX - ‚‚…„…Ž… —ˆ‘‹Ž
+*/
+{
+	CX=0;
+	EBX=0;
+	do{
+		AH=0;
+		$INT 0X16
+		IF(AL>=0X30){
+			IF(AL<='9'){
+				$SHL EBX,4
+				AH=AL-0X30;
+				BL+=AH;
+				AH=0;
+			}
+			ELSE IF(AL>0X40){
+				AL&=0x5f;
+				IF(AL<'G'){
+					$SHL EBX,4
+					AH=AL-0X37;
+					BL+=AH;
+					AH=0;
+				}
+			}
+			IF(AH==0){
+				CX++;
+				AH=14;
+				$INT 0X10
+			}
+		}
+	}while(CL!=8);
+?ifdef codesize
+	EBX><EAX;
+?else
+	EAX=EBX;
+?endif
+}
+
+?endif

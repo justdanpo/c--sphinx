@@ -1,0 +1,35 @@
+/*
+    SPHINX Programming 1994
+    Name:  VESA.C--
+    Description:  Quick test file for some of the raw VESA support that is
+                  currently being developed for C--.
+*/
+
+?include "WRITE.H--"
+?include "VESA.H--"
+
+
+void main ()
+{
+IF( setVESAvideomode(VESA_800x600_16) == 0 )
+   {WRITESTR("VESA mode OK.\n");
+   WRITEWORD(vesa_win_size);
+   WRITESTR("\n");
+   WRITEWORD(vesa_win_gran);
+   
+   IF( SETVESA_MEMPOS(10,0) == 0 )
+       {WRITESTR("\nwin set OK.\n");
+       SETVESA_MEMPOS(10,0);
+       ES = 0xA000;
+       DI = 0;
+       do {
+           ESBYTE[DI] = 255;
+           DI++;
+           } while( DI < 65000 );
+       }
+
+   }
+ELSE WRITESTR("Unable to enter specified VESA mode.\n");
+}
+
+/* end of VESA.C-- */

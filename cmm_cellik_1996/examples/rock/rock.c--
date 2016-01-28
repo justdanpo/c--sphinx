@@ -1,0 +1,1046 @@
+/*
+    NAME:  ROCK.C--
+    DESCRIPTION:  Multi-page display for 320x200 256 colours.
+                  Just a sketchy outline of a 'dodge the asteroids' game.
+                  Screen update speed could probably be increased.
+                  The ship's laser globs currently don't do anything, but
+                  will not go through objects.
+                  VGA display required.  Should work on most VGAs.
+                  80386+ cpu required for GUS sound support.
+                  To run with GUS support, YEA_GUS.EXE must be used, type
+                  the following at the DOS prompt for GUS support:
+                        YEA_GUS GUS ROCK.COM GUS
+    RUN FILE SIZE:  47112 bytes.
+*/
+
+?use80286
+?resize  TRUE
+?resizemessage "Error resizing program memory block."
+?ctrl_c  TRUE
+?parsecommandline TRUE
+
+
+?include "VIDEO.H--"
+?include "VGA.H--"
+?include "KEYCODES.H--"
+?include "WRITE.H--"
+?include "RANDOM.H--"
+?include "SYSTEM.H--"
+?include "DOS.H--"
+?include "SOUND.H--"
+?include "STRING.H--"
+?include "GUS.H--"
+?include "FILE.H--"
+
+
+?define  LOGICALSCREENWIDTH    640
+?define  LOGICALSCREENHEIGHT   200
+?define  THECLEARCOLOR         0xFF
+?include "VGAX.H--"
+
+byte sound = TRUE;
+byte gusavailable = FALSE;
+byte guson = FALSE;
+
+?define  REPAIR_RATE  300  /* how many frames must be displayed before
+                              the sheild repairs itself by REPAIR_AMOUNT */
+?define  REPAIR_AMOUNT 10
+?define  MAX_SHIELD  63+63*4  /* maximum shield strength */
+?define  SHIELD_LOW    16*4   /* max shield value to issue power warning */
+
+?define  DAMAGE_PER_PIXEL 1  /* damage incurred for each pixel of overlap */
+?define  HEAL_PER_PIXEL 1    /* damage healed for each pixel of 'POWER' */
+
+?define  ROCKSPEED 20   // maximum speed for the rocks
+
+?define  STARCOLOR1     7
+?define  STARCOLOR2     1
+?define  STARCOLOR3     8
+?define  BORDERCOLOR    2
+?define  POWERCOLOR    32
+?define  NUKECOLOR     31
+
+
+byte font = FROM "ROCK.FON";
+
+?define PALSIZE 256*3
+byte palette[PALSIZE] = FROM "ROCK.PAL";
+byte temp_palette[PALSIZE];
+byte holdR,holdG,holdB;
+?define  DACSTART    16
+?define  DACS        24
+?define  CYCLESTART  DACSTART*3
+
+byte leftdown,rightdown,updown,downdown;
+byte firedown;
+byte dofire;
+byte quit;
+byte set_temp_palette;
+
+word oldkeyboardhandle[2];   /* address holder for old INT 0x9 handle */
+
+/****** Bitmaps (these files can be edited with the use of TINYDRAW) ******/
+byte ship  = FROM "ship.iii";    // 226 bytes
+byte ship2 = FROM "ship.iii";    // used for collision detection
+byte rock1 = FROM "rock5.iii";   // 274 bytes
+byte rock2 = FROM "rock3.iii";   // 362 bytes
+byte rock3 = FROM "rock7.iii";   // 462 bytes
+byte rock4 = FROM "rock2.iii";   // 578 bytes
+byte rock5 = FROM "rock4.iii";   // 578 bytes
+byte rock6 = FROM "rock8.iii";   // 674 bytes
+byte rock7 = FROM "rock1.iii";   // 1682 bytes
+byte rock8 = FROM "rock6.iii";   // 3362 bytes
+byte rock9 = FROM "rock9.iii";   // 8218 bytes
+byte saturn = FROM "saturn.iii"; // 12882 bytes
+byte fire  = FROM "fire.iii";    // 62 bytes
+byte fire2 = FROM "fire.iii";    // used for collision detection
+byte powerpill = FROM "POWERPIL.III";   // 282 bytes
+byte nukepill = FROM "NUKEPIL.III";   // ? bytes
+/****** All bitmap are loaded at compile time ******/
+
+word time;         // regenerate counter
+word count;
+word currentpage;
+word currentyadd;
+?define PLANESIZE 64000/2
+word viewoffset;
+word shipsize,firesize;   // size holders for ship and fire images
+?define XMEMOFFSET  40
+?define XOFFSET     XMEMOFFSET*4
+
+?define MOVESIZE 2
+?define MAXXMOVE 12
+?define MINXMOVE -MAXXMOVE
+?define MAXYMOVE 8
+?define MINYMOVE -MAXYMOVE
+int xmove,ymove;
+int shield;
+?define MAXXLOC 287+XOFFSET
+?define MAXYLOC 191
+?define MINXLOC 80+XOFFSET
+?define MINYLOC 1
+int xloc,yloc;
+
+?define FADE_TIME 64
+?define FINISH_DISTANCE 6666  // distance of finish
+word distancecount = 0;       // distance into game, also the score
+word freezecount;             // freeze addition of new things
+
+// stars declarations
+?define MAXSTARS1   10
+?define STARSPEED1  12
+word starx1[MAXSTARS1],stary1[MAXSTARS1];
+?define MAXSTARS2   15
+?define STARSPEED2  8
+word starx2[MAXSTARS2],stary2[MAXSTARS2];
+?define MAXSTARS3  45
+?define STARSPEED3  4
+word starx3[MAXSTARS3],stary3[MAXSTARS3];
+
+
+// thing declarations
+?define MAXTHINGS   25
+?define MAXTHINGX  320+XOFFSET
+word thinglife[MAXTHINGS],thingmove[MAXTHINGS];
+enum { move_xandy,move_xrandom };
+word thingx[MAXTHINGS],thingy[MAXTHINGS];
+word thingxsize[MAXTHINGS],thingysize[MAXTHINGS];
+word thingxhit[MAXTHINGS],thingyhit[MAXTHINGS];
+word thingxinfo[MAXTHINGS],thingyinfo[MAXTHINGS];
+word thingimage[MAXTHINGS];
+
+// fire declarations
+?define MAXFIRE   20
+?define MINFIREX  XOFFSET-10
+?define FIRESPEED 10
+word firex[MAXFIRE],firey[MAXFIRE];
+
+byte sphinx = "SPHINX Programming 1993";
+
+
+/*********** start of GUS support DATA **********/
+
+?define MUSICFILE "KLF.SND"
+
+enum { samp_intro, samp_countdown, samp_atomboy, samp_bye, samp_music,
+       samp_fullpower, samp_shieldlow, samp_fire, SAMPLES };
+
+dword dram;
+dword dramindex=0;    // index into GUS DRAM
+dword sample_start[SAMPLES];
+dword sample_end[SAMPLES];
+word  sample_freq[SAMPLES];
+
+word gusvolume = 300;
+word gusvolume2 = 511;
+?define ACTIVE_VOICES 14     // set number of voices 14..32
+
+?define BUFSIZE 4096
+byte samplebuf[BUFSIZE];
+
+/************ end of GUS support DATA ***********/
+
+
+
+interrupt keyboardhandle()
+{
+$ PUSH DS
+$ PUSH AX
+$ PUSH BX
+DS = CS;        /* make memory variables addressable */
+$ IN AL,0x60
+BL = TRUE;      // BL = press or release flag
+IF( AL >= 128 )
+    {AL -= 128;
+    BL = FALSE;
+    } 
+IF( AL == s_left )
+    leftdown = BL;
+else IF( AL == s_right )
+    rightdown = BL;
+else IF( AL == s_up )
+    updown = BL;
+ELSE IF( AL == s_down )
+    downdown = BL;
+ELSE IF( AL == s_space )
+    firedown = BL;
+ELSE IF( AL == s_home )
+    {updown = BL;
+    leftdown = BL;
+    }
+ELSE IF( AL == s_end )
+    {downdown = BL;
+    leftdown = BL;
+    }
+ELSE IF( AL == s_pageup )
+    {updown = BL;
+    rightdown = BL;
+    }
+ELSE IF( AL == s_pagedown )
+    {downdown = BL;
+    rightdown = BL;
+    }
+ELSE IF( AL == s_esc )
+    quit = TRUE;
+ELSE IF( AL == s_f12 )   // emergency abort!!!
+    {EATKEY();
+    EOI();
+    SETVIDEOMODE(vid_text80c);
+    SETINTVECT( ,KEYBOARD_INT,oldkeyboardhandle[2],oldkeyboardhandle[0]);
+    EXIT(-1);
+    }
+EATKEY();
+EOI();
+$ POP BX
+$ POP AX
+$ POP DS
+}
+
+
+int addthing (word life,move,y,xinfo,yinfo,image)
+{SI = 0;
+DI = MAXTHINGS*2;
+do {IF( thinglife[SI] == 0 )
+        DI = SI;
+    SI += 2;
+    } while( SI < MAXTHINGS*2 );
+IF( DI == MAXTHINGS*2 )    // maximum number of things already    
+    return(-1);
+thinglife[DI] = life;
+thingmove[DI] = move;
+thingy[DI] = y;
+SI = image;
+thingxhit[DI] = DSBYTE[SI]*4;    // xsize extracted from iii info 
+thingyhit[DI] = DSBYTE[SI+1];    // ysize extracted from iii info 
+thingxinfo[DI] = xinfo;
+thingyinfo[DI] = yinfo;
+BX = image;
+thingimage[DI] = BX;
+thingxsize[DI] = DSBYTE[BX]*4;
+thingysize[DI] = DSBYTE[BX+1];
+thingx[DI] = XOFFSET-thingxsize[DI];
+}
+
+
+void initializethings ()
+{
+DI = 0;
+do {thinglife[DI] = 0;
+    DI += 2;
+    } while( DI < MAXTHINGS*2 );
+thinglife[0] = 65535;
+thingx[0] = 0;
+thingy[0] = RAND()%80;
+thingxinfo[0] = 2;
+thingyinfo[0] = 0;
+thingimage[0] = #saturn;
+thingmove[0] = move_xandy;
+thingxsize[0] = saturn[0]*4;
+thingysize[0] = saturn[1];
+}
+
+
+void displaysoundstate ()
+{IF( sound == TRUE )
+    writestr_x(XOFFSET+26,56+40,"IBM [S]ound ON ",13,255);
+ELSE writestr_x(XOFFSET+26,56+40,"IBM [S]ound OFF",13,255);
+}
+
+
+void displaygusstate ()
+{IF( guson == TRUE )
+    writestr_x(XOFFSET+26,56+48,"[G]US Sound ON ",13,255);
+ELSE writestr_x(XOFFSET+26,56+48,"[G]US Sound OFF",13,255);
+}
+
+
+byte play_again ()
+byte j;
+{
+DI = 0;
+do {temp_palette[DI] = 0;
+    DI++;
+    } while( DI < PALSIZE );
+WAITVSYNC();
+SETVGADAC(0, ,PALSIZE, , ,#temp_palette);
+SETBORDERCOLOR(12);
+SETSCREENWIDTH( ,LOGICALSCREENWIDTH/8);
+CLEARSCREEN(0);
+WAITVSYNC();
+$ CLI
+SETSCREENOFFSET( ,XMEMOFFSET);
+$ STI
+
+j = MAXSTARS1;
+loop(j)
+    putpixel_x(RAND()%320+XOFFSET,RAND()%200,STARCOLOR1);
+j = MAXSTARS2;
+loop(j)
+    putpixel_x(RAND()%320+XOFFSET,RAND()%200,STARCOLOR2);
+j = MAXSTARS3;
+loop(j)
+    putpixel_x(RAND()%320+XOFFSET,RAND()%200,STARCOLOR3);
+overicon_x(160+XOFFSET,70,DS,#saturn);
+overicon_x(60+XOFFSET,80,DS,#ship);
+overicon_x(240+XOFFSET,10,DS,#rock1);
+overicon_x(280+XOFFSET,50,DS,#rock2);
+overicon_x(200+XOFFSET,40,DS,#rock3);
+
+writestr_x(XOFFSET+22,18,"ROCK DODGE  Version 1.0",7,255);
+writestr_x(XOFFSET+22,28,#sphinx,8,255);
+writestr_x(XOFFSET+16,56,"This Version is Freeware!",14,255);
+
+IF( distancecount == 0 )
+    {writestr_x(25+XOFFSET,160-32,"INSTRUCTIONS:",1,255);
+    writestr_x(25+XOFFSET,160-20,"Use Cursor Keys to",4,255);
+    writestr_x(25+XOFFSET,160-12,"Maneuver the Ship Around",4,255);
+    writestr_x(25+XOFFSET,160-4,"All Asterioids and Planets.",4,255);
+    }
+ELSE IF( distancecount < FINISH_DISTANCE )
+    {writestr_x(30+XOFFSET,152,"Your Score Was:",1,255);
+    writedigits_x(3*8+XOFFSET+20,160,distancecount,4,255);
+    writestr_x(66+XOFFSET+20,160,"of a maximum of",5,255);
+    writedigits_x(22*8+XOFFSET-1+20,160,FINISH_DISTANCE+FADE_TIME,6,255);
+    }
+ELSE writestr_x(25+XOFFSET,160,"Congradulations!!!  You made it!",1,255);
+writestr_x(25+XOFFSET,180,"Press Any Key To Play or <ESC> to quit",0,255);
+
+displaysoundstate();
+
+IF( gusavailable )
+    displaygusstate();
+
+IF( BIOSEKEYCHECK() != 0 )
+    BIOSEREADKEY();
+
+fade_from_black();
+
+loop()
+    {AX = BIOSEREADKEY();
+    IF( AL == 's' )
+        {sound = TRUE - sound;
+        displaysoundstate();
+        }
+    ELSE IF( AL == 'S' )
+        {sound = TRUE - sound;
+        displaysoundstate();
+        }
+    ELSE IF( AL == 'g' )
+        {IF( gusavailable )
+            {guson = TRUE - guson;
+            displaygusstate();
+            }
+        }
+    ELSE IF( AL == 'G' )
+        {IF( gusavailable )
+            {guson = TRUE - guson;
+            displaygusstate();
+            }
+        }
+    ELSE IF( AX == k_esc )
+        {IF( guson == TRUE )
+            playsample(samp_bye);
+        return(FALSE);
+        }
+    ELSE{
+        IF( guson == TRUE )
+            playsample(samp_countdown);
+        return(TRUE);
+        }
+    }
+}
+
+
+
+void main ()
+byte play;
+word params,pcount;
+{
+params = PARAMCOUNT();
+if( params > 0 )
+    {pcount = 0;
+    do {
+        IF( STRCMP(PARAMSTR(pcount),"GUS") == 0 )
+            {AL = @ GETCPU();
+            IF( AL >= 3 )
+                {gusavailable = TRUE;
+                guson = TRUE;
+                }
+            }
+        ELSE IF( STRCMP(PARAMSTR(pcount),"gus") == 0 )
+            {AL = @ GETCPU();
+            IF( AL >= 3 )
+                {gusavailable = TRUE;
+                guson = TRUE;
+                }
+            }
+        pcount++;
+        } while( pcount < params );
+    }
+
+IF( gusavailable )
+    gusinitialize(); 
+
+fade_to_black();
+SETVIDEOMODE(vid_640x480_16);  // clear some vid ram
+IF( set320x200mode(FALSE) == FALSE )
+    {SETVIDEOMODE(vid_text80c);
+    WRITESTR("Unable to enter 256 colour video mode.\n");
+    EXIT(1);
+    }
+
+IF( guson == TRUE )
+    playsample(samp_intro);
+
+do {
+    play = play_again();
+    fade_to_black();
+    IF( play == TRUE )
+        playgame();
+    } while( play == TRUE );
+
+SETVIDEOMODE( vid_text80c );
+WRITESTR(#sphinx);
+WRITELN();
+}
+
+
+void playgame ()
+{
+/*** start of initialize stuff ***/
+leftdown = FALSE;
+rightdown = FALSE;
+updown = FALSE;
+downdown = FALSE;
+firedown = FALSE;
+dofire = 0;
+quit = FALSE;
+set_temp_palette = FALSE;
+time = 0; 
+currentpage = 0;
+currentyadd = 0;
+viewoffset = PLANESIZE;
+xmove = 0;
+ymove = 0;
+shield = MAX_SHIELD;
+xloc = 200 + XOFFSET;
+yloc = 100;
+distancecount = 0;  
+freezecount = 200;  
+/*** end of initialize stuff ***/
+
+SI = 0;
+do {temp_palette[SI] = 0;
+    SI++;
+    } while ( SI < PALSIZE );
+WAITVSYNC();
+SETVGADAC(0, ,PALSIZE, , ,#temp_palette);
+CLEARSCREEN(0);
+CLEARSCREEN(1);
+SETBORDERCOLOR(BORDERCOLOR);
+GETINTVECT(#oldkeyboardhandle,KEYBOARD_INT);   /* get old keyboard interrupt handle */
+SETINTVECT( ,KEYBOARD_INT,CS,#keyboardhandle); /* attach to keyboard interrupt */
+@ RANDOMIZE();
+initializestars();
+initializethings();
+DI = 0;
+do {firex[DI] = MINFIREX;
+    DI += 2;
+    } while( DI < MAXFIRE*2 );
+shipsize = DSBYTE[#ship+1] * DSBYTE[#ship] * 4;  /* get number of pixels
+                                                    in ship bitmap */ 
+DSWORD[#ship2] = DSWORD[#ship];
+firesize = DSBYTE[#fire+1] * DSBYTE[#fire] * 4;  /* get number of pixels
+                                                    in fire bitmap */ 
+DSWORD[#fire2] = DSWORD[#fire];
+
+IF( guson == TRUE )
+    playsample(samp_music);
+
+do {
+    viewoffset = PLANESIZE - viewoffset;
+    WAITVSYNC();
+    $ CLI
+    SETSCREENOFFSET( ,viewoffset+XMEMOFFSET);
+    $ STI
+
+    IF( time > REPAIR_RATE )
+        {IF( shield < MAX_SHIELD )
+            {IF( shield < SHIELD_LOW )
+               IF( guson == TRUE )
+                   playsample(samp_shieldlow);
+            shield += REPAIR_AMOUNT;
+            }
+        time = 0;
+        }
+    time++;
+
+    if( distancecount > 0 )      // check ship overlap
+        {BX = shipsize;
+        loop(BX)
+            {AL = ship2[1+BX];
+            IF( AL == POWERCOLOR )
+                shield += HEAL_PER_PIXEL;
+            ELSE IF( AL == NUKECOLOR )
+               {$ PUSH BX 
+               IF( guson == TRUE )
+                   playsample(samp_atomboy);
+               $ POP BX 
+               DI = 0;
+               do {thinglife[DI] = 0;
+                   DI += 2;
+                   } while( DI < MAXTHINGS*2 );
+               }
+            ELSE IF( AL != THECLEARCOLOR )
+                IF( AL != 0 ) 
+                    IF( AL != STARCOLOR1 ) 
+                        IF( AL != STARCOLOR2 ) 
+                            IF( AL != STARCOLOR3 ) 
+                                {shield -= DAMAGE_PER_PIXEL;
+                                IF( sound == TRUE )
+                                    {$ PUSH BX
+                                    SOUND(1000);
+                                    $ POP BX
+                                    }
+                                }
+            }
+        IF( sound == TRUE )
+            NOSOUND();
+        }
+
+    IF( shield < 0 )
+        {shield = 0;
+        quit = TRUE;}
+    ELSE IF( shield > MAX_SHIELD )
+        {IF( guson == TRUE )
+            playsample(samp_fullpower);
+        shield = MAX_SHIELD;
+        }
+
+    BX = shipsize;                 //
+    loop(BX)                       //  copy the ship image
+        ship2[1+BX] = ship[1+BX];  //
+
+    if( freezecount == 0 )
+        {if( distancecount < FINISH_DISTANCE - 600 )
+            {IF( RAND()%50 == 0 )
+                addthing(1,move_xandy,RAND()%180,RAND()%ROCKSPEED+1,RAND()%6-2,#rock1);
+            IF( RAND()%50 == 0 )
+                addthing(1,move_xrandom,RAND()%160,RAND()%ROCKSPEED+1,RAND()%6-2,#rock2);
+            IF( RAND()%50 == 0 )
+                addthing(1,move_xandy,RAND()%160,RAND()%ROCKSPEED+1,RAND()%6-2,#rock3);
+            IF( RAND()%50 == 0 )
+                addthing(1,move_xandy,RAND()%160,RAND()%ROCKSPEED+1,RAND()%6-2,#rock4);
+            IF( RAND()%100 == 0 )
+                addthing(1,move_xandy,RAND()%160,RAND()%ROCKSPEED+1,RAND()%6-2,#rock5);
+            IF( RAND()%200 == 0 )
+                addthing(1,move_xandy,RAND()%160,RAND()%6+1,RAND()%6-2,#rock6);
+            IF( RAND()%200 == 0 )
+                addthing(1,move_xandy,RAND()%160,RAND()%3+1,RAND()%6-2,#rock7);
+            IF( RAND()%300 == 0 )
+                addthing(1,move_xandy,RAND()%100,RAND()%3+1,RAND()%6-2,#rock8);
+            IF( RAND()%1000 == 0 )
+                addthing(1,move_xandy,RAND()%100,RAND()%3+1,RAND()%6-2,#rock9);
+            IF( RAND()%500 == 0 )
+                addthing(1,move_xandy,RAND()%160,RAND()%10+5,RAND()%6-2,#powerpill);
+            IF( RAND()%1000 == 0 )
+                addthing(2,move_xandy,RAND()%160,RAND()%10+5,RAND()%6-2,#nukepill);
+            }
+        ELSE addthing(1,move_xandy,RAND()%160,RAND()%5+1,RAND()%6-2,#powerpill);
+        }
+    else freezecount--;
+
+    holdR = palette[CYCLESTART];
+    holdG = palette[CYCLESTART+1];
+    holdB = palette[CYCLESTART+2];
+    @ COPYFAR(DS,#palette[CYCLESTART],DS,#palette[CYCLESTART+3],7*3);
+    palette[CYCLESTART+21] = holdR;
+    palette[CYCLESTART+21+1] = holdG;
+    palette[CYCLESTART+21+2] = holdB;
+
+    AX = shield/4;
+    BL = AL;
+    IF( BL > 63 )
+        {palette[BORDERCOLOR*3] = 0;
+        palette[BORDERCOLOR*3+1] = BL-63;
+        }
+    ELSE{palette[BORDERCOLOR*3] = 63-BL;
+        palette[BORDERCOLOR*3+1] = 0;
+        }
+    palette[BORDERCOLOR*3+2] = 0;
+
+    IF( distancecount <= 64 )   // fade on palette
+        {SI = 0;
+        DI = distancecount;
+        do {
+            AX = palette[SI] * DI / 64;
+            temp_palette[SI] = AX;
+            SI++;
+           } while ( SI < PALSIZE );
+        set_temp_palette = TRUE;
+        IF( sound == TRUE )
+            SOUND(100*distancecount+100);
+        }
+    ELSE IF( distancecount >= FINISH_DISTANCE )
+        {SI = 0;
+        DI = FINISH_DISTANCE-distancecount+64;
+        do {AX = palette[SI] * DI / 64;
+            temp_palette[SI] = AX;
+            SI++;
+           } while ( SI < PALSIZE );
+        set_temp_palette = TRUE;
+        }
+    ELSE IF( sound == TRUE )
+        NOSOUND();
+
+    WAITVSYNC();
+    IF( set_temp_palette == TRUE )
+        SETVGADAC(0, ,PALSIZE, , ,#temp_palette);
+    ELSE{/* cycle the thrust palette */
+        SETVGADAC(DACSTART, ,DACS, , ,#palette[CYCLESTART]);
+        /* set shield colour */
+        SETVGADAC(BORDERCOLOR, ,3, , ,#palette[BORDERCOLOR*3]);
+        }
+    set_temp_palette = FALSE;
+    currentpage = 1 - currentpage;
+    currentyadd = 200 - currentyadd;
+
+    CLEARSCREEN(currentpage);
+    dostars();
+    domovement();
+
+    count = 0;
+    do {SI = count;
+        IF( thinglife[SI] != 0 )
+            overicon_x(thingx[SI],thingy[SI]+currentyadd,DS,thingimage[SI]);
+        count += 2;
+        } while( count < MAXTHINGS*2 );
+
+    swapicon_x(xloc,yloc+currentyadd,DS,#ship2);
+
+    count = 0;
+    do {SI = count;
+        IF( firex[SI] > MINFIREX )
+            {firex[SI] -= FIRESPEED;
+            BX = firesize;                 //
+            loop(BX)                       //  copy the fire image
+                fire2[1+BX] = fire[1+BX];  //
+            swapicon_x(firex[SI],firey[SI]+currentyadd,DS,#fire2);
+            BX = firesize;
+            loop(BX)              // check fire overlap
+                {AL = fire2[1+BX];
+                IF( AL != THECLEARCOLOR )
+                    IF( AL != 0 ) 
+                        IF( AL != STARCOLOR1 ) 
+                            IF( AL != STARCOLOR2 ) 
+                                IF( AL != STARCOLOR3 ) 
+                                    {SI = count;
+                                    firex[SI] = MINFIREX;
+                                    BX = 1;
+                                    }
+                }
+            }
+        count += 2;
+        } while( count < MAXFIRE*2 );
+
+    distancecount++;
+    IF( distancecount == FINISH_DISTANCE+FADE_TIME )
+        quit = TRUE;
+
+    } while ( quit == FALSE );
+
+IF( guson == TRUE )
+    GUSSTOP(samp_music);
+
+IF( distancecount < FINISH_DISTANCE )
+    explode();
+
+SETINTVECT( ,KEYBOARD_INT,oldkeyboardhandle[2],oldkeyboardhandle[0]);
+}
+
+
+void dostars ()
+{
+SI = 0;
+do {DI = SI+SI;
+    starx1[DI] += STARSPEED1; 
+    IF( starx1[DI] >= 320+XOFFSET )
+        {starx1[DI] = XOFFSET;
+        stary1[DI] = RAND()%200;}
+    putpixel_x(starx1[DI],stary1[DI]+currentyadd,STARCOLOR1);
+    SI++;
+    } while( SI < MAXSTARS1 );
+
+SI = 0;
+do {DI = SI+SI;
+    starx2[DI] += STARSPEED2; 
+    IF( starx2[DI] >= 320+XOFFSET )
+        {starx2[DI] = XOFFSET;
+        stary2[DI] = RAND()%200;}
+    putpixel_x(starx2[DI],stary2[DI]+currentyadd,STARCOLOR2);
+    SI++;
+    } while( SI < MAXSTARS2 );
+
+SI = 0;
+do {DI = SI+SI;
+    starx3[DI] += STARSPEED3; 
+    IF( starx3[DI] >= 320+XOFFSET )
+        {starx3[DI] = XOFFSET;
+        stary3[DI] = RAND()%200;}
+    putpixel_x(starx3[DI],stary3[DI]+currentyadd,STARCOLOR3);
+    SI++;
+    } while( SI < MAXSTARS3 );
+}
+
+
+void initializestars ()
+{SI = 0;
+do {DI = SI+SI;
+    starx1[DI] = RAND()%320;
+    stary1[DI] = RAND()%200;
+    SI++;
+    } while( SI < MAXSTARS1 );
+SI = 0;
+do {DI = SI+SI;
+    starx2[DI] = RAND()%320;
+    stary2[DI] = RAND()%200;
+    SI++;
+    } while( SI < MAXSTARS2 );
+SI = 0;
+do {DI = SI+SI;
+    starx3[DI] = RAND()%320+XOFFSET;
+    stary3[DI] = RAND()%200;
+    SI++;
+    } while( SI < MAXSTARS3 );
+}
+
+
+void CLEARSCREEN ()  // AX = page number
+{
+AX = AX * 32000;
+DI = AX+XMEMOFFSET;
+SETWRITEMASK( ,0xF);
+ES = VGA_SEG;
+SI = 0;
+AX = 0xFFFF;
+do {CX = 40;
+    $ REPZ
+    $ STOSW
+    DI += 80;
+    SI++;
+    } while( SI < 200 );
+}
+
+
+void explode ()
+word i;
+{i = 0;
+do {
+    AX = RAND()%3-1;
+    BX = AX;
+    WAITVSYNC();
+    SETSCREENOFFSET( ,BX+viewoffset+XMEMOFFSET);
+    IF( sound == TRUE )
+        SOUND(RAND()%10000+100);
+    i++;
+    } while( i < 25 );
+SETSCREENOFFSET( ,viewoffset+XMEMOFFSET);
+i = 0;
+do {
+    RAND();
+    BX = AX;
+    WAITVSYNC();
+    SETSCREENWIDTH( ,BX);
+    IF( sound == TRUE )
+        SOUND(RAND()%10000+100);
+    i++;
+    } while( i < 50 );
+IF( sound == TRUE )
+    NOSOUND();
+}
+
+
+void domovement ()
+{// start of movement of things
+count = 0;
+do {SI = count;
+    IF( thinglife[SI] != 0 )
+        {IF( thingmove[SI] == move_xandy )
+            {thingx[SI] += thingxinfo[SI];
+            thingy[SI] += thingyinfo[SI];}
+        ELSE IF( thingmove[SI] == move_xrandom )
+            thingx[SI] += RAND()%thingxinfo[SI];
+        IF( thingx[SI] > MAXTHINGX )
+            thinglife[SI] = 0;
+        IF( thingy[SI] > 1000 )
+            {thingy[SI] = 0;
+            -thingyinfo[SI];}
+        ELSE IF( thingy[SI]+thingysize[SI] > 200 )
+            {thingy[SI] = 200-thingysize[SI];
+            -thingyinfo[SI];}
+        }
+    count += 2;
+    } while( count < MAXTHINGS*2 );
+
+// start of movement of player
+IF( leftdown == TRUE )
+    IF( xmove > MINXMOVE )
+        {IF( xmove > 0 )
+            xmove = 0;
+        ELSE xmove -= MOVESIZE;
+        } 
+IF( rightdown == TRUE )
+    IF( xmove < MAXXMOVE )
+        {IF( xmove < 0 )
+            xmove = 0;
+        ELSE xmove += MOVESIZE;
+        } 
+IF( rightdown == FALSE )
+        IF( leftdown == FALSE )
+            xmove = 0;
+IF( updown == TRUE )
+    IF( ymove > MINYMOVE )
+        {IF( ymove > 0 )
+            ymove = 0;
+        ELSE ymove -= MOVESIZE;
+        } 
+IF( downdown == TRUE )
+    IF( ymove < MAXYMOVE )
+        {IF( ymove < 0 )
+            ymove = 0;
+        ELSE ymove += MOVESIZE;
+        } 
+IF( updown == FALSE )
+    IF( downdown == FALSE )
+        ymove = 0;
+xloc += xmove;
+yloc += ymove;
+IF( xloc < MINXLOC )
+    xloc = MINXLOC;
+IF( xloc > MAXXLOC )
+    xloc = MAXXLOC;
+IF( yloc < MINYLOC )
+    yloc = MINYLOC;
+IF( yloc > MAXYLOC )
+    yloc = MAXYLOC;
+IF( firedown == TRUE )
+    {dofire = 1-dofire;
+    IF( dofire == 1 )
+        {SI = 0;
+        DI = MAXFIRE*2;
+        do {IF( firex[SI] <= MINFIREX )
+                DI = SI; 
+            SI += 2;
+            } while( SI < MAXFIRE*2 );
+        IF( DI < MAXFIRE*2 )
+            {firex[DI] = xloc;
+            firey[DI] = yloc;
+            IF( guson == TRUE )
+                playsample(samp_fire);
+            }
+        }
+    }
+ELSE dofire=0;
+}
+
+
+void fade_to_black ()
+{DI = 64;
+do {DI--;
+    SI = 0;
+    do {AX = palette[SI] * DI / 64;
+        temp_palette[SI] = AX;
+        SI++;
+        } while ( SI < PALSIZE );
+    $ PUSH DI
+    WAITVSYNC();
+    SETVGADAC(0, ,PALSIZE, , ,#temp_palette);
+    $ POP DI
+    IF( sound == TRUE )
+        SOUND(100*DI+100);
+    } while ( DI > 0 );
+IF( sound == TRUE )
+    NOSOUND();
+}
+
+
+void fade_from_black ()
+{DI = 0;
+do {
+    SI = 0;
+    do {AX = palette[SI] * DI / 64;
+        temp_palette[SI] = AX;
+        SI++;
+        } while ( SI < PALSIZE );
+    $ PUSH DI
+    WAITVSYNC();
+    SETVGADAC(0, ,PALSIZE, , ,#temp_palette);
+    $ POP DI
+    IF( sound == TRUE )
+        SOUND(100*DI+100);
+    DI++;
+    } while ( DI <= 64 );
+IF( sound == TRUE )
+    NOSOUND();
+}
+
+
+void writestr_x (word x,y,str; byte fgc,bgc)
+{
+SI = str;
+do {
+    $ PUSH SI
+    putletter_x(x,y,DSBYTE[SI]*64+#font,byte fgc,byte bgc);
+    $ POP SI
+    x += 7;
+    SI++;
+    } while( DSBYTE[SI] != 0 );
+}
+
+
+void writedigits_x (word x,y,number; byte fgc,bgc)
+{
+putletter_x(x,y,number/10000+'0'*64+#font,byte fgc,byte bgc);
+number = number % 10000;
+putletter_x(x+8,y,number/1000+'0'*64+#font,byte fgc,byte bgc);
+number = number % 1000;
+putletter_x(x+16,y,number/100+'0'*64+#font,byte fgc,byte bgc);
+number = number % 100;
+putletter_x(x+24,y,number/10+'0'*64+#font,byte fgc,byte bgc);
+number = number % 10;
+putletter_x(x+32,y,number+'0'*64+#font,byte fgc,byte bgc);
+}
+
+
+
+/******************** GUS Sound CODE Starts **********************/
+
+
+void gusinitialize ()
+{
+dram = GUSSTATUS();
+IF( dram == 0 )
+    {WRITESTR("\nGUS not available.\n");
+    EXIT(1);
+    }
+WRITESTR("\nGUS found with ");
+WRITEWORD(dram);
+WRITESTR(" K DRAM.\n");
+
+IF( dram < 1024 )
+    {WRITESTR("You should really upgrade to 1 MB.\n");
+    pressany();
+    }
+GUSRESET(ACTIVE_VOICES);
+WRITESTR("\nLOADING SAMPLES...\n");
+loadsample(samp_intro,"INTRO.SND",22050,GUS_2_COMP);
+loadsample(samp_countdown,"54321.SND",22050,GUS_2_COMP);
+loadsample(samp_bye,"BYE.SND",22050,GUS_2_COMP);
+loadsample(samp_atomboy,"ATOMBOY.SND",44100,GUS_2_COMP);
+loadsample(samp_fire,"HORN1.SND",22050,GUS_2_COMP);
+loadsample(samp_fullpower,"FULPOWER.SND",22050,GUS_2_COMP);
+loadsample(samp_shieldlow,"LOWPOWER.SND",22050,GUS_2_COMP);
+loadsample(samp_music,MUSICFILE,11025,GUS_2_COMP);
+}
+
+
+void loadsample (word sample,filename,frequency,format)
+word filehandle;
+word bytesread;
+{
+BX = sample+BX;
+sample_freq[BX] = frequency;
+BX = BX+BX;
+sample_start[BX] = dramindex;
+
+filehandle = open(filename,F_READ);   /* open file for reading */
+IF(filehandle == 0)                    /* if file did not open */
+    {WRITESTR("Cannot Open File '");
+    WRITESTR(filename);
+    WRITESTR("'!\n");
+    pressany();
+    guson = FALSE;
+    return();
+    }
+
+do {
+    bytesread = read(filehandle,#samplebuf,BUFSIZE);
+    IF( bytesread > 0 )
+        {GUSload(format, GUS_8_BIT,bytesread, DS,#samplebuf,dword dramindex);
+        dramindex += bytesread;
+        }
+    } while( bytesread == BUFSIZE );
+
+close(filehandle);
+
+BX = sample+BX+BX;
+sample_end[BX] = dramindex;
+}
+
+
+void playsample (word sample)
+word looptype;
+{GUSsetvolume(sample,gusvolume);
+BX = sample + BX;
+GUSsetfrequency(sample,sample_freq[BX]);
+GUSsetbalance(sample,7);
+BX = sample + BX + BX;
+IF( sample == samp_music )
+    looptype = GUS_LOOP_FORWARD;
+ELSE looptype = GUS_LOOP_NONE;
+GUSplay(sample, GUS_8_BIT, looptype, dword sample_start[BX],
+                                     dword sample_start[BX],
+                                     dword sample_end[BX] );
+}
+
+/******************** GUS Sound CODE ends **********************/
+
+
+void pressany ()
+{
+WRITESTR("*** PRESS ANY KEY ***");
+BIOSEREADKEY();
+}
+
+
+/* end of ROCK.C-- */

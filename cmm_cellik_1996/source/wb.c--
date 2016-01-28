@@ -1,0 +1,439 @@
+/*
+    C-- source code for WB.COM
+    the C-- work bench driver program
+    supports special 28 line version for VGA 
+    and recognises the C-- environmental variable.
+    property of Peter Cellik  All rights reserved (C) 1994
+    Version 0.5
+    Code Size: 2932 bytes.
+*/
+
+? use8086                // restrict code to 8086
+? alignword TRUE         // align words
+? resize TRUE            // resize memory
+? resizemessage   "Error resizing memory block.\n"
+? stack 2048             // 2k stack
+? jumptomain NEAR        // near jump to main()
+? parsecommandline TRUE  // parse the command line for use by PARAMSTR()
+
+?include "KEYCODES.H--"
+?include "VIDEO.H--"
+?include "DOS.H--"
+?include "WRITE.H--"
+?include "SOUND.H--"
+?include "SYSTEM.H--"
+?include "STRING.H--"
+?include "VGA.H--"
+
+/****** start of interrupt handle ******/
+
+word oldkeyhandle[2];
+
+?define s_ctrlu   s_ctrl+128
+?define s_altu    s_alt+128 
+byte ctrldown=FALSE,altdown=FALSE;
+
+interrupt newkeyhandle()
+{$ PUSH AX
+$ IN AL,0x60
+IF( AL == s_ctrl )
+    CSBYTE[#ctrldown] = TRUE;
+ELSE IF( AL == s_ctrlu )
+    CSBYTE[#ctrldown] = FALSE;
+ELSE IF( AL == s_alt )
+    CSBYTE[#altdown] = TRUE;
+ELSE IF( AL == s_altu )
+    CSBYTE[#altdown] = FALSE;
+ELSE IF( AL == s_c )
+    IF( CSBYTE[#ctrldown] )
+        IF( CSBYTE[#altdown] )
+            {@ EATKEY();
+            @ EOI();
+            @ SETVIDEOMODE(0x3);
+            @ NOSOUND();
+            EXIT(-1);
+            }
+$ POP AX
+$ CS:
+$ JMP FAR oldkeyhandle
+}
+
+/************************ end of key int patch ****************************/
+
+
+?define  MAXLEN  0x80
+byte spawnprog[MAXLEN] = "";
+byte spawnparams[MAXLEN] = {0,13};
+byte DOSprog[MAXLEN] = "";
+byte DOSparams = {0,13};  // no parameters for DOS shell
+
+byte colorflag;
+
+
+/*
+  SPHINX driver state values:
+     0 = exit to DOS
+     1 = spawn DOS then enter state 2
+     2 = spawn Workbench then enter state 0 
+     3 = spawn Program then enter state 2
+     4 = spawn Compiler then enter state 2
+     5 = spawn Compiler then enter state 3
+  SPHINX driver function values (passed in DH):
+     0 = check if installed
+     1 = set driver state value
+     2 = get driver state value
+     3 = get spawn program buffer address
+     6 = restore screen
+*/
+
+/****** start of SPHINX interrupt handle (which used to be ROM BASIC) ******/
+
+?define SPHINXINT    0x18   /* haha ROM basic is mine, all mine. */
+
+byte sphinxstate = 2;
+word oldsphinxhandle[2];
+
+interrupt sphinxhandle ()
+{IF( AH == 'S' )
+    IF( AL == 'P' )
+        IF( BH == 'H' )
+            IF( BL == 'I' )
+                IF( CH == 'N' )
+                    IF( CL == 'X' )
+                        {sphinxfunctions();
+                        return;}
+$ CS:
+$ JMP FAR oldsphinxhandle
+}
+
+
+void sphinxfunctions ()
+{$PUSH DS
+DS = CS;
+IF( DH == 1 )         /* set driver state */
+    sphinxstate = DL;
+ELSE IF( DH == 2 )    /* get driver state */
+    DL = sphinxstate;
+ELSE IF( DH == 3 )    /* get buffer address */
+    {ES = CS;
+    DI = #spawnprog;}
+ELSE IF( DH == 6 )
+    {restorescreen();
+    BIOSREADKEY();
+    @ SETVIDEOMODE(vid_text80c);
+    loadcorrectfont();
+    }
+AL = 's';
+AH = 'p';
+BL = 'h';
+BH = 'i';
+CL = 'n';
+CH = 'x';
+$POP DS
+}
+
+/************************** end of SPHINX int ****************************/
+
+
+void patherror ()
+{WRITESTR("Error Setting Directory.\n");
+EXIT(-1);
+}
+
+
+void hooksphinxint ()
+{SETINTVECT( ,SPHINXINT,CS,#sphinxhandle);  /* GRAB the SPHINX INT */
+}
+
+
+void unhooksphinxint ()
+{SETINTVECT( ,SPHINXINT,oldsphinxhandle[2],oldsphinxhandle[0]);
+}
+
+
+//***************** save screen data **********************
+word bufseg,bufsize;
+byte savedmode,savedplanes;
+word planesize;   // number of words per plane
+word savedseg,cursorloc;
+byte fonttype;
+word palettecolors;
+byte palette[256*3];
+
+void savescreen ()
+word sourceoffset,destadd,count,writemask;
+{sourceoffset = 0;
+fonttype = 0;
+palettecolors = 0;
+savedseg = 0xA000;
+savedplanes = 1;
+colorflag = TRUE;
+AH = 0xF;
+$ INT 0x10
+savedmode = AL;
+AH = 0x3;
+$ INT 0x10
+cursorloc = DX;
+
+IF(AL <= vid_text40c)
+    {savedseg = 0xB800;
+    AL = TEXTROWS();
+    IF( AL == 49 )
+        {fonttype = 2;
+        planesize = 2000;}
+    ELSE IF( AL == 42 )
+        {fonttype = 1;
+        planesize = 1720;}
+    ELSE IF( AL == 27 )
+        {fonttype = 1;
+        planesize = 1120;}
+    ELSE planesize = 1000;}
+else IF(AL <= vid_text80c)
+    {savedseg = 0xB800;
+    AL = TEXTROWS();
+    IF( AL == 49 )
+        {fonttype = 2;
+        planesize = 4000;}
+    ELSE IF( AL == 42 )
+        {fonttype = 1;
+        planesize = 3440;}
+    ELSE IF( AL == 27 )
+        {fonttype = 1;
+        planesize = 2240;}
+    ELSE planesize = 2000;}
+else IF( AL <= vid_640x200_2)
+    {savedseg = 0xB800;
+    planesize = 8000;}
+else IF( AL == vid_text80m)
+    {savedseg = 0xB000;
+    planesize = 2000;
+    colorflag = FALSE;}
+else IF( AL == vid_text80m)
+    {savedseg = 0xB000;
+    planesize = 2000;}
+ELSE IF( AL == vid_320x200_16)
+    {planesize = 4000;
+    savedplanes = 4;}
+ELSE IF( AL == vid_640x200_16)
+    {planesize = 8000;
+    savedplanes = 4;}
+ELSE IF( AL == vid_640x350_16)
+    {planesize = 14000;
+    savedplanes = 4;}
+ELSE IF( AL == vid_640x480_16)
+    {planesize = 19200;
+    palettecolors = 16;
+    savedplanes = 4;}
+ELSE IF( AL == vid_640x480_2)
+    {palettecolors = 2;
+    planesize = 19200;}
+ELSE IF( AL == vid_320x200_256)
+    {palettecolors = 256;
+    planesize = 32000;}
+ELSE{bufsize = 0;
+    return;}
+sourceoffset = BH * planesize;
+bufsize = planesize / 8 * savedplanes;
+bufseg = @ GETMEM( ,bufsize);
+IF( bufseg == 0 )
+    bufsize = 0;
+else{IF( savedplanes == 1 )
+        @ COPYFARW(bufseg,0,savedseg,sourceoffset,planesize);
+    ELSE{destadd = 0;
+        count = 0;
+        do {@ SETREADMASK( ,count);
+            @ COPYFARW(bufseg+destadd,0,savedseg,sourceoffset,planesize);
+            destadd += planesize/8;
+            writemask = writemask+writemask;
+            count++;
+            } while( count < savedplanes );
+        }
+    }
+IF( palettecolors > 0 )
+    @ GETVGAPALETTE( ,0,palettecolors,#palette);
+}
+
+
+void restorescreen ()
+word count,sourceadd,mask;
+{@ SETVIDEOMODE(savedmode);
+AH = 0x2;
+BH = 0;
+DX = cursorloc;
+$ INT 0x10
+IF( fonttype == 1 )
+    LOAD8X14FONT();
+ELSE IF( fonttype == 2 )
+    @ LOAD8X8FONT();
+IF( savedplanes == 1 )
+    @ COPYFARW(savedseg,0,bufseg,0,planesize);
+ELSE{sourceadd = 0;
+    count = 0;
+    mask = 1;
+    do {@ SETWRITEMASK( ,mask);
+        @ COPYFARW(savedseg,0,bufseg+sourceadd,0,planesize);
+        sourceadd += planesize/8;
+        mask = mask*2;
+        count++;
+        } while( count < savedplanes );
+    }
+IF( palettecolors > 0 )
+    @ SETVGAPALETTE( ,0,palettecolors,#palette);
+}
+
+
+void forgetscreen ()
+{IF( bufsize )
+    FREEMEM(bufseg);
+}
+
+
+?define  paramlen  DSBYTE[0x80]   /* length of command line */
+?define  paramstr  DSBYTE[0x81]   /* command line string */
+
+/********************* Driver Messages *********************/
+
+byte press = "\nPress Any Key To Enter C-- WORK BENCH.";
+byte errorspawning = "Error Spawning ";
+byte wb[80] = "\n\nYo buddy, what ya trying to do looking at this file.\n\n";
+     // string above is over written and is later the full path for wb.exe
+byte rawwb = "WB.EXE";
+byte compiler[80] = "\n\nYea that means you!!!\nPassword==Dogbreath\n\n";
+     // string above is over written and is later the full path for c--.exe
+byte rawcompiler = "C--.EXE";
+
+
+void check_environment ()
+/*
+   Check if environment variable "C--" is set, if so, use it as the
+   directory to find "WB.EXE" and "C--.EXE".
+*/
+{ENVSTR("C--");    // returns the Environment string via DS:SI
+SI = 0;
+IF( ESBYTE[DI] )
+    {do {AL = ESBYTE[DI];
+        wb[SI] = AL;
+        compiler[SI] = AL; 
+        DI++;
+        SI++;
+        } while( ESBYTE[DI] );
+    IF( ESBYTE[DI-1] != '\\' )
+        {wb[SI] = '\\';
+        compiler[SI] = '\\';
+        SI++;}
+    }
+$ PUSH SI
+@ STRCPY( , , , ,#wb[SI],#rawwb);
+$ POP SI
+@ STRCPY( , , , ,#compiler[SI],#rawcompiler);
+}
+
+
+word fontsize=0;
+
+void loadcorrectfont ()
+{IF(fontsize==16)
+    LOAD8X16FONT();
+ELSE IF(fontsize==14)
+    LOAD8X14FONT();
+ELSE IF(fontsize==8)
+    LOAD8X8FONT();
+}
+
+
+word count,params,paramaddr;
+
+
+main ()
+{
+
+params = @PARAMCOUNT();
+IF( params > 0 )
+    {count = 0;
+    do {paramaddr = PARAMSTR(count);
+        IF( byte STRCMP(paramaddr,"/50")==0 )
+            fontsize = 8;
+        ELSE IF( byte STRCMP(paramaddr,"/43")==0 )
+            fontsize = 8;
+        ELSE IF( byte STRCMP(paramaddr,"/28")==0 )
+            fontsize = 14;
+        ELSE IF( byte STRCMP(paramaddr,"/25")==0 )
+            fontsize = 16;
+        count++;
+        } while( count < params );
+    }
+
+check_environment();
+
+GETINTVECT(#oldkeyhandle,KEYBOARD_INT);  // get the current keyboard handle 
+SETINTVECT( ,KEYBOARD_INT,CS,#newkeyhandle);
+
+GETINTVECT(#oldsphinxhandle,SPHINXINT);   /* get the old handle */
+savescreen();
+do {
+    IF( sphinxstate == 1 )  // spawn DOS shell
+        {forgetscreen();
+        IF( spawn(#DOSprog,#DOSparams,0) != 0)
+            {WRITESTR(#errorspawning);
+            WRITESTR(#DOSprog); 
+            WRITESTR(#press);
+            BIOSREADKEY();}
+        sphinxstate = 2;
+        savescreen();
+        }
+ 
+    IF( sphinxstate == 2 )  // spawn Work Bench
+        {sphinxstate = 0;
+        hooksphinxint();
+        @ SETVIDEOMODE(vid_text80c);
+        loadcorrectfont();
+        WRITESTR("\nLOADING C-- Work Bench . . .\n");
+        IF( spawn(#wb,0x80,0) != 0)
+            {WRITESTR(#errorspawning);
+            WRITESTR(#wb);
+            WRITELN();
+            }
+        unhooksphinxint();
+        }
+    
+    IF( sphinxstate == 3 )  // spawn program
+        {forgetscreen();
+        WRITESTR("Running Program...\n");
+        IF( spawn(#spawnprog,#spawnparams,0) != 0)
+            {WRITESTR(#errorspawning);
+            WRITESTR(#spawnprog);}
+        sphinxstate = 2;
+        savescreen();
+        WRITESTR(#press);
+        BIOSREADKEY();
+        }
+
+    IF( sphinxstate >= 4 )   // spawn compiler
+        {forgetscreen();
+        IF( colorflag == TRUE )
+            @ SETVIDEOMODE( vid_text80c );
+        ELSE @ SETVIDEOMODE( vid_text80m );
+        WRITESTR("LOADING C-- Compiler . . .\n");
+        IF( spawn(#compiler,0x80,0) != 0)
+            {WRITESTR(#errorspawning);
+            WRITESTR(#compiler);
+            sphinxstate = 2;}
+        ELSE{IF( @ GETRETURNCODE() != 0 )
+                sphinxstate = 2;
+            ELSE sphinxstate -= 2;
+            }
+        savescreen();
+        IF( sphinxstate == 2 )
+            {WRITESTR(#press);
+            BIOSREADKEY();}
+        }
+
+    } while( sphinxstate != 0 );
+
+forgetscreen();
+SETINTVECT( ,KEYBOARD_INT,oldkeyhandle[2],oldkeyhandle[0]);
+WRITESTR("\nSPHINX Programming 1994\n");
+EXIT(0);
+}
+
+/* END OF WB.C-- */

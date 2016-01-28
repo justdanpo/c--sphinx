@@ -1,0 +1,287 @@
+?warning FALSE
+?define MOUSE2 TRUE
+
+?ifdef GMOUSE
+?ifndef G_MOUSE
+?include "G_MOUSE.H--"
+?endif
+?endif
+
+?ifndef LOW
+?include "low.H--"
+?endif
+
+byte _mouse=FALSE;
+byte shown=FALSE; // есть ли мышь на экране
+int level=0;
+
+void msinit()
+{
+// инициализация графического курсора мыши
+?ifdef GMOUSE
+	gInitMouse();
+	Intercept33();
+	IF(Active==TRUE){
+		_mouse=TRUE;
+		shown=TRUE;
+	}
+	ELSE{      // пытаемся активизировать обычным путем
+		AX=0; // сброс мыши
+		$INT 0x33
+		IF(AX==-1)_mouse=TRUE;
+	}
+?else
+	AX=0; // сброс мыши
+	$INT 0x33
+	IF(AX==-1)_mouse=TRUE;
+?endif
+}
+
+void msuninit()
+{
+// деинициализация графического курсора мыши
+?ifdef GMOUSE
+	Untercept33();
+	gDoneMouse();
+?endif
+	_mouse=FALSE;
+}
+
+:void msbclear()
+{
+	IF(_mouse){ // есть ли мышь?
+		AX=5;
+		BX=0;
+		$INT 0x33   // button 0, function 5
+		BX++;
+		$INT 0x33   // button 1, function 5
+		AX++;
+		BX--;
+		$INT 0x33   // button 0, function 6
+		BX++;
+		$INT 0x33   // button 1, function 6
+	}
+}
+
+:void msbpress(int button,bstat,bcount,row,col)
+{
+	SI=bstat;
+	IF(_mouse==TRUE){ // есть ли мышь?
+		AX=5;                          //  MS mouse function 5
+		BX=button;
+		$INT 0x33
+		DSWORD[SI]=AX;
+		SI=bcount;
+		DSWORD[SI]=BX;
+		SI=row;
+		$PUSH CX
+		DSWORD[SI]=DX/_vinfo.mheight;
+		SI=col;
+		$POP AX
+		DSWORD[SI]=AX/_vinfo.mwidth;
+	}
+	ELSE{
+		AX=0;
+		DSWORD[SI]=AX;
+		SI=bcount;
+		DSWORD[SI]=AX;
+		SI=row;
+		DSWORD[SI]=AX;
+		SI=col;
+		DSWORD[SI]=AX;
+	}
+}
+
+// gets info about specific button releases of mouse
+:void msbreles(int button,bstat,bcount,row,col)
+{
+	SI=bstat;
+	IF(_mouse==TRUE){ // есть ли мышь?
+		AX=6;                          //  MS mouse function 6
+		BX=button;
+		$INT 0x33
+		DSWORD[SI]=AX;
+		SI=bcount;
+		DSWORD[SI]=BX;
+		SI=row;
+		$PUSH CX
+		DSWORD[SI]=DX/_vinfo.mheight;
+		SI=col;
+		$POP AX
+		DSWORD[SI]=AX/_vinfo.mwidth;
+	}
+	ELSE{
+		AX=0;
+		DSWORD[SI]=AX;
+		SI=bcount;
+		DSWORD[SI]=AX;
+		SI=row;
+		DSWORD[SI]=AX;
+		SI=col;
+		DSWORD[SI]=AX;
+	}
+}
+
+//диапазон где курсор будет виден
+:void mscondoff(int srow,scol,erow,ecol)
+{
+	IF(_mouse==TRUE){ // есть ли мышь?
+		AX=ecol*_vinfo.mwidth;
+		AX><SI;
+		AX=erow*_vinfo.mheight;
+		AX><DI;
+		AX=scol*_vinfo.mwidth;
+		$PUSH AX
+		AX=srow*_vinfo.mheight;
+		AX><DX;
+		$POP CX
+		AX=16;
+		$INT 0x33
+	}
+}
+
+//цвет текстового курсора
+:void MSCURSOR()
+/*BX-curtype //  cursor type (0 = SW, 1 = HW)
+  CX-smask   //  screen mask (SW), or scan start line (HW)
+  DX-cmask   //  cursor mask (SW), or scan stop line (HW)*/
+{
+	IF(_mouse==TRUE){ // есть ли мышь?
+		AX=10;           //  MS mouse function 10
+		$INT 0x33
+	}
+}
+
+void MSGOTOXY()
+//AX-row
+//BX-col
+{
+	IF(_mouse==TRUE){ // есть ли мышь?
+		AX=AX*_vinfo.mwidth;
+		$PUSH AX
+		BX><AX;
+		AX=AX*_vinfo.mheight;
+		AX><CX;
+		$POP DX
+		AX=4;
+		$INT 0x33
+	}
+}
+
+//установить диапазон перемещения по горизонтала
+:void mshbounds(int leftcol,rightcol)
+{
+	IF(_mouse==TRUE){ // есть ли мышь?
+		CX=_vinfo.mwidth;
+		AX=CX;
+		AX=AX*leftcol;
+		AX><CX;
+		AX=AX*rightcol;
+		DX><AX;
+		AX=7;                      //  MS mouse function 7
+		$INT 0x33
+	}
+}
+
+void mshidecur()
+{
+	level++;
+	IF(_mouse!=FALSE){
+		IF(shown==TRUE){ // есть ли мышь?
+			shown=FALSE;
+			AX=2;              //  MS mouse function 2
+			$INT 0x33
+		}
+	}
+}
+
+//получить скорость перемещения мыши
+:void msmotion(int rowcount,colcount)
+{
+	$PUSH SI
+	SI=rowcount;
+	IF(_mouse==TRUE){ // есть ли мышь?
+		AX=11;                         //  MS mouse function 11
+		$INT 0x33
+		$PUSH CX
+		DSWORD[SI]=DX/_vinfo.mheight;
+		SI=colcount;
+		$POP AX
+		DSWORD[SI]=AX/_vinfo.mwidth;
+	}
+	ELSE{
+		AX=0;
+		DSWORD[SI]=AX;
+		SI=colcount;
+		DSWORD[SI]=AX;
+	}
+	$POP SI
+}
+
+void msshowcur()
+{
+	level--;
+	IF(level<=0){
+		level=0;
+		IF(_mouse==TRUE){
+			IF(shown==FALSE){ // есть ли мышь?
+				shown=TRUE;
+				AX=1;                       //  MS mouse function 1
+				$INT 0x33
+			}
+		}
+	}
+}
+
+//установить скорость перемещения мыши
+:void MSSPEED()
+/* CX-xratio //  horizontal mickey/pixel ratio
+   DX-yratio //  vertical mickey/pixel ratio*/
+{
+	IF(_mouse==TRUE){ // есть ли мышь?
+		AX=15;                         //  MS mouse function 15
+		$INT 0x33
+	}
+}
+
+//получить положение курсора и состояние кнопок
+void msstatus(int bstat,row,col)
+{
+	SI=bstat;
+	IF(_mouse==TRUE){ // есть ли мышь?
+		AX=3;                      //  MS mouse function 3
+		$INT 0x33
+		DSWORD[SI]=BX;
+		SI=row;
+		$PUSH CX
+		DSWORD[SI]=DX/_vinfo.mheight;
+		SI=col;
+		$POP AX
+		DSWORD[SI]=AX/_vinfo.mwidth;
+	}
+	ELSE{
+		AX=0;
+		DSWORD[SI]=AX;
+		SI=row;
+		DSWORD[SI]=AX;
+		SI=col;
+		DSWORD[SI]=AX;
+	}
+}
+
+//установить диапазон перемещения по горизонтали
+:void msvbounds(int toprow,botrow)
+{
+	IF(_mouse==TRUE){ // есть ли мышь?
+		CX=_vinfo.mheight;
+		AX=CX;
+		AX=AX*toprow;
+		AX><CX;
+		AX=AX*botrow;
+		DX><AX;
+		AX=8;                          //  MS mouse function 8
+		$INT 0x33
+	}
+}
+
+?setdinproc

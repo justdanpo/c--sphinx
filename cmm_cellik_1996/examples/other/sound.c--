@@ -1,0 +1,24 @@
+/*
+   SPHINX C-- example program of C-- sound functions.
+*/
+
+
+?include "KEYCODES.H--"
+?include "WRITE.H--"
+?include "SOUND.H--"
+
+byte intro = "C-- Sound Test\nPress any key for different sounds\n"
+             "Press <ESC> when you wish to quit.";
+
+word key;
+
+main()
+{
+WRITESTR(#intro);
+do {key = @ BIOSREADKEY();
+   @ SOUND( key );            /* set frequency to emit from speaker */
+   } while( key != k_esc );
+@ NOSOUND();                  /* turn off speaker */
+}
+
+/* end of SOUND.C-- */

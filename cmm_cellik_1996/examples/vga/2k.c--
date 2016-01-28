@@ -1,0 +1,799 @@
+/*
+   NAME: 2K.C--
+   INFO: Written by SPHINX.
+         Thanks to Midnight and Jer.
+   LAST MODIFIED:  21 Oct 1995
+   DESCRIPTION: This program displays cool stuff.
+                VGA 320x200 256 colour screen.
+   RUN FILE SIZE: hopefully less than 2048 bytes.
+
+   Be sure to compile with the /X option!!!
+*/
+
+?use80386
+?resize FALSE
+?assumeDSSS TRUE
+?codesize
+?alignword FALSE
+
+?include "VIDEO.H--"
+?include "VGA.H--"
+?include "RANDOM.H--"
+?include "KEYCODES.H--"
+?include "GWRITE.H--"
+?include "WRITE.H--"
+
+byte sphinx = {'S','P'+1,'H'+2,'I'+3,'N'+4,'X'+5,' '+6,
+               'P'+7,'R'+8,'O'+9,'G'+10,'R'+11,'A'+12,'M'+13,'M'+14,'I'+15,'N'+16,'G'+17,0};
+byte bytes_str = "2044 bytes";
+
+?define PALSIZE 256*3
+byte palette[PALSIZE];
+
+byte palettehold1[PALSIZE];
+byte palettehold2[PALSIZE];
+
+word i;
+
+
+//====================== FIRE STARTS =========================
+?define X1CLIP 8
+?define X2CLIP 8
+
+byte burncount;
+byte rightcount = 0;
+
+word firetoggle;
+
+void burn_cycle ()
+{
+IF( firetoggle == 4+X1CLIP )
+    firetoggle = 2+X1CLIP;
+ELSE firetoggle = 4+X1CLIP;
+DI = 1280;
+do {
+    BX = firetoggle;
+    do {
+	AX = ESBYTE[DI+BX-2] +  ESBYTE[DI+BX+2] + ESBYTE[DI+BX] +
+		  ESBYTE[DI+BX+640] / 4;
+	AX = AX + ESBYTE[DI+BX-640] >> 1;
+	IF( AL > 128 )
+	    AL-=2;
+	ELSE IF( AL > 3)
+	    AL -=4;
+	ELSE AL = 0;
+
+	AH = AL;
+	ESWORD[DI+BX-1280] = AX;
+	ESWORD[DI+BX-1280+320] = AX;
+	BX += 4;
+	} while( BX < 318-X2CLIP );
+    DI += 640;
+    } while( DI < 320*114 );
+}
+
+
+void do_fire ()
+{
+i = 0;
+do {
+    BP = 16;
+    loop(BP)
+        {
+        AX = RAND()%10+1;
+        SI = AX+AX;
+        AX = RAND()%298 + 35210;
+        DI = AX;
+        AL = RAND()&127 + 128;
+        loop(SI)
+    	    {
+            ESBYTE[DI] = AL;
+  	    ESBYTE[DI+640] = AL;
+  	    DI++;
+  	    }
+        }
+    IF( i <= 1024 )
+        blend_palette(1024-i,i);
+    ELSE blend_palette(0,1024);  // just to keep the speed constant
+    burn_cycle();
+
+    i++;
+    } while( i < 1024 /* + 200 */ );
+
+AX = 0;
+DI = 35200;
+CX = 320*2;
+$REPZ
+$STOSW
+
+burncount = 101;
+loop(burncount)
+    {WAITVSYNC();
+    burn_cycle();
+    }
+}
+
+
+void burnbaby (/* word str */ ) // parameter required,
+                                // but we pop it ourselves
+{
+DX = 0xA0C;
+BH = 0;
+AH = 2;
+$INT 0x10  // @GOTOXY(12,10);
+
+$POP BX    // get return address off stack
+$POP AX    // get str off stack
+$PUSH BX    // put return address back on stack
+GWRITESTR(AX,255);
+SI = 80;
+loop(SI)
+    WAITVSYNC();
+burncount = 60;
+loop(burncount)
+    {WAITVSYNC();
+    burn_cycle();
+    }
+}
+
+
+
+//====================================== WATER STARTS
+
+
+
+?define	XSIZE 160      // ; {120;}
+?define	YSIZE 100      // ; {75; }
+?define WATERTABLESIZE XSIZE*YSIZE*2  // must be divisible by 16!
+?define WATERTABLEPARAGRAPHSIZE WATERTABLESIZE/16
+
+
+byte DAMPEN = 3;  // was 6
+
+word watertable1,watertable2;
+
+int XS = 5;
+int YS = 0;
+int XP = 10 << 3;
+int YP = 5 << 3;
+
+int XS2 = -3;
+int YS2 = 0;
+int XP2 = 38 << 3;
+int YP2 = 15 << 3;
+
+
+?define WATERUPCOUNT  70*3
+int waterupper = 0;
+
+
+void ShowWaterASM ()
+{
+$ PUSH DS
+DS = watertable1;
+ES = VGA_SEG;
+
+DI = 10;
+do {ESBYTE[BP+DI+320] = 0;
+    DI++;
+    } while( DI < 320-10 );
+
+SI = 2+8+320+320;
+BX = 96*256;
+
+FORY:
+  BL = 158-8;
+FORX:
+  AX = DSWORD[SI]-DSWORD[SI-2];
+  $ SAR AX,3
+  AX += 100;
+  AH = AL;
+  ESWORD[BP+SI] = AX;
+  SI += 2;
+  BL--;
+  $JNZ FORX
+
+  SI += 4+8+8;
+  BX -= 256;
+  $JNZ FORY
+
+$ POP DS
+}
+
+
+
+void CalcWaterEffect ()
+{
+CL = DAMPEN;
+$ PUSH DS
+
+ES = watertable2;
+DS = watertable1;
+
+SI = 161*2;
+DX = 98*256;
+
+FORY:
+    DL = 158;
+FORX:
+    AX = DSWORD[SI-320] + DSWORD[SI-2] + DSWORD[SI+2] + DSWORD[SI+320];
+    $ SAR AX,1
+    AX -= ESWORD[SI];
+    BX = AX;
+    $ SAR BX,CL
+    AX -= BX;
+    ESWORD[SI] = AX;
+    SI += 2;
+    DL--;
+    $ JNZ FORX
+
+    SI += 4;
+    DH--;
+    $ JNZ FORY
+
+$POP DS
+watertable2 >< watertable1;
+}
+
+
+void do_water ()
+{
+$PUSH DS
+$POP AX
+watertable1 = AX+0x1000; 
+watertable2 = AX+WATERTABLEPARAGRAPHSIZE;
+
+ES = watertable1;
+DI = 0;
+CX = WATERTABLESIZE;
+AX = 0;
+$REPZ
+$STOSW  // initialize wt1 and wt2
+
+i=0;
+BP = -100*320;
+do {
+    IF( BP != 0 )
+        BP += 320;
+    IF( i <= 1024 )
+        blend_palette(1024-i,i);
+    ELSE blend_palette(0,1024);  // just to keep the speed constant
+
+    ShowWaterASM();
+    CalcWaterEffect();
+
+    //===== start of splash
+    IF( XP > XSIZE * 4 )
+        XS--;
+    ELSE XS++;
+    IF( YP > YSIZE * 4 )
+        YS--;
+    ELSE YS++;
+    XP += XS;
+    YP += YS;
+
+    AX = XP/8;
+    DI = AX;
+    AX = YP/8 * 160;
+    DI += AX;
+    DI += DI;
+    ES = watertable1;
+    ESWORD[DI] = 900;
+    ESWORD[DI+2] = 900;
+    ES = watertable2;
+    ESWORD[DI] = 900/2;
+    ESWORD[DI+2] = 900/2;
+
+    IF( i & 256 )
+        {IF( XP2 > XSIZE * 4 )
+            XS2--;
+        ELSE XS2++;
+        IF( YP2 > YSIZE * 4 )
+            YS2--;
+        ELSE YS2++;
+        XP2 += XS2;
+        YP2 += YS2;
+
+        AX = XP2/8;
+        DI = AX;
+        AX = YP2/8 * 160;
+        DI += AX;
+        DI += DI;
+
+        SI = 5;
+        loop(SI)
+            {BX = 5;
+            loop(BX)
+                {ES = watertable1;
+                ESWORD[DI] = 900;
+                ES = watertable2;
+                ESWORD[DI] = 900/2;
+                DI+=2;
+                }
+            DI += 320 - 10;
+            }
+        }
+    //===== end of splash
+
+    IF( BIOSKEYCHECK() )
+        {BIOSREADKEY();
+        i = 65000;
+        }
+    i += 3;
+    } while( i < 1024+1000+30000 );
+
+waterupper = 0;
+do {
+    BP += 320;
+    WAITVSYNC();
+    ShowWaterASM();
+    CalcWaterEffect();
+    } while( BP < 100*320 );
+}
+
+
+
+//====================================== WATER ENDS
+
+
+//============================= PLASMA STARTS
+
+/*
+
+?define  ROUGHNESS   1     // the "roughness" of image, try 1, 2, 3 or 4
+
+?define  MINCOLOR    1
+?define  MAXCOLOR  192
+
+?define  XCUT     64/8
+?define  YCUT     40/8
+?define  XCUTADD  XCUT-2
+?define  YCUTADD  YCUT-2
+
+
+?define PLASMAPALSIZE MAXCOLOR+1*3
+
+int d,pixel,average;
+
+void adjust (int xa,ya,x,y,xb,yb)
+{
+AX = 320*y + x;
+BX = AX;
+IF( byte ESBYTE[BX] )
+    return;
+
+BX = xb-xa;
+AX = yb-ya;
+d = AX + BX;     
+
+AX = ya*320 + xa;
+BX = AX;
+AL = ESBYTE[BX];
+AH = 0;
+SI = AX;
+AX = yb*320 + xb;
+BX = AX;
+AL = ESBYTE[BX];
+AH = 0;
+average = AX + SI * 64 / 2;   // average = pixel(xa,ya)+pixel(xb,yb)/2
+
+AX = RAND() % 64 - 32;
+AX = AX * d * ROUGHNESS;
+pixel = AX + average / 64;  // v = random - 0.5 * d * ROUGHNESS + average;
+   
+IF( pixel < MINCOLOR )
+    pixel = MINCOLOR; 
+ELSE IF( pixel > MAXCOLOR )
+    pixel = MAXCOLOR; 
+
+AX = y*320 + x;
+BX = AX;
+ESBYTE[BX] = pixel;
+}
+
+
+void sub_divide (int x1,y1,x2,y2)
+int x,y;
+{
+IF( x2-x1 < 2 )
+    IF( y2-y1 < 2 )
+        return;
+
+x = x1 + x2 / 2;
+y = y1 + y2 / 2;
+
+adjust(x1,y1,x,y1,x2,y1);
+adjust(x2,y1,x2,y,x2,y2);
+adjust(x1,y2,x,y2,x2,y2);
+adjust(x1,y1,x1,y,x1,y2);
+
+AX = y*320 + x;
+BX = AX;
+IF( byte ESBYTE[BX] == 0 )
+    {
+    AX = y1*320 + x1;
+    BX = AX;
+    AX = ESBYTE[BX];
+    SI = AX;
+    AX = y2*320 + x1;
+    BX = AX;
+    AX = ESBYTE[BX];
+    SI += AX;
+    AX = y2*320 + x2;
+    BX = AX;
+    AX = ESBYTE[BX];
+    SI += AX;
+    AX = y1*320 + x2;
+    BX = AX;
+    AX = ESBYTE[BX];
+    AX = AX + SI / 4;
+    SI = AX;
+    AX = y*320 + x;
+    BX = AX;
+    AL = SI;
+    ESBYTE[BX] = AL;
+    }
+
+sub_divide(x1,y1,x,y);
+sub_divide(x,y1,x2,y);
+sub_divide(x,y,x2,y2);
+sub_divide(x1,y,x,y2);
+}
+
+
+void plasma (word x,y,x2,y2)
+{
+AX = y*320 + x;
+DI = AX;
+ESBYTE[DI] = RAND()%192+1;
+AX = y2*320 + x;
+DI = AX;
+ESBYTE[DI] = RAND()%192+1;
+AX = y*320 + x2;
+DI = AX;
+ESBYTE[DI] = RAND()%192+1;
+AX = y2*320 + x2;
+DI = AX;
+ESBYTE[DI] = RAND()%192+1;
+
+sub_divide(x,y,x2,y2);
+}        
+
+
+word square_count;
+
+void do_plasma ()
+{
+palette[0] = 0;  // 33;    //
+palette[1] = 0;  // 10;    //  Set background colour
+palette[2] = 0;  // 19;    //
+
+BX = 0;
+do {
+    DI = BX+BX+BX;
+
+    palette[DI+3] = BL;
+    palette[DI+3+1] = 63-BL;
+    palette[DI+3+2] = 0;
+
+    palette[DI+195] = 63-BL;
+    palette[DI+195+1] = 0;
+    palette[DI+195+2] = BL;
+
+    palette[DI+387] = 0;
+    palette[DI+387+1] = BL;
+    palette[DI+387+2] = 63-BL;
+
+    BX++;
+    } while( BX < 64 );
+
+square_count = 0;
+do {
+    // --- rotate_palette ---
+    @ COPYNEAR(#palette[0],#palette[3],PLASMAPALSIZE-3);
+    DSWORD[#palette[PLASMAPALSIZE-3]] = DSWORD[#palette[0]];
+    palette[PLASMAPALSIZE-1] = palette[2];
+    DSWORD[#palette[0]] = 0;
+    palette[2] = 0;
+    WAITVSYNC();
+    SETVGADAC(0, ,PLASMAPALSIZE, , ,#palette);
+
+    ES = VGA_SEG;
+    gotolabel:
+        i = RAND()%40 * XCUT;
+        j = RAND()%40 * YCUT;
+        AX = j*320+i;
+        BX = AX;
+        IF( ESBYTE[BX] != 0 )
+            $JMP gotolabel
+        plasma(i, j, i+XCUTADD, j+YCUTADD);
+
+    square_count++;
+    } while( square_count < 40*40 );
+square_count = 0;
+do {
+    // --- rotate_off_palette ---
+    @ COPYNEAR(#palette[3],#palette[6],PLASMAPALSIZE-6);
+    palette[PLASMAPALSIZE-3] = palette[0];
+    DSWORD[#palette[PLASMAPALSIZE-3]] = 0;
+    palette[PLASMAPALSIZE-1] = 0;
+    WAITVSYNC();
+    SETVGADAC(0, ,PLASMAPALSIZE, , ,#palette);
+    
+    square_count++;
+    } while( square_count < 256 );
+
+}
+
+
+//============================= PLASMA ENDS
+*/
+
+
+//============================= STARS START
+
+?define   V  8 
+
+int count;
+int jump = 6;
+byte quit = FALSE;
+
+?define STARS  2000  // you may want to pump this to 3000 on faster machines
+
+int x[STARS];
+int y[STARS];
+int z[STARS];
+
+int star_y_move = 0;
+
+int hold,hold2;  // for plotxyz19
+
+void plotxyz19 ( byte color )
+{
+hold = z[DI] + 1 / V;
+IF( AX != 0 )
+    {hold2 = x[DI] / hold + 160;
+    BX = AX;
+    IF( BX >= 8+2 )
+      IF( BX < 320-8-2 )
+        {hold2 = y[DI] / hold + 50;
+        IF( AX < 100 )
+            {AX = AX*320;        //    \/
+            BX += AX;            //    \/ 
+            ESBYTE[BX] = color;  // SAME AS: putpixel19(BX,hold2,color);
+            }
+        }
+    }
+}
+
+
+void cycle_stars ()
+{
+ES = VGA_SEG;
+count = 0;
+WAITVSYNC();
+do {
+    DI = count+DI;
+    plotxyz19(0);
+    SI = count;
+    DI = SI+SI;
+    z[DI] -= jump;
+    IF( z[DI] <= 0 ) 
+        {x[DI] = RAND()%3025;
+        y[DI] = RAND()%3025;
+        z[DI] = RAND()%20+236;
+        }
+    ELSE IF( z[DI] >= 256 ) 
+        {x[DI] = RAND()%3025;
+        y[DI] = RAND()%3025;
+        z[DI] = 0;
+        }
+    y[DI] += star_y_move;
+    plotxyz19(255-z[DI]);
+    count++;
+    } while ( count < STARS );
+}
+
+
+void do_stars ()
+{
+BX = 0;
+DI = 0;
+do {
+    AX = BX / 4;
+    palettehold1[DI] = AL;
+    AH = AL;
+    DSWORD[#palettehold1[DI+1]] = AX;
+    DI+=3;
+    BX++;
+    } while( BX < 256 );
+/*
+do {
+    AX = BX / 12;
+    palettehold1[BX] = AL;
+    BX++;
+    } while( BX < PALSIZE );
+DSWORD[#palettehold1[0]]=0;
+palettehold1[2]=0;
+*/
+SETVGADAC(0, ,PALSIZE, , ,#palettehold1);
+
+DI = 0;
+do {
+    x[DI] = RAND()%3025;
+    y[DI] = RAND()%3025;
+    z[DI] = RAND()%256+1;
+    DI += 2;
+    } while( DI < STARS*2 );
+
+do {
+    cycle_stars();
+
+    IF( KBHIT() <> 0 )
+        {AX = BIOSREADKEY();
+        IF( AL == '+' )
+            jump++;
+        ELSE IF( AL == '-' )
+            jump--;
+        ELSE IF( AX == k_esc )
+            quit = TRUE;
+        }
+
+    } while( jump != 0 );
+
+quit = FALSE;
+star_y_move = -25;
+i = 0;
+do {
+    cycle_stars();
+    i++;
+    } while( i < 200 );
+}
+
+//============================= STARS END
+
+
+void blend_palette (word mixvalue1,mixvalue2)
+{
+DI = 3;
+do {
+    AX = palettehold1[DI]*mixvalue1;
+    BX = AX;
+    AX = palettehold2[DI]*mixvalue2;
+    AX = AX+BX/1024;
+    palette[DI] = AL; 
+    DI++;
+    } while(DI < PALSIZE );
+
+WAITVSYNC();
+SETVGADAC(1, ,PALSIZE-3, , ,#palette[3]);
+}
+
+
+void main ()
+{
+@ SETVIDEOMODE(byte vid_320x200_256);
+AX = 0x4309;  
+DX = 0x3D4;
+$OUT DX,AX // PortW[$3D4] := $4309;   { 4 pixel line height }
+
+BX = 0;
+do {
+    sphinx[BX] -= BL;
+    BX++;
+    } while( BX < 18 );  // unencrypt the SPHINX string :-)
+
+//========= start of display_sphinx_str ()
+i = 0;
+do {
+    DH = i+DH+1;
+    DL = 0;
+    BH = 0;
+    AH = 2;
+    $INT 0x10  // @GOTOXY(0,i+BX+1);
+    BX = i;
+    GWRITE(sphinx[BX],100);
+    i++;
+    } while( i < 6 );
+i = 2;
+do {
+    DH = i;
+    DL = 39;
+    BH = 0;
+    AH = 2;
+    $INT 0x10  // @GOTOXY(39,i);
+    BX = i;
+    GWRITE(bytes_str[BX-2],127);
+    i++;
+    } while( i < 12 );
+//========= end of display_sphinx_str ()
+
+do_stars();
+
+// do_plasma();
+
+//****** START of set up colours for FIRE ******
+
+DSWORD[#palette[0]]=0;
+palette[2]=0;
+BX = 0;
+do {
+    DI = BX+BX+BX;
+
+    AX = BX * 64 / 85;
+    DL = AL;
+    palettehold2[DI+3] = DL;
+    palettehold2[DI+3+1] = 0;
+    palettehold2[DI+3+2] = 0;
+
+    palettehold2[DI+3+85+85+85] = 63;
+    palettehold2[DI+3+85+85+85+1] = DL;
+    palettehold2[DI+3+85+85+85+2] = 0;
+
+    palettehold2[DI+3+85+85+85+85+85+85] = 63;
+    palettehold2[DI+3+85+85+85+85+85+85+1] = 63;
+    palettehold2[DI+3+85+85+85+85+85+85+2] = DL;
+
+    BX++;
+    } while( BX < 85 );
+
+//****** END of set up colours for FIRE ******
+
+ES = VGA_SEG;
+
+do_fire();
+
+burnbaby("HOT STUFF!");
+burnbaby(#sphinx);
+burnbaby("Thanks to:");
+burnbaby("Midnight");
+
+BX = 768;
+loop(BX)
+    palettehold1[BX-1] = palette[BX-1];
+do_fire();
+
+burnbaby(#bytes_str);
+burnbaby("Room for MORE?");
+burnbaby("this is C--");
+burnbaby("There's More!");
+
+//====== START of setting water palette ======
+BX = 1;
+do {
+    DI = BX+BX+BX;
+    AL = 127 - BX >> 1;
+    AH = AL;
+    DSWORD[#palettehold2[DI]] = AX;
+    CX = BX;
+    CX >>= 1;
+    palettehold2[DI+2] = 127 - CX >> 1;
+    BX++;
+    } while( BX < 128 );
+
+do {
+    DI = BX+BX+BX;
+    DSWORD[#palettehold2[DI]] = 0;
+    CX = BX;
+    CX >>= 1;
+    palettehold2[DI+2] = 127 - CX >> 1;
+    BX++;
+    } while( BX < 256 );
+
+// SETVGADAC(0, ,PALSIZE, , ,#palette);
+//====== END of setting water palette ======
+
+do_water();
+
+quit = FALSE;
+jump = -6;
+star_y_move = 0;
+
+do_stars();
+
+@ SETVIDEOMODE(byte vid_text80c);
+GWRITESTR(#sphinx,7);
+}
+
+
+/* end of 2K.C-- */

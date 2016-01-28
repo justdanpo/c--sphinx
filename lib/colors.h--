@@ -1,0 +1,22 @@
+/*
+  FILE: COLORS.H--
+
+  DESCRIPTION: Define a basic set of names for 16 colors usable in
+               numerous video modes.
+
+  LAST MODIFIED: March 11, 2001
+
+  FUNCTIONS:
+        <none>
+*/
+
+?ifndef _COLORS_
+?define _COLORS_ TRUE
+
+enum {
+  BLACK, BLUE, GREEN, CYAN, RED, MAGENTA, BROWN, LIGHTGRAY,
+  LIGHTGREY = LIGHTGRAY, DARKGRAY, DARKGREY = DARKGRAY, LIGHTBLUE, LIGHTGREEN,
+  LIGHTCYAN, LIGHTRED, LIGHTMAGENTA, YELLOW, WHITE, TRANSPARENT = 255
+};
+
+?endif /* _COLORS_ */

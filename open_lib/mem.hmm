@@ -1,0 +1,187 @@
+/******************************************************************************
+ Copyright 1999-2000 Mishel Sheker. All Rights Reserved.
+ Sphinx C-- library (C) 2001.
+ FILE:        MEM.HMM
+ DESCRIPTION: Memory manipulation functions
+
+ LAST MODIFIED: 17.10.01 21:43
+-----------------------------------------------------------------------------
+ FUNCTIONS:
+ char MEMCMP((E)SI,(E)DI,(E)CX)
+ void MEMMOV((E)DI,(E)SI,(E)CX)
+ void MEMSET((E)DI,(E)CX,AL)
+ void MEMCPY((E)DI,(E)SI,(E)CX)
+ void MEMSETZ((E)DI,(E)CX)
+ void MEMSETD((E)DI,(E)CX,EAX)
+ void MEMCPYD((E)DI,(E)SI,(E)CX)
+
+*****************************************************************************/
+
+/*****************************************************************************
+* NAME  :void MEMSETD((E)DI,(E)CX,EAX)
+* TITLE :
+* PARAMS:
+*****************************************************************************/
+inline void MEMSETD((E)DI,(E)CX,EAX)
+{
+	$REP $STOSD
+}
+
+/*****************************************************************************
+* NAME  :void MEMCPYD(EDI,ESI,ECX)
+* TITLE :
+* PARAMS:
+*****************************************************************************/
+inline void MEMCPYD((E)DI,(E)SI,(E)CX)
+{
+	$REP $MOVSD
+}
+
+/****************************************************************************** NAME  :
+* TITLE :char MEMCMP((E)SI,(E)DI,(E)CX)
+* DESCR :Compare characters from two buffers
+* PARAMS:
+*****************************************************************************/
+#ifdef codesize
+
+inline char MEMCMP((E)SI,(E)DI,(E)CX)
+{
+	$REPE $CMPSB
+	AL=DSBYTE[(E)SI-1]-DSBYTE[(E)DI-1];
+}
+
+#else
+
+inline char MEMCMP((E)SI,(E)DI,(E)CX)
+{
+	(E)AX=(E)CX;
+	(E)CX>>=2;
+	$REPE $CMPSD
+	IF(ZEROFLAG){
+		(E)CX=(E)AX&3;
+		$REPE $CMPSB
+	}
+	AL=DSBYTE[(E)SI-1]-DSBYTE[(E)DI-1];
+}
+
+#endif
+
+/*****************************************************************************
+* NAME  :void MEMMOV((E)DI,(E)SI,(E)CX)
+* TITLE :Move a block of bytes
+* PARAMS:
+*****************************************************************************/
+
+inline void MEMMOV((E)DI,(E)SI,(E)CX)
+{
+	$push (E)BX
+	(E)BX=(E)CX;
+	IF((E)DI>(E)SI){
+#ifndef codesize
+		(E)CX>>=2;
+		IF(MINUSFLAG)GOTO END;
+		@MEMCPYD();
+		(E)CX=(E)BX&3;
+#endif
+		$REP $MOVSB
+	}
+	ELSE IF(!ZEROFLAG){
+		$LEA (E)SI,DSDWORD[(E)SI+(E)BX-4]
+		$LEA (E)DI,DSDWORD[(E)DI+(E)BX-4]
+		$STD
+#ifndef codesize
+		(E)CX>>=2;
+		IF(MINUSFLAG)GOTO END;
+		@MEMCPYD();
+		(E)CX=(E)BX&3;
+		(E)SI+=3;
+		(E)DI+=3;
+#endif
+		$REP $MOVSB
+		$CLD
+	}
+END:
+	$pop (E)BX
+}
+
+/*****************************************************************************
+* NAME  :void MEMSET((E)DI,(E)CX, AL)
+* TITLE :Initialize buffer
+* PARAMS:
+*****************************************************************************/
+#ifdef codesize
+
+inline void MEMSET((E)DI,(E)CX, AL)
+{
+	$REP $STOSB
+}
+
+#else
+
+inline void MEMSET((E)DI,(E)CX,AL)
+{
+	$push EDX
+	AH=AL;
+	EDX=AX;
+	EAX<<=16;
+	EAX|=EDX;
+	(E)DX=(E)CX;
+	(E)CX>>=2;
+	@MEMSETD();
+	(E)CX=(E)DX&3;
+	$REP $STOSB
+	$pop EDX
+}
+
+#endif
+
+/*****************************************************************************
+* NAME  :void MEMCPY((E)DI,(E)SI,(E)CX)
+* TITLE :Copy characters between buffers
+* PARAMS:
+*****************************************************************************/
+#ifdef codesize
+
+inline void MEMCPY((E)DI,(E)SI,(E)CX)
+{
+	$REP $MOVSB
+}
+
+#else
+
+inline void MEMCPY((E)DI,(E)SI,(E)CX)
+{
+	$push (E)DX
+	(E)DX=(E)CX
+	(E)CX>>=2;
+	@MEMCPYD();
+	(E)CX=(E)DX&3;
+	$REP $MOVSB
+	$pop (E)DX
+}
+
+#endif
+
+/*****************************************************************************
+* NAME  :void MEMSETZ((E)DI,(E)CX)
+* TITLE :Initialize buffer zero value
+* PARAMS:
+*****************************************************************************/
+#ifdef codesize
+
+inline void MEMSETZ((E)DI,(E)CX)
+{
+	(E)AX=0;
+	$REP $STOSB
+}
+
+#else
+
+inline void MEMSETZ((E)DI,(E)CX)
+{
+	(E)AX=0;
+	MEMSET();
+}
+
+#endif
+

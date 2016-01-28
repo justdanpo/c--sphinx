@@ -1,0 +1,196 @@
+/*
+    SPHINX Programming (C) 1994.
+    NAME:  SYSTEM.H--
+    DESCRIPTION:  This file contains a collection of procedures for doing low
+                  level system stuff.
+    LAST MODIFIED:  30 March 1994
+    PROCEDURES DEFINED IN THIS FILE:
+        : void COLDBOOT()
+        : void DELAY(time)
+        : void DISABLE()
+        : void EATKEY()
+        : void ENABLE()
+        : void EOI()
+        : void REBOOT()
+        : void ROMBASIC()
+        : void STARTPATH(path) //получить путь откуда запущена программа
+        : void WAIT(ticks)
+        : void WARMBOOT()
+        : byte WINDOWS_CHECK() //проверка запуска из-под WINDOWS
+*/
+?ifndef _SYSTEM_
+?define _SYSTEM_ TRUE
+?warning FALSE
+
+:void COLDBOOT()
+{
+/* A call to INT 0x19 or something to make sure it is safe to reboot, may
+   be required. */
+	$JMP FAR 0xFFFF:0000
+}
+
+:void WARMBOOT()
+{
+/* A call to INT 0x19 or something to make sure it is safe to reboot, may
+   be required. */
+	DS=0;
+	DSWORD[0x472]=0x1234;
+	$JMP FAR 0xFFFF:0000
+}
+
+:void REBOOT()
+{
+ $INT 0x19
+}
+
+:void ROMBASIC()
+{
+	$INT 0x18
+}
+
+:void ENABLE()
+/* Enables interrupts by use of the STI operation. */
+{
+	$STI
+}
+
+:void DISABLE()
+/* Disables interrupts by use of the CLI operation. */
+{
+	$ CLI
+}
+
+:void EOI()
+{
+	AL=0x20;
+	$OUT 0x20,AL
+}
+
+:void DELAY()  /* AX = amount of time to delay in 1/15.3 second units. */
+/* Delays for a specified time.  AT or higher BIOS required. */
+{
+/*	IF(AX!=0){
+		AX><DX;
+		AL=0xB;
+		$OUT 0x70,AL;  // сохраним значение ячейки 0xB CMOS - состояние
+		$IN AL,0x71; // вызова прерывания 0x70 каждую миллисекунду
+		$PUSH AX;
+    // задержка
+		AH=0x86;
+		CX=0;
+		$INT 0x15
+    // восстанавливаем значение CMOS
+		AL=0xB;
+		$OUT 0x70,AL
+		$POP AX
+		$OUT 0x71,AL
+	}*/
+?ifdef codesize
+	DX><AX;
+?else
+	DX=AX;
+?endif
+	CX=0;
+	AH=0x86;
+	$INT 0x15
+}
+
+: void EATKEY ()
+/* Informs the keyboard controller that the scan code has been received. */
+{
+	$IN AL,0x61
+	AH=AL;
+	AL|=0x80;
+	$OUT 0x61,AL
+	AL=AH;
+	$OUT 0x61,AL
+}
+
+: void WAIT ()     /* AX == number of ticks to wait */
+/* Delay for a certain number of clock ticks (unless another program has
+   reprogrammed the PIT, there should be 18.2 ticks/sec).
+   Number of ticks to wait is passed in AX.
+   Modfied version of code supplied by Michael B. Martin. */
+{
+?ifdef codesize
+	DX><AX;
+?else
+	DX=AX;
+?endif
+	ES=0x40;       // read daily timer value from BIOS system data area
+	CX=ESWORD[0x6C];
+	do{
+		AX=ESWORD[0x6C];
+		AX-=CX;
+	}while(AX<DX);
+}
+
+:void STARTPATH()
+//AX - адрес строки куда будет записан путь
+?DOSrequired 0x300
+//word ofspath;
+{
+	$push DI
+?ifdef codesize
+	DI><AX;
+?else
+	DI=AX;
+?endif
+	$PUSH SI
+	$push DS
+	ES=DS;
+	DS=DSWORD[0X2C];
+	SI=0;
+	do{
+		$lodsw
+		SI--;
+	}while(AX!=0);
+?ifdef codesize
+	$lodsw
+	$lodsb
+?else
+	SI+=3;
+?endif
+	CX=0;
+	do{
+		$lodsb
+		$stosb
+		CX--;
+	}while(AL!=0);
+	$pop DS
+	SI=DI;
+	$STD
+	loop(CX){
+		$LODSB
+		IF(AL==92)BREAK;
+	}
+	$CLD
+	DSBYTE[SI+2]=0;
+	$POP SI
+	$pop DI
+}
+
+:byte WINDOWS_CHECK()
+{
+	AX=0x1600;
+	$INT 0x2F
+ // возвращает в AL 00, если WINDOWS не загружена
+}
+
+:void TEST386CPU()
+//Если CPU хуже 386 - установлен ZEROFLAG
+{
+	AX=0x7000;                    // test for 386+ CPU
+	asm{
+		PUSHF
+		PUSH AX
+		POPF
+		PUSHF
+		POP BX
+		POPF
+	}
+  BH&=AH;
+}
+
+?endif
+/* end of SYSTEM.H-- */

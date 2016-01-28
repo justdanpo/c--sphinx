@@ -1,0 +1,23 @@
+/*
+    NAME:  CHILD.C--
+    DESCRIPTION:  C-- EXAMPLE program for spawn
+*/
+
+? resize TRUE   // resize program memory
+
+?include "WRITE.H--"
+?include "DOS.H--"
+
+byte filename = "C:\\COMMAND.COM";  /* always remember double \ not single */
+byte parameters = {0,13};
+
+
+main ()
+{
+WRITESTR("\nType EXIT to quit shell.\n");
+IF( spawn(#filename,#parameters,0) != 0 )
+    WRITESTR("Error Spawning Program.\n");
+ELSE WRITESTR("Program Spawned OK!\n");
+}
+
+/* end of CHILD.C-- */

@@ -1,0 +1,21 @@
+/*
+    NAME:  FILEFIND.C--
+    DESCRIPTION:  Finds all files in the current directory that fit the
+                  search criteria.
+    RUN FILE SIZE:  117 bytes
+*/
+
+?include "WRITE.H--"
+
+?define SEARCHSTRING "*.C--"
+
+main()
+{
+IF( FINDFIRSTFILE( , ,0b11111,SEARCHSTRING) == 0 )
+    {do {WRITESTR(0x80+0x1E);
+         WRITELN();
+        } while( FINDNEXTFILE() == 0 );
+    }
+}
+
+/* end of FILEFIND.C-- */

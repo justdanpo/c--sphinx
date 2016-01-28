@@ -1,0 +1,93 @@
+/*
+    NAME:  GUS.C--
+    DESCRIPTION:  This program demonstates the some of C-- procedures that
+                  take advantange of the YEA_GUS driver to play 8 and 16 bit
+                  sound samples on the Gravis Ultra Sound.  By the way, I
+                  think the GUS is a very good card for its price, so if you
+                  need a sound card, get one.
+    WARNING:  This program must be spawned by the YEA_GUS driver.
+
+              To run from the DOS prompt, type:
+
+                       YEA_GUS GUS GUS.COM
+
+              To run from the Work Bench, set the Run File to:
+
+                       YEA_GUS.EXE
+
+              and set the Run Parameters to:
+
+                       GUS GUS.COM
+
+    The YEA_GUS driver is not restricted to C--, and can be called from any
+    language that supports interrupt calls.  The person who wrote it was nice
+    enough to make it free for all human use.  Run YEA_GUS.EXE with no
+    parameters to find out more about it.  If anyone finds a more resent
+    version of YEA_GUS.EXE tell me, I might need it.
+*/
+
+
+?include "WRITE.H--"
+?include "KEYCODES.H--"
+?include "GUS.H--"
+
+byte sound[40000] = FROM "DOITNOW.SND";  // the 8 bit sound sample
+
+
+?define ACTIVE_VOICES  14
+
+void main ()
+word dram;
+{
+GUSRESET(ACTIVE_VOICES);
+GUSload(GUS_2_COMP, GUS_8_BIT,40000, DS,#sound, 0,0);
+
+doit();
+
+GUSrampvolume(1,GUS_LOOP_NONE,500,0,0,4000);
+do {
+    } while( GUSGETVOLUME(1) > 64000 ); // wait till volume is reasonably low
+}
+
+
+void doit ()
+word key;
+word voice;
+{
+WRITESTR("\nPress <1> through <5> to start a voice playing.\n");
+WRITESTR("Press <ESC> to quit.\n\n");
+voice = 0;
+do {
+    key = BIOSREADKEY();
+    IF( key == k_1 )
+        startup_voice(voice,44100);
+    ELSE IF( key == k_2 )
+        startup_voice(voice,35000);
+    ELSE IF( key == k_3 )
+        startup_voice(voice,30000);
+    ELSE IF( key == k_4 )
+        startup_voice(voice,25000);
+    ELSE IF( key == k_5 )
+        startup_voice(voice,20000);
+    voice++;
+    IF( voice >= ACTIVE_VOICES )
+        voice = 0;
+    } while(key != k_esc );
+}
+
+
+void startup_voice (word voice,frequency)
+{
+WRITESTR("STARTING voice:");
+WRITEWORD(voice);
+WRITESTR("  freq:");
+WRITEWORD(frequency);
+WRITELN();
+GUSsetvolume(voice,300);
+GUSsetfrequency(voice,frequency);
+GUSsetbalance(voice,7);
+GUSplay(voice, GUS_8_BIT,GUS_LOOP_NONE, 0,1, 0,1, 0,33465);
+}
+
+
+/* end of GUS.C-- */

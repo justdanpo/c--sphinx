@@ -1,0 +1,56 @@
+/*
+    SPHINX Programming (C) 1993.
+    TITLE:  RANDOM.H--
+    DESCRIPTION:  This file contains a collection of procedures for
+                  generating pseudo random integer values.
+    LAST MODIFIED:  19 May 1993
+    PROCEDURES DEFINED IN THIS FILE:
+        : int  RAND()
+        : void RANDOMIZE()
+        : void srand(seedlow,seedhigh)
+*/
+?ifndef _RANDOM_
+?define _RANDOM_ TRUE
+?warning FALSE
+
+:word randseed[2];  // random number generator seed
+
+:int RAND()
+{
+	AX=randseed[2];
+	CX=randseed[0];
+	AH=AL;
+	AL=CH;
+	CH=CL;
+	$XOR CL,CL
+	$RCR AX,1
+	$RCR CX,1
+	randseed[0]+=CX;
+	$ADC AX,randseed[2]
+	randseed[0]+=0x62E9;
+	$ADC AX,0x3619
+	randseed[2]=AX;
+}
+/* RETURNS:  AX = random value in the range of 0x0000 to 0xFFFF
+             BX,CX = undefined */
+
+:void RANDOMIZE()
+{
+	ES=0x0000;
+	randseed[0]=ESWORD[0x46C];
+	randseed[2]=ESWORD[0x46E];
+}
+/* RETURNS:  AX = undefined
+             ES = 0x0000 */
+
+:void SRAND()
+/* AX - seedlow
+ BX - seedhigh */
+{
+	randseed[0]=AX;
+	randseed[2]=BX;
+}
+/* RETURNS:  AX = seedhigh */
+
+?endif
+/* end of RANDOM.H-- */

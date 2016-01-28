@@ -1,0 +1,245 @@
+?warning FALSE
+?define STRINGS TRUE
+
+/*--------------------------------------------------
+   Проверка на непечатный символ
+--------------------------------------------------*/
+:int ISSPASER(AL)
+// AL - символ
+{
+	IF(AL==' ')||(AL==13)||(AL==10)||(AL==9)AX=YES;
+	ELSE AX=NO;
+}
+
+/*--------------------------------------------------
+    Число указаных символов в строке
+--------------------------------------------------*/
+:int STROCC(AX,BL)
+// AX- адр строки
+// BL-символ
+{
+	AX><SI;
+	AX=0;
+	FOR(;DSBYTE[SI]!=0;SI++)IF(DSBYTE[SI]==BL)AX++;
+}
+
+/*-------------------------
+  Изменить размер строки
+---------------------------*/
+void STRSETSZ(AX,CX)
+/* AX - str
+   CX - newsize */
+{
+	SI=AX;
+	STRLEN();
+	AX><BX;
+	FOR(;BX<CX;BX++){
+		DSBYTE[SI+BX]=' ';
+	}
+	SI+=CX;
+	DSBYTE[SI]=0;
+}
+
+void STRNCAT(DI,SI,CX)
+/* AX - buf
+   BX - str
+   CX - width */
+{
+//	DI=AX;
+//	SI=BX;
+	STRLEN();
+	DI+=AX;
+	ES=DS;
+	FOR(;;){
+		$lodsb
+		IF(AL==0)BREAK;
+		$stosb
+		CX--;
+		IF(ZEROFLAG)BREAK;
+	}
+	AL=0;
+	$stosb
+}
+
+/*--------------------------
+ Преобразовать INT в строку
+---------------------------- */
+:int INTTOSTR()
+//AX - число
+//BX - адр строки
+{
+	$OR	AX,AX
+	$JGE	MEM1
+	DSBYTE[BX]='-';
+	BX++;
+	-AX;
+MEM1:
+	$CMP AX,10000
+	$JNB DOWN1
+	$CMP AX,1000
+	$JNB DOWN2
+	$CMP AX,100
+	$JNB DOWN3
+	$CMP AX,10
+	$JNB DOWN4
+	$JMP SHORT DOWN5
+DOWN1:
+	DX=0;
+	CX=10000;
+	$DIV CX
+	$CALL DOWN5
+DOWN2:
+	DX=0;
+	CX=1000;
+	$DIV CX
+	$CALL DOWN5
+DOWN3:
+	CL=100;
+	$DIV CL
+	DL=AH;
+	$CALL DOWN5
+DOWN4:
+	$AAM
+	DL=AL;
+	AL=AH;
+	$CALL DOWN5
+DOWN5:
+	AL+='0';
+	AH=0;
+	DSWORD[BX]=AX;
+	BX++;
+	AX><DX;
+}
+
+/*-------------------------------------------
+ Преобразовать LONG в строку
+ Эту процедуру нельзя использовать как макрос
+ --------------------------------------------*/
+:int LONGTOSTR(EAX,BX)
+//EAX - число
+//BX - адр строки
+{
+	$OR	EAX,EAX
+	$JGE	MEM1
+	DSBYTE[BX]='-';
+	BX++;
+	-EAX;
+MEM1:
+	DI=FALSE;
+	SI=9;
+	ECX=1000000000;
+	loop(SI){
+		EDX=0;
+		$div ECX
+		IF(AL!=0)DI=TRUE;
+		IF(DI!=FALSE)$call NEAR MEM2
+		$push EDX
+		EAX=ECX/10;
+		ECX><EAX;
+		$pop EAX
+	}
+MEM2:
+	AL+='0';
+	AH=0;
+	DSWORD[BX]=AX;
+	BX++;
+}
+
+/*--------------------------------------------------
+    Сдвиг строки влево с заполнением пробелами освободившегося места
+--------------------------------------------------*/
+:void STRSHL(DI,CX)
+/* AX - str
+   CX - count */
+{
+//	DI><AX;
+	ES=DS;
+	SI=DI+CX;
+	IF(DSBYTE[DI]!=0){
+		for(;;){
+			$LODSB
+			IF(AL==0){
+				AL=' ';
+				$REPE
+				$STOSB
+				BREAK;
+			}
+			$STOSB
+		}
+	}
+}
+
+/*--------------------------------------------------
+   Удаляет последние незначащие символы
+--------------------------------------------------*/
+/*void STRTRIM()
+// AX - адр строки
+{
+	SI=AX;
+	FOR(BX=STRLEN()-1;(ISSPASER(DSBYTE[SI+BX]))&&(int BX>=0);BX--);
+	DSBYTE[SI+BX+1]=0;
+} */
+
+/*--------------------------------------------------
+    Сдвиг строки вправо с заполнением пробелами освободившегося места
+--------------------------------------------------*/
+:void strshr(int str,count)
+{
+	ES=DS;
+	AX=str;
+	DI=AX;
+	CX=STRLEN();
+	$STD
+	IF(CX>count){
+		DI=DI+CX-1;
+		SI=DI-count;
+		CX-=count;
+		$REPE
+		$MOVSB
+	}
+	ELSE IF (CX==0)RETURN;
+	CX=count;
+	AL=0x20;
+	$REPE
+	$STOSB
+	$CLD
+}
+
+:void STRTRIM(BX)
+{
+	SI=BX;
+	do{
+		$lodsb
+	}while(AL!=0);
+	SI--;
+	do{
+		SI--;
+		IF(BX>SI)BREAK;
+	}while(DSBYTE[SI]<=0x20);
+	DSBYTE[SI+1]=0;
+}
+
+:void STRLTRIM(DI)
+{
+	SI=DI;
+	ES=DS;
+	do{
+		$lodsb
+		IF(AL==0)BREAK;
+	}while(AL<=0x20);
+	SI--;
+	do{
+		$lodsb
+		$stosb
+	}while(AL!=0);
+}
+
+:void STRBTRIM()
+{
+	$push AX
+	STRLTRIM(AX);
+	$pop BX
+	STRTRIM(BX);
+}
+
+//?setdinproc

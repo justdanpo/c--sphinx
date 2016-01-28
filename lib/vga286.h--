@@ -1,0 +1,62 @@
+/*
+    SPHINX Programming (C) 1993.
+    NAME:  VGA286.H--
+    DESCRIPTION:  This file contains procedures for writing to VGA screens
+                  that have been optimized by use of 80286 instructions.
+    LAST MODIFIED:  26 Dec 1993
+    PROCEDURES DEFINED IN THIS FILE:
+        : void PUTPIXEL19_286(xloc,yloc,byte colour)
+        : void _PUTPIXEL19_286(xloc,yloc,byte colour)
+        : void XORPIXEL19_286(xloc,yloc,byte colour)
+        : void _XORPIXEL19_286(xloc,yloc,byte colour)
+*/
+?ifndef _VGA286_
+?define _VGA286_ TRUE
+?warning FALSE
+
+:void PUTPIXEL19_286()
+/* AX = Xlocation;  BX = Ylocation;  CL = Colour; */
+{
+	$SHL BX,6
+	AX+=BX;
+	$SHL BX,2
+	BX+=AX;
+	ES=0xA000;
+	ESBYTE[BX]=CL;
+}
+
+:void XORPIXEL19_286()
+/* AX = Xlocation;  BX = Ylocation;  CL = Colour; */
+{
+	$SHL BX,6
+	AX+=BX;
+	$SHL BX,2
+	BX+=AX;
+	ES=0xA000;
+	ESBYTE[BX]^=CL;
+}
+
+:void _PUTPIXEL19_286()
+/* AX = Xlocation;  BX = Ylocation;  CL = Colour; */
+{
+	$SHL BX,6
+	AX+=BX;
+	$SHL BX,2
+	BX+=AX;
+	ESBYTE[BX]=CL;
+}
+
+: void _XORPIXEL19_286 ()
+/*
+AX = Xlocation;  BX = Ylocation;  CL = Colour;
+*/
+{
+$SHL BX,6
+AX += BX;
+$SHL BX,2
+BX += AX;
+ESBYTE[BX] ^= CL;
+}
+
+?endif
+/* end of VGA286.H-- */

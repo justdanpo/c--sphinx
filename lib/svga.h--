@@ -1,0 +1,66 @@
+/*
+   Einfache Routinen zur Programmierung des 640x480x256 SVGA-Graphikmodus
+   (C) 1995 by Marko Kleine Berkenbusch
+*/
+?ifndef _SVGA_
+?define _SVGA_ TRUE
+?warning FALSE
+
+:byte CurBank=0xFF;
+
+:void GRAPHMODE()
+{
+	AX=0x4F02;
+	BX=0x0101;
+	$INT 0x10
+}
+
+:void CLEARSCREEN()
+{
+	ES=0xA000;
+	$CLD
+	CX=5;
+	loop(CX){
+		$PUSH CX
+		DL=CL;
+		DL--;
+		AX=0x4F05;
+		BX=0;
+		$INT 0x10
+		CX=0x8000;
+		AX=0;
+		DI=0;
+		$REPZ
+		$STOSW
+		$POP CX
+	}
+}
+
+:void PutPixel(int x,y; byte c)
+{
+	ES=0xA000;
+	AX=640;
+	$MUL y
+	AX+=x;
+	$ADC DL,0
+	SI=AX;
+	IF(DL!=CurBank){
+		CurBank=DL;
+		AX=0x4F05;
+		BX=0;
+		$INT 0x10
+	}
+	ESBYTE[SI]=c;
+}
+
+:byte GetPixel(int x, y)
+{
+	CurBank=0xFF;
+	AX=0x0d00;
+	BH=0;
+	CX=x;
+	DX=y;
+	$INT 0x10
+}
+
+?endif

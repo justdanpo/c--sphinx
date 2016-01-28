@@ -1,0 +1,106 @@
+?ifndef _DEBUG_
+?define _DEBUG_ TRUE
+
+/*-----------------22.12.98 16:55-------------------
+ Несколько процедур которые можно использовать для отладки
+--------------------------------------------------*/
+
+?ifndef _WRITE_
+?include "write.h--"
+?endif
+?ifndef _SYSTEM_
+?include "system.h--"
+?endif
+
+byte regp="DISIBPSPBXDXCXAXIP";
+byte regi="DISIBPSPBXDXCXAXIPCSFL";
+
+:void REGINFO()
+//Выводит на экран содержимое регистров
+{
+	$pusha
+	BP=SP;
+	for(SI=18;SI!=0;SI-=2){
+		$push SI
+
+		WRITE(regp[SI-2]);
+		WRITE(regp[SI-1]);
+		WRITE(' ');
+		WRITEHEX(SSWORD[BP+SI-2]);
+		WRITELN();
+		$pop SI
+	}
+	$popa
+}
+
+//процедуры для вывода содержимого регистров при срабатывании INT 0
+word oldint0[2];
+
+:interrupt INT0()
+{
+	$pusha
+	BP=SP;
+	FOR(SI=22;SI!=0;SI-=2){
+		$push SI
+		WRITE(regi[SI-2]);
+		WRITE(regi[SI-1]);
+		WRITE(' ');
+		WRITEHEX(SSWORD[BP+SI-2]);
+		WRITELN();
+		$pop SI
+	}
+	AH=0;
+	$int 0x16
+	$popa
+	$pop AX
+	AX+=4;
+	$push AX
+}
+
+:void INST0()
+{
+	GETINTVECT(#oldint0,0);
+	SETINTVECT(,0,CS,#INT0);
+}
+
+:void DEINST0()
+{
+	SETINTVECT(,0,DSWORD[#oldint0+2],DSWORD[#oldint0]);
+}
+
+//Обработка прерывания - неверный код инструкции
+char detec="\n Invalid opcode detected at : ";
+word oldint6[2];
+
+:interrupt INT6()
+{
+	$push	BP
+	BP=SP;
+	$pusha
+	$push	DS
+	$push	ES
+	DS=CS;
+	WRITESTR(#detec);
+	$les SI,SSDWORD[BP+2]
+	WRITEHEXWORD(ES);
+	WRITE(':');
+	WRITEHEXWORD(SI);
+	ESDWORD[SI]=0x21cd4cb4;
+	$pop	ES
+	$pop	DS
+	$popa
+	$pop	BP
+}
+
+void INST6()
+{
+	GETINTVECT(#oldint6,0);
+	SETINTVECT(,6,CS,#INT6);
+}
+
+void DEINST6()
+{
+	SETINTVECT(,6,DSWORD[#oldint6+2],DSWORD[#oldint6]);
+}
+
+?endif

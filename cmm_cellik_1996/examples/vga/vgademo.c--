@@ -1,0 +1,369 @@
+/* 
+   SPHINX C-- example file
+   NAME:  VGADEMO.C--
+   DESCRIPTION:  This program demonstrates some of the stack graphics
+                 procedures for video mode 19.
+                 If run on a 386 or better machine, ellipses will also
+                 be demonstrated.
+   RUN FILE SIZE:  15672 bytes
+*/
+
+? assumeDSSS  TRUE     /* enable DS == SS optimizations */
+? resize      TRUE     /* resize program memory block to 64K */
+? resizemessage "Error resizing program memory block."
+
+
+?include "KEYCODES.H--"
+?include "VIDEO.H--"
+?include "VGA.H--"
+?include "VGA386.H--"
+?include "WRITE.H--"
+?include "GWRITE.H--"
+?include "VGAFONT.H--"
+?include "RANDOM.H--"
+?include "DOS.H--"
+
+byte palette = FROM "PETER.PAL";  // insert palette file into run file
+byte peter = FROM "PETER.CUT";  // insert image file into run file
+
+?define YADD  16
+
+byte stars = " ****** ";
+byte sphinx = "SPHINX Programming 1993";
+
+byte cpu;  /* used to store machine CPU type */
+
+byte options = "  <A> - putpixel19(x,y,colour);\n"
+               "  <B> - xorpixel19(x,y,colour);\n\n"
+               "  <C> - bar19(x,y,xsize,ysize,colour);\n"
+               "  <D> - xorbar19(x,y,xsize,ysize,color);"
+               "  <E> - box19(x,y,xsize,ysize,colour);\n"
+               "  <F> - xorbox19(x,y,xsize,ysize,color);\n"
+               "  <G> - putimage19(x,y,imagebuffer);\n"
+               "  <H> - xorimage19(x,y,imagebuffer);\n"
+               "  <I> - putresized19(x,y,xs,ys,image);\n\n"
+               "  <J> - line19(x1,y1,x2,y2,colour);\n"
+               "  <K> - xorline19(x1,y1,x2,y2,colour);\n\n"
+               "  <L> - over5x5str19(x,y,str,colour);\n"
+               "  <M> - put5x5str19(x,y,str,fgc,bgc);\n\n";
+
+void displayoptions ()
+{
+clearscreen();
+GOTOXY(0,0);
+GWRITESTR(#stars,67);
+GWRITESTR(#sphinx,222);
+GWRITESTR(#stars,67);
+GOTOXY(5,1);
+GWRITESTR("C-- VGA Mode 19 Graphics Demo\n\n",5);
+GWRITESTR(" <KEY>- Corresponding Procedure Demo\n",111);
+GWRITESTR(#options,9);
+IF( cpu >= 3 )
+    GWRITESTR("  <N> - ellipse19_386(x,y,xs,ys,colour);",9);
+WRITELN();
+GWRITESTR(" <ESC> - QUIT demo of C-- graphics",9);
+}
+
+
+main ()
+byte quit,redraw;
+{
+SETVIDEOMODE( vid_320x200_256 );
+IF(byte GETVIDEOMODE() <> vid_320x200_256)
+    {WRITESTR("Unable to enter 320x200 256 colour mode.  VGA required.");
+    EXIT(1);           /* exit program with error code of 1 */
+    }
+
+SETVGAPALETTE( ,0,256,#palette);
+
+cpu = GETCPU();  /* get the CPU type */
+
+quit = FALSE;
+redraw = TRUE;
+
+do {
+   IF( redraw == TRUE )
+       displayoptions();
+   redraw = TRUE;
+   AX = BIOSREADKEY();
+   IF( AL >= 'a' )
+       IF( AL <= 'z' )
+           AL -= 'a'-'A';   // make the letter upper case
+   IF( AL == 'A' )
+       putpixeldemo(FALSE);
+   else IF( AL == 'B' )
+       putpixeldemo(TRUE);
+   else IF( AL == 'C' )
+       bardemo(FALSE);
+   else IF( AL == 'D' )
+       bardemo(TRUE);
+   else IF( AL == 'E' )
+       boxdemo(FALSE);
+   else IF( AL == 'F' )
+       boxdemo(TRUE);
+   else IF( AL == 'G' )
+       putimagedemo();
+   ELSE IF( AL == 'H' )
+       {xorimagedemo();
+       redraw = FALSE;
+       }
+   ELSE IF( AL == 'I' )
+       {IF( word RAND()%100 >= 50 )
+           putresizeddemo2();
+       ELSE putresizeddemo();
+       }
+   ELSE IF( AL == 'J' )
+       linedemo(FALSE);
+   ELSE IF( AL == 'K' )
+       linedemo(TRUE);
+   ELSE IF( AL == 'L' )
+       fontdemo(FALSE);
+   ELSE IF( AL == 'M' )
+       fontdemo(TRUE);
+   ELSE IF( AL == 'N' )
+       ellipsedemo();
+   ELSE IF( AX == k_esc )
+       quit = TRUE;
+   ELSE{BEEP();
+       redraw = FALSE;
+       }
+
+   } while( quit == FALSE );
+
+SETVIDEOMODE( vid_text80c );
+WRITESTR(#sphinx);
+}
+
+
+void putpixeldemo ( byte xorflag )
+byte i,stop;
+{stop = FALSE;
+do {
+    IF( xorflag )
+        xorpixel19(RAND()%320,RAND()%184+YADD,i);
+    ELSE putpixel19(RAND()%320,RAND()%184+YADD,i);
+    i++;
+    IF( KBHIT() )
+        {AX = BIOSREADKEY();
+        IF( AX == k_space )
+            clearscreen();
+        ELSE IF( AX == k_return )
+            BIOSREADKEY();
+        ELSE stop = TRUE;
+        }
+    } while( stop == FALSE );
+}
+
+
+void bardemo ( byte xorflag )
+byte stop;
+{stop = FALSE;
+do {
+    IF( xorflag )
+        xorbar19(RAND()%250,RAND()%134+YADD,70,50,RAND());
+    ELSE bar19(RAND()%250,RAND()%134+YADD,70,50,RAND());
+    IF( KBHIT() )
+        {AX = BIOSREADKEY();
+        IF( AX == k_space )
+            clearscreen();
+        ELSE IF( AX == k_return )
+            BIOSREADKEY();
+        ELSE stop = TRUE;
+        }
+    } while( stop == FALSE );
+}
+
+
+void boxdemo ( byte xorflag )
+byte stop;
+{stop = FALSE;
+do {
+    IF( xorflag )
+        xorbox19(RAND()%250,RAND()%134+YADD,70,50,RAND());
+    ELSE box19(RAND()%250,RAND()%134+YADD,70,50,RAND());
+    IF( KBHIT() )
+        {AX = BIOSREADKEY();
+        IF( AX == k_space )
+            clearscreen();
+        ELSE IF( AX == k_return )
+            BIOSREADKEY();
+        ELSE stop = TRUE;
+        }
+    } while( stop == FALSE );
+}
+
+
+void putimagedemo ()
+byte stop;
+word xmod,ymod;
+{stop = FALSE;
+xmod = 320-DSWORD[#peter[0]];
+ymod = 200-YADD-DSWORD[#peter[2]];
+do {
+    putimage19(RAND()%xmod,RAND()%ymod+YADD,#peter);
+    IF( KBHIT() )
+        {AX = BIOSREADKEY();
+        IF( AX == k_space )
+            clearscreen();
+        ELSE IF( AX == k_return )
+            BIOSREADKEY();
+        ELSE stop = TRUE;
+        }
+    } while( stop == FALSE );
+}
+
+
+void xorimagedemo ()
+byte stop;
+word xmod,ymod;
+word x,y;
+{stop = FALSE;
+xmod = 320-DSWORD[#peter[0]];
+ymod = 200-DSWORD[#peter[2]];
+x = 0;
+y = 0;
+xorimage19(x,y,#peter);
+do {
+    xorimage19(x,y,#peter);
+    x = RAND()%xmod;
+    y = RAND()%ymod;
+    xorimage19(x,y,#peter);
+    IF( KBHIT() )
+        {AX = BIOSREADKEY();
+        IF( AX == k_return )
+            BIOSREADKEY();
+        ELSE IF( AX != k_space )
+            stop = TRUE;
+        }
+    } while( stop == FALSE );
+xorimage19(x,y,#peter);
+}
+
+
+void putresizeddemo ()
+byte stop;
+word count,xcenter,ycenter,maxsize;
+{stop = FALSE;
+count = 1;
+xcenter = 160;
+ycenter = 100;
+maxsize = 70;
+do {ES = 0xA000;
+    putresized19(xcenter-count,ycenter-count,count+count,count+count,#peter);
+    IF( KBHIT() )
+        {AX = BIOSREADKEY();
+        IF( AX == k_space )
+            clearscreen();
+        ELSE IF( AX == k_return )
+            BIOSREADKEY();
+        ELSE stop = TRUE;
+        }
+    count++;
+    IF( count > maxsize )
+        {xcenter = RAND()%200 +60;
+        ycenter = RAND()%64 +YADD+60;
+        count = 1;
+        maxsize = RAND()%55+5;}
+    } while( stop == FALSE );
+}
+
+
+void putresizeddemo2 ()
+byte stop;
+{stop = FALSE;
+do {
+    putresized19(RAND()%210,RAND()%84+YADD,RAND()%105+5,RAND()%96+5,#peter);
+    IF( KBHIT() )
+        {AX = BIOSREADKEY();
+        IF( AX == k_space )
+            clearscreen();
+        ELSE IF( AX == k_return )
+            BIOSREADKEY();
+        ELSE stop = TRUE;
+        }
+    } while( stop == FALSE );
+}
+
+
+void linedemo ( byte xorflag )
+byte stop;
+{stop = FALSE;
+do {
+    IF( xorflag == TRUE )
+        xorline19(RAND()%320,RAND()%184+YADD,RAND()%320,RAND()%184+YADD,RAND());
+    ELSE line19(RAND()%320,RAND()%184+YADD,RAND()%320,RAND()%184+YADD,RAND());
+    IF( KBHIT() )
+        {AX = BIOSREADKEY();
+        IF( AX == k_space )
+            clearscreen();
+        ELSE IF( AX == k_return )
+            BIOSREADKEY();
+        ELSE stop = TRUE;
+        }
+    } while( stop == FALSE );
+}
+
+
+void fontdemo (byte putflag)
+byte stop;
+{stop = FALSE;
+do {
+    IF( putflag )
+        put5x5str19(RAND()%182,RAND()%179+YADD,#sphinx,RAND(),RAND());
+    ELSE over5x5str19(RAND()%182,RAND()%179+YADD,#sphinx,RAND());
+    IF( KBHIT() )
+        {AX = BIOSREADKEY();
+        IF( AX == k_space )
+            clearscreen();
+        ELSE IF( AX == k_return )
+            BIOSREADKEY();
+        ELSE stop = TRUE;
+        }
+    } while( stop == FALSE );
+}
+
+
+?define XMODER  320-31-31
+?define YMODER  200-16-16-YADD
+
+void ellipsedemo ()
+byte stop;
+{IF( cpu < 3 )
+    {BEEP();
+    return();
+    }
+stop = FALSE;
+do {
+    ellipse19_386(RAND()%XMODER+31,RAND()%YMODER+16+YADD,31,16,RAND());
+    IF( KBHIT() )
+        {AX = BIOSREADKEY();
+        IF( AX == k_space )
+            clearscreen();
+        ELSE IF( AX == k_return )
+            BIOSREADKEY();
+        ELSE{stop = TRUE;
+            clearscreen();
+            }
+        }
+    } while( stop == FALSE );
+}
+
+
+void clearscreen ()   // clear the part of screen below title
+{
+ES = 0xA000;
+DI = 5120;
+IF( cpu < 3 )
+    {CX = 29440;
+    AX = 0;
+    $ REPZ
+    $ STOSW
+    }
+ELSE{CX = 29440/2;
+    EAX = 0;
+    $ REPZ
+    $ STOSD
+    }
+}
+
+/* end of C--GDEMO.C-- */

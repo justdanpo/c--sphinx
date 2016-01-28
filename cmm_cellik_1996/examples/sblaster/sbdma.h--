@@ -1,0 +1,728 @@
+/* Include file for C-- Sound Blaster library */
+
+
+/***************** START OF INCLUDED FILE ************************/
+
+/*
+   Original code by Heath I. Hunnicutt (see his text below)
+   <<< Modified and ported to Sphinx C-- by Michael B. Martin >>>
+*/
+
+//+---------------------------------------------------------------------------+
+//|  IBM-PC(tm) compatible programmer's DMA library                           |
+//|  Version 1.1                                                              |
+//+---------------------------------------------------------------------------+
+//|  Copyright (C) 1992, Heath I Hunnicutt                                    |
+//+---------------------------------------------------------------------------+
+//|  Thanks to: Gary Nemirovsky                                               |
+//+---------------------------------------------------------------------------+
+//|  This document is for free public distribution.  It is unlawful to        |
+//|  sell this document, or any work based substantially upon it.             |
+//+---------------------------------------------------------------------------+
+//|  This assembly code defines 3 functions that are intended for use         |
+//|  by C programmers in code that requires access to the DMA system.         |
+//|                                                                           |
+//|  DMA transfers occur asynchronously to the CPU's activity, so they        |
+//|  are quite efficient.                                                     |
+//|                                                                           |
+//|  The general sequence for using the DMA is:                               |
+//|      int channel=1//                                                       |
+//|      if (dma_reset(channel))                                              |
+//|              abort()//                                                     |
+//|      if (dma_setup(channel,(char far *)My_Buffer,sizeof(My_Buffer),1))    |
+//|              abort()//                                                     |
+//|      /* Insert "foreground" code here. */                                 |
+//|      while (dma_done(channel)!=-1) {                                      |
+//|              if (dma_errno)                                               |
+//|                      abort()//                                             |
+//|      }                                                                    |
+//+---------------------------------------------------------------------------+
+//| Send suggestions, questions, comments, knoweledge to:                     |
+//|          heathh@cco.caltech.edu     (also @tybalt.cco.caltech.edu)        |
+//|          (or hihunn@through.ugcs.caltech.edu  -- not preferred)           |
+//+---------------------------------------------------------------------------+
+//| PUBLIC FUNCTIONS                                                          |
+//| int far dma_reset(int Channel)                                            |
+//| int far dma_setup(int Channel,char far *Buffer,unsigned Length,int Dir)   |
+//| int far dma_done(int Channel)                                             |
+//+---------------------------------------------------------------------------+
+//| PUBLIC DATA                                                               |
+//| int far dma_errno                                                         |
+//| char far *dma_errlist[]                                                   |
+//+---------------------------------------------------------------------------+
+//| How to assemble this code:                                                |
+//|      You'll need Turbo Assembler(tm) from Borland(tm) Internationl        |
+//| TASM /mx /m2 dma_code                                                     |
+//+---------------------------------------------------------------------------+
+//| HISTORY:                                                                  |
+//|   Ver 1.0 - Initial Release                                               |
+//|   Ver 1.1 - Error checking and reporting added to all functions           |
+//|             dma_setup(..) should never crash your system now.             |
+//+---------------------------------------------------------------------------+
+
+?define Status  0x08     //DMAC status port (read)     \  same port
+?define Command 0x08     //DMAC command port (write)   /  (read/write)
+//STATUS/COMMAND BYTE:   ("*" represents defaults)
+//  [ 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 ]
+//   Bit 0: Memory-to-memory transfer  0 => disable*
+//                                     1 => enable
+//       1: "Don't Care" if mem-to-mem disabled  (Bit 0==0)*
+//          Channel 0 address hold     0 => disable
+//                                     1 => enable
+//       2: Controller enable          0 => enable*
+//                                     1 => disable
+//       3: "Don't Care" if mem-to-mem enabled (Bit 0==1)
+//          Timing                     0 => Normal?
+//                                     1 => Compressed?
+//       4: Priority                   0 => Fixed?
+//                                     1 => Rotating
+//       5: "Don't care" if compressed timing (Bit 3==1)
+//          Write selection            0 => Late
+//                                     1 => Extended
+//       6: DREQ sense active          0 => High
+//                                     1 => Low
+//       7: DACK sense active          0 => Low
+//                                     1 => High
+
+?define Request 0x09     //DMAC channel request (write-only)
+//REQUEST BYTE:
+//  [ 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 ]
+//  \__________________/  |  \_____/
+//       Don't care       |     |
+//                        |     +------+  00 = Select channel 0
+//                        |            |  01 = Select channel 1
+//                        |            |  10 = Select channel 2
+//                        |            +  11 = Select channel 3
+//                        +---+ 0 = Reset request bit
+//                            + 1 = Set request bit
+
+?define DMA_MASK  0x0A     //DMAC mask (write-only)
+?define MODE      0x0B     //DMAC mode (read/write)
+
+//The "byte pointer" is also known as the LSB/MSB flip flop.
+//By writing any value to it, the DMA controller registers are prepared
+//to accept the address and length values LSB first.
+?define Byte_Ptr  0x0C    // byte pointer flip-flop
+
+?define READ_CMD  0x48    // read (from memory) mode  [out to bus]
+?define WRITE_CMD 0x44    // write (to memory) mode   [in from bus]
+
+?define RESET_CMD 0x04    // DMA_MASK reset
+
+// dma controller page register table
+// this table maps from channel number to the i/o port number of the
+// page register for that channel
+
+word page_table[4] = { 0x0087,   // channel 0
+                       0x0083,   // channel 1
+                       0x0081,   // channel 2
+                       0x0082 }; // channel 3
+
+// "Extra" messages are for future compatability with the Virtual DMA
+// SPecification.
+
+/*
+   MBM:  I have removed the messages that aren't actually used at
+         this time to save space.
+*/
+byte DMA_E0 = "\x00";
+byte DMA_E1 = "\x00"; // "Region not in contiguous memory.\x00";
+byte DMA_E2 = "Region crossed a physical alignment boundary.\x00";
+byte DMA_E3 = "\x00"; // "Unable to lock pages.\x00";
+byte DMA_E4 = "\x00"; // "No buffer available.\x00";
+byte DMA_E5 = "\x00"; // "Region too large for buffer.\x00";
+byte DMA_E6 = "\x00"; // "Buffer currently in use.\x00";
+byte DMA_E7 = "\x00"; // "Invalid memory region.\x00";
+byte DMA_E8 = "\x00"; // "Region was not locked.\x00";
+byte DMA_E9 = "\x00"; // "Number of physical pages greater than table length.\x00";
+byte DMA_EA = "\x00"; // "Ivalid buffer ID.\x00";
+byte DMA_EB = "\x00"; // "Copy out of buffer range.\x00";
+byte DMA_EC = "Invalid DMA channel number.\x00";
+
+word dma_errlist[13] = { #DMA_E0, #DMA_E1, #DMA_E2, #DMA_E3, #DMA_E4, #DMA_E5,
+              #DMA_E6, #DMA_E7, #DMA_E8, #DMA_E9, #DMA_EA, #DMA_EB, #DMA_EC };
+word dma_errno = 0;
+
+//+ ------------------------------------------------------------------------- +
+//| Channel = 0-3  !Channel 0 is often reserved for memory refresh!           |
+//| Buffer_seg:Buffer_off  = Address of data to transfer                      |
+//| Length  = Length of data to transfer                                      |
+//| Dir     = Direction to move bytes.  1 == Out to the BUS (TO the card)     |
+//|                                     0 == In from the BUS and cards.       |
+//| ------------------------------------------------------------------------- |
+//| Returns: 0 if no errors (dma_errno == 0)                                  |
+//|         -1 if errors occured (dma_errno set to indicate error.)           |
+//+---------------------------------------------------------------------------+
+int dma_setup(word Channel, Buffer_seg, Buffer_off, Len, Dir)
+{
+        $ PUSH BX
+        $ PUSH CX
+        $ PUSH DX
+        $ PUSH SI
+        $ PUSH DI
+        $ PUSHF
+
+        dma_errno = 0;
+//Convert seg:ofs Buffer to 20-bit physical address
+//Assumes operating in 8086/real-Mode
+        $ MOV  BX,Buffer_off
+        $ MOV  AX,Buffer_seg
+        $ MOV  CL,4
+        $ ROL  AX,CL
+        $ MOV  CH,AL
+        $ AND  AL,0xF0
+        $ ADD  AX,BX
+        $ ADC  CH,0
+        $ AND  CH,0x0F
+        $ MOV  DI,AX
+// (CH << 16) + DI == The physical buffer base.
+
+//Calculate the port to receive this address
+        $ MOV  BX,Channel
+        IF (BX > 3)
+        {
+           dma_errno = 0x0C;
+           AX = -1;
+           $ JMP EXITPT
+        }
+        $ SHL  BX,1
+//BX == Port # Channel*2
+
+//Determine which command byte will be written later
+        AX = Channel;
+        IF (Dir == 0)
+           $ ADD AL,WRITE_CMD
+        ELSE
+           $ ADD AL,READ_CMD
+        $ MOV  SI,AX
+//SI contains READ/WRITE command for DMA controller
+
+//-------------------------------------------------------------------------
+// Calculations have been done ahead of time to minimize time with
+// interrupts disabled.
+//
+// CH:DI == physical base address
+//
+// BX == I/O port Channel*2      (This is where the address is written)
+//
+// SI == Mode command for DMA
+//-------------------------------------------------------------------------
+        $ MOV  AX,DI              //Let's check the address to see if we
+        $ ADD  AX,Len             //span a page boundary with our length
+        $ JNC BOUNDARY_OK         //Do we?
+        dma_errno = 2;            // y: Error #2
+        AX = -1;                  //    Return -1
+        $ JMP EXITPT              //    See ya...
+BOUNDARY_OK:                      // n: Continue with action
+        $ CLI                     //Disable interrupts while mucking with DMA
+
+/* 1) Set the mask bit (tells the DMA we want to reprogram this channel) */
+        AX = Channel;
+        $ ADD AL,RESET_CMD
+        $ OUT  DMA_MASK,AL
+/* 2) Reset byte pointer Flip/flop */
+        $ OUT  Byte_Ptr,AL
+/* 3) Set transfer mode */
+        $ MOV  AX,SI
+        $ OUT  MODE,AL
+/* 4) Set the buffer address */
+        $ MOV  DX,BX              //DX=DMAC Base Address port
+        $ MOV  AX,DI              //AX=LSW of 20-bit address
+        $ OUT  DX,AL              //Store LSB
+        $ MOV  AL,AH
+        $ OUT  DX,AL              //Store next byte
+/* 5) Set the buffer length */
+        $ INC  DX                 //DX=DMAC Count port (1 after Base address)
+        $ MOV  AX,Len
+        $ OUT  DX,AL              //Write LSB of Length
+        $ MOV  AL,AH
+        $ OUT  DX,AL              //Write MSB
+/* 6) Set the page number */
+        $ MOV  AL,CH              //AL=Page number
+        $ MOV  DX,page_table[BX]  //DX=Port is the "Page index"
+        $ OUT  DX,AL              //Store the page
+
+/* 7) Clear the mask bit */
+        AX = Channel;
+        $ OUT  DMA_MASK,AL        //Write to DMA mask register
+
+        $ MOV  AX,0               //Return with no error
+EXITPT:                           //Restore stack and return
+        $ POPF
+        $ POP  DI
+        $ POP  SI
+        $ POP  DX
+        $ POP  CX
+        $ POP  BX
+}
+
+/*
+   MBM:  Due to the changes I made to dma_setup, I don't think dma_reset()
+         is useful any longer.
+*/
+
+//+ ------------------------------------------------------------------------- +
+//| Channel = 0-3                                                             |
+//|         Resets the specified channel.                                     |
+//| ------------------------------------------------------------------------- |
+//| Returns 0 if Ok, -1 and sets dma_errno on error                           |
+//+---------------------------------------------------------------------------+
+int dma_reset(word Channel)
+{
+        $ PUSH DX
+        IF (Channel > 3)
+        {
+           dma_errno = 0x0C;
+           AX = -1;
+        }
+        ELSE
+        {
+           DX = DMA_MASK;
+           AX = Channel;
+	   $ MOV AH,AL
+           AL += RESET_CMD;
+           $ OUT DX,AL
+	   $ MOV AL,0
+           $ OUT 0x0C,AL
+	   $ MOV AL,AH
+           $ OUT DX,AL
+
+           dma_errno = 0;
+           $ XOR  AX,AX
+        }
+        $ POP DX
+}
+
+//+---------------------------------------------------------------------------+
+//| int far dma_done(Channel)                                                 |
+//| ------------------------------------------------------------------------- |
+//| Channel = 0-3                                                             |
+//| ------------------------------------------------------------------------- |
+//| Returns: -1 if DMA transaction completed                                  |
+//|         (Maybe it returns the number of bytes left to transfer?)          |
+//| dma_errno == 0 if no error, otherwise equals error number                 |
+//+---------------------------------------------------------------------------+
+int dma_done(word Channel)
+{
+        $ PUSHF
+        $ PUSH DX
+        IF (Channel > 3)
+        {
+           dma_errno = 0x0C;
+           AX = -1;
+        }
+        ELSE
+        {
+           $ MOV  DX,Channel
+           $ SHL  DX,1           // DX==Base address for DMA channel
+           $ INC  DX             // DX==Count address for DMA channel
+           $ CLI
+           $ IN   AL,DX
+           $ MOV  AH,AL
+           $ IN   AL,DX
+           $ XCHG AL,AH
+        }
+        $ POP DX
+        $ POPF
+}
+
+
+/******************* END OF INCLUDED FILE ************************/
+
+
+word OldIRQ[2] = {};
+word DMA_complete;
+
+/*
+   Interrupt handler for DMA complete IRQ from Sound Blaster
+*/
+interrupt SBHandler()
+{
+    $ STI      // what's this for?
+    $ PUSH DX
+    $ PUSH AX
+
+    CSWORD[#DMA_complete] = TRUE;
+
+    /* Acknowledge the interrupt */
+    $ MOV DX,CSWORD[#SbIOaddr]
+    $ ADD DX,DSP_DATA_AVAIL
+    $ IN AL,DX
+    $ MOV AL,0x20
+    IF (CSWORD[#SbIRQ] > 7)
+       $ OUT 0xA0,AL
+    $ OUT 0x20,AL
+
+    $ POP AX
+    $ POP DX
+}
+
+/*
+   Installs interrupt handler in preparation for (DMA) transfers to card.
+
+   If passed a NULL pointer (i.e. 0000:0000), uses the default handler
+   defined above.  Otherwise, a user interrupt handler will be installed.
+*/
+Sb_Init_Voice_DMA(word handler_seg, handler_off)
+{
+    /* Insert our IRQ handler into interrupt chain */
+    BX = SbIRQ + 0x08;
+    IF (SbIRQ > 7)
+       BX += 0x60;     // IRQ 10 uses INT 0x72
+    $ CLI
+    GETINTVECT(#OldIRQ,BX);
+    IF (handler_seg == 0)
+       IF (handler_off == 0)
+       {
+          AX = CS;
+          handler_seg = AX;
+          handler_off = #SBHandler;
+       }
+    BX = SbIRQ + 0x08;   // necessary to recalculate?
+    IF (SbIRQ > 7)
+       BX += 0x60;
+    SETINTVECT(,BX,handler_seg,handler_off);
+
+    /* Enable interrupts on PIC */
+    DX = 0x21;
+    CX = SbIRQ;
+    IF (CL > 7)
+       $ OR DL,0x80    // port 0xA1 for second PIC
+    $ IN AL,DX
+    BL = AL;
+    AL = 1;
+    IF (CL > 7)
+       $ SUB CL,8
+    $ SHL AL,CL
+    $ NOT AL
+    $ AND AL,BL
+    $ OUT DX,AL
+    $ STI
+}
+
+/*
+   Sets up and executes a DMA transfer to the sound card.
+*/
+int Sb_Out_Voice_DMA(word data_seg, data_off, dlen; int stereo, hi_spd)
+{
+    DMA_complete = FALSE;
+
+    dlen -= 1;   /* DMA always transfers one more byte than given length
+                    (so it can transfer a full 64k).  Apparently, the SB
+                    DSP knows about this and expects the same value you
+                    give the DMAC chip. */
+
+    /* Setup DMA */
+    IF (dma_reset(SbDMAchan) != 0)
+       return(1);
+    IF (dma_setup(SbDMAchan,data_seg,data_off,dlen,1) != 0)
+       return(1);
+
+    /* Turn on stereo output */
+    IF (stereo)
+       IF (SbType == SBPro)
+          WRITEMIXER(0x0e,0x13);
+
+    /* Setup Sound Blaster for transfer */
+    IF (hi_spd == TRUE)
+    {
+       IF (SbType == SBPro)
+          WRITEDSP(DMA_8_BIT_DAC_HI_INIT);      // enable > 22 kHz transfers
+       ELSE
+          $ JMP JP_1   // card can't support it
+    }
+    ELSE
+    {
+JP_1:
+       WRITEDSP(DMA_8_BIT_DAC);
+    }
+
+    /* Write length */
+    WRITEDSP(dlen & 0xff);
+    WRITEDSP(dlen >> 8);
+
+    IF (hi_spd == TRUE)
+       IF (SbType == SBPro)
+          WRITEDSP(DMA_8_BIT_DAC_HI_START);     // enable > 22 kHz transfers
+
+    return(0);
+}
+
+/*
+   Removes the installed interrupt handler and resets some stuff.
+*/
+Sb_DeInit_Voice_DMA()
+{
+    /* Turn off stereo output */
+    IF(SbType == SBPro)
+       WRITEMIXER(0x0e,0x11);
+
+    /* Restore old IRQ vector */
+    BX = SbIRQ + 0x08;
+    IF (SbIRQ > 7)
+       BX += 0x60;
+    $ CLI
+    SETINTVECT(,BX,CSWORD[#OldIRQ],CSWORD[#OldIRQ+2]);
+
+    DX = 0x21;
+    CX = SbIRQ;
+    IF (CL > 7)
+       $ OR DL,0x80    // port 0xA1 for second PIC
+    $ IN AL,DX
+    BL = AL;
+    AL = 1;
+    IF (CL > 7)
+       $ SUB CL,8
+    $ SHL AL,CL
+    AL |= BL;
+    $ OUT DX,AL
+    $ STI
+}
+
+
+/* These shouldn't need any explanation. */
+
+word SB_DMA_COMPLETE()
+{
+   return(DMA_complete);
+}
+
+SB_HALT_DMA()
+{
+   WRITEDSP(HALT_DMA);
+}
+
+SB_CONTINUE_DMA()
+{
+   WRITEDSP(CONTINUE_DMA);
+}
+
+
+
+
+/* The following are code routines for the card detection. */
+
+/* These are dummy interrupt handlers that return the correct IRQ number. */
+interrupt INT_TEST()
+{
+Int_2_Test:
+   $ PUSH DX
+   DX = 2;
+   $ JMP END_TEST_INT
+
+Int_3_Test:
+   $ PUSH DX
+   DX = 3;
+   $ JMP END_TEST_INT
+
+Int_5_Test:
+   $ PUSH DX
+   DX = 5;
+   $ JMP END_TEST_INT
+
+Int_7_Test:
+   $ PUSH DX
+   DX = 7;
+   $ JMP END_TEST_INT
+
+Int_10_Test:
+   $ PUSH DX
+   DX = 10;
+
+END_TEST_INT:
+   $ PUSH AX
+   $ MOV CSWORD[#SbIRQ],DX
+
+   /* Acknowledge the interrupt */
+   $ MOV AL,0x20
+   IF (DL > 7)
+      $ OUT 0xA0,AL          // needed for IRQ 10
+   $ OUT 0x20,AL
+   $ MOV DX,CSWORD[#SbIOaddr]
+   $ ADD DX,DSP_DATA_AVAIL
+   $ IN AL,DX
+
+   $ POP AX
+   $ POP DX
+}
+
+/* Use a data table to reduce code size (by more than 50 bytes!) */
+/* Format:
+	word:  int vector number
+	dword: original int vector (initially blank, used as storage space)
+	word:  new int handler offset
+*/
+word Int_Data[20] =
+{
+   0x08 + 0x02, 0, 0, #Int_2_Test,
+   0x08 + 0x03, 0, 0, #Int_3_Test,
+   0x08 + 0x05, 0, 0, #Int_5_Test,
+   0x08 + 0x07, 0, 0, #Int_7_Test,
+   0x68 + 0x0A, 0, 0, #Int_10_Test
+};
+
+byte Type_Data[3] = { 1, 3, 2 };
+
+/*
+   Detect the presence of a Sound Blaster card, and set the internal
+   variables (declared in SB.H--).  Should determine the I/O address
+   (port), IRQ, and DMA channel for any (properly) installed SB card
+   (except maybe a newer 16-bit card, since I know nothing about them).
+
+   Should be called before any other calls to access the DSP/DMA.
+
+   (This may be replaced by calls to SB_GET_PARAMS() and SB_INIT(), in
+   that order, which do the same thing except SB_GET_PARAMS() gets its
+   info from the environment variable, whereas this one does hardware
+   detection.)
+
+   Returns: AX ==  0 on success
+            AX == -1 on error
+*/
+
+word SB_DETECT()
+byte PIC_value[2];
+{
+   SbType = SB15;      // assume this for now
+
+/* first find the I/O address (this is the easy part) */
+   SbIOaddr = 0x210;
+   BX = 6;
+   loop (BX)
+   {
+      IF (SB_INIT() != 0)
+         SbIOaddr += 0x10;     // try the next one
+      ELSE
+         $ JMP FOUND_ADDR
+   }
+   AX = -1;
+   $ JMP DONE
+FOUND_ADDR:
+
+/* now let's find the IRQ and DMA channel */
+
+   /* Save old interrupt vectors */
+   SI = #Int_Data;
+   DI = 5;
+   loop (DI)
+   {
+      BX = DSWORD[SI];
+      SI += 2;
+      AX = SI;
+      GETINTVECT(AX,BX);
+      SI += 6;
+   }
+
+   $ CLI
+
+//   DX = SbIOaddr+DSP_DATA_AVAIL;
+//   $ IN AL,DX
+
+   /* Install new interrupt handlers */
+   SI = #Int_Data;
+   DI = 5;
+   loop (DI)
+   {
+      BX = DSWORD[SI];
+      DX = DSWORD[SI+6];
+      SETINTVECT(,BX,CS,DX);
+      SI += 8;
+   }
+
+   /* enable the proper hardware INT's on the 8259 PIC */
+   $ IN AL,0x21
+   PIC_value[0] = AL;  // store old value
+   $ AND AL,0x53
+   $ OUT 0x21,AL       // enable IRQ 2,3,5,7
+   $ IN AL,0xA1
+   PIC_value[1] = AL;  // store old value
+   $ AND AL,0xFB
+   $ OUT 0xA1,AL       // enable IRQ 10
+
+   $ STI
+
+   SbIRQ = 0;
+   WAIT(2);
+   WRITEDSP(INT_REQUEST);   // have the sound card generate an interrupt
+   WAIT(2);
+
+   $ CLI
+
+   /* Restore original PIC command values */
+   AL = PIC_value[0];
+   $ OUT 0x21,AL
+   AL = PIC_value[1];
+   $ OUT 0xA1,AL
+
+   /* Restore old interrupt vectors */
+   SI = #Int_Data;
+   DI = 5;
+   loop (DI)
+   {
+      BX = DSWORD[SI];
+      CX = DSWORD[SI+4];
+      DX = DSWORD[SI+2];
+      SETINTVECT(,BX,CX,DX);
+      SI += 8;
+   }
+
+   $ STI
+
+   IF (SbIRQ == 0)     // did we get it?
+   {
+      AX = -1;         // no...
+      $ JMP DONE
+   }
+
+   SB_VOICE(FALSE);          // don't want to make any noise
+   Sb_Init_Voice_DMA(0,0);
+
+   SbDMAchan = 1;
+GET_DMA:
+   AX = 0;
+   BX = 1;
+   Sb_Out_Voice_DMA(AX,AX,BX,AX,AX);  // do a one-byte transfer
+   WAIT(2);
+
+   IF (DMA_complete != 1)
+   {
+      IF (SbDMAchan == 1)
+      {
+         SbDMAchan = 3;
+         $ JMP GET_DMA
+      }
+      ELSE IF (SbDMAchan == 3)
+      {
+         SbDMAchan = 0;
+         $ JMP GET_DMA
+      }
+      ELSE
+      {
+         AX = -1;      // can't find it
+         Sb_DeInit_Voice_DMA();
+         $ JMP DONE
+      }
+   }
+   Sb_DeInit_Voice_DMA();
+
+   /* Now, try to figure out which SB card we have... */
+
+/*
+   SB version      DSP version
+   ----------      -----------
+      1.x          1.05, 2.00	   /--
+      2.0          2.01, 2.02    <     If these are wrong, please tell me!
+   Pro, Pro 2      3.01, 3.02	   \--
+*/
+
+   GET_DSP_VER();
+   AX--;
+   AX >>= 8;   // $ SHR AX,8
+   AX--;
+   BX = AX;
+   AL = Type_Data[BX];
+   SbType = AX;
+
+   AX = 0;
+DONE:
+}

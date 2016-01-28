@@ -1,0 +1,45 @@
+/*****************************************************************************
+ Sphinx C-- library (C) 2001.
+ FILE:        STDLIB.HMM
+ DESCRIPTION: inline procedures and defines.
+ LAST MODIFIED: 13.09.01 23:40
+ -----------------------------------------------------------------------------
+ FUNCTIONS:
+ int ATOL(unsigned int SI)
+
+ ***************************************************************************/
+
+/*****************************************************************************
+* TITLE : int ATOL(unsigned int SI)
+* DESCR : Convert string to long
+* PARAMS: input: (E)SI - address string to be converted
+*       : output: EAX - long value
+*****************************************************************************/
+inline int ATOL((E)SI)
+{
+	EAX=0;
+	ECX=0;
+	BL=AL;
+	$cld
+	do{
+		$lodsb
+	}while((AL==0x20)||(AL==9));
+	IF(AL=='-'){
+		$lodsb
+		BL=1;
+	}
+	IF(AL=='+')$lodsb
+	for(;;){
+		AL^='0';
+		IF(AL>10)BREAK;
+		ECX*=10;
+		ECX+=EAX;
+		$lodsb
+	}
+#ifdef codesize
+	EAX><ECX;
+#else
+	EAX=ECX;
+#endif
+	IF(BL)-EAX;
+}

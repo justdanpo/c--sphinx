@@ -1,0 +1,177 @@
+/*
+    SPHINX Programming (C) 1995.
+    NAME:  VGAXFNT5.H--
+    DESCRIPTION:  This file contains a collection of procedures for writing
+		  a 5x5 font to VGA mode X screens.
+		  The following two constants must be set before including
+		  this file:
+		    LOGICALSCREENWIDTH  // the width of the screen in pixels
+				       // must be evenly divisable by 8.
+		    LOGICALSCREENHEIGHT // the height of the screen in pixels
+    LAST MODIFIED:  16 May 1995
+    PROCEDURES DEFINED IN THIS FILE:
+	: void overletter5x5_x(word x,y,fontdata; byte color)
+	  void overstr5x5_x (word x,y,str; byte color)
+*/
+
+
+: void overletter5x5_x(word x,y,fontdata; byte color)
+{
+ES = 0xA000;
+
+CX = x;         // Get x into cx
+SI = fontdata;  // Load si with the address of the font data
+
+DI = CX;        // Copy x into di
+$ SHR DI,2      // di now contains the byte offset in the row
+CL &= 3;        // cl now contains the plane number for the byte
+CH = color;     // Get the color of the character
+
+AX = LOGICALSCREENWIDTH/4 * y + DI;
+DI = AX;        // contains the exact offset in video memory
+
+
+DX = 0x3C4;     // Sequence index register
+AL = 2;         // Plane enable index
+$OUT DX,AL      // Select it
+DX++;           // Point to data register
+
+BL = 5;
+
+loop(BL)
+    {
+    AH = 0;             // Clear out ax
+    $ LODSB             // Read the bit pattern
+
+    $ ROL AX,CL         // Rotate it to match with the starting column
+    $ OUT DX,AL         // Use the high nibble as a mask
+    ESBYTE[DI] = CH;    // Write group of pixels (4...)
+    DI++;               // Move to next column
+    $ ROR AX,4          // Get back the low nible
+    $ OUT DX,AL         // Use it as a mask
+    ESBYTE[DI] = CH;    // Write pixels (..+4=8!)
+    DI++;               // move to next column
+    $ ROR AX,4          // Get bits that got rotated out by "rol ax,cl"
+    $ OUT DX,AL         // Use them as a mask  (...=8 for sure!)
+    ESBYTE[DI] = CH;    // Write pixels
+
+    DI += LOGICALSCREENWIDTH/4 - 2;   // Move to next row
+    }
+}
+
+
+// 5x5 horizontally flipped character set from ' ' to 'z'.
+// lower case letters supplied by Joel Hardy, some are ugly, but at least 
+// they are there!  :-)
+byte font_5x5 ={0b00000,0b00000,0b00000,0b00000,0b00000,
+		0b00100,0b00100,0b00100,0b00000,0b00100,
+		0b01010,0b01010,0b00000,0b00000,0b00000,
+		0b01010,0b11111,0b01010,0b11111,0b01010,
+		0b11110,0b00101,0b11111,0b10100,0b01111,
+		0b10001,0b01000,0b00100,0b00010,0b10001,
+		0b01100,0b01010,0b00101,0b11001,0b11110,
+		0b01000,0b00100,0b00000,0b00000,0b00000,
+		0b01000,0b00100,0b00100,0b00100,0b01000,
+		0b00100,0b01000,0b01000,0b01000,0b00100,
+		0b10010,0b01100,0b11110,0b01100,0b10010,
+		0b00100,0b00100,0b11111,0b00100,0b00100,
+		0b00000,0b00000,0b00000,0b01000,0b00100,
+		0b00000,0b00000,0b11111,0b00000,0b00000,
+		0b00000,0b00000,0b00000,0b00000,0b00100,
+		0b10000,0b01000,0b00100,0b00010,0b00001,
+		0b01110,0b11001,0b10101,0b10011,0b01110,
+		0b00100,0b00110,0b00100,0b00100,0b01110,
+		0b11111,0b10000,0b11111,0b00001,0b11111,
+		0b11111,0b10000,0b11100,0b10000,0b11111,
+		0b01000,0b01100,0b01010,0b11111,0b01000,
+		0b11111,0b00001,0b01111,0b10000,0b01111,
+		0b11111,0b00001,0b11111,0b10001,0b11111,
+		0b11111,0b10000,0b01000,0b00100,0b00100,
+		0b11111,0b10001,0b11111,0b10001,0b11111,
+		0b11111,0b10001,0b11111,0b10000,0b11111,
+		0b00000,0b01000,0b00000,0b01000,0b00000,
+		0b00000,0b01000,0b00000,0b01000,0b00100,
+		0b01000,0b00100,0b00010,0b00100,0b01000,
+		0b00000,0b11110,0b00000,0b11110,0b00000,
+		0b00010,0b00100,0b01000,0b00100,0b00010,
+		0b01100,0b10010,0b01000,0b00000,0b01000,
+		0b11111,0b10001,0b11001,0b00001,0b11111,
+		0b00100,0b01010,0b10001,0b11111,0b10001,
+		0b01111,0b10001,0b01111,0b10001,0b01111,
+		0b01110,0b10001,0b00001,0b10001,0b01110,
+		0b01111,0b10001,0b10001,0b10001,0b01111,
+		0b11111,0b00001,0b00111,0b00001,0b11111,
+		0b11111,0b00001,0b00111,0b00001,0b00001,
+		0b01110,0b00001,0b11001,0b10001,0b01110,
+		0b10001,0b10001,0b11111,0b10001,0b10001,
+		0b01110,0b00100,0b00100,0b00100,0b01110,
+		0b11111,0b01000,0b01000,0b01001,0b00110,
+		0b10001,0b01101,0b00111,0b01001,0b10001,
+		0b00001,0b00001,0b00001,0b00001,0b11111,
+		0b10001,0b11011,0b10101,0b10001,0b10001,
+		0b10001,0b10011,0b10101,0b11001,0b10001,
+		0b01110,0b10001,0b10001,0b10001,0b01110,
+		0b01111,0b10001,0b01111,0b00001,0b00001,
+		0b01110,0b10001,0b10101,0b01001,0b10110,
+		0b01111,0b10001,0b11111,0b01001,0b10001,
+		0b11110,0b00001,0b01110,0b10000,0b01111,
+		0b11111,0b00100,0b00100,0b00100,0b00100,
+		0b10001,0b10001,0b10001,0b10001,0b01110,
+		0b10001,0b01010,0b01010,0b00100,0b00100,
+		0b10001,0b10001,0b10101,0b11011,0b10001,
+		0b10001,0b01010,0b00100,0b01010,0b10001,
+		0b10001,0b01010,0b00100,0b00100,0b00100,
+		0b11111,0b01000,0b00100,0b00010,0b11111,
+		0b01110,0b00010,0b00010,0b00010,0b01110,
+		0b00001,0b00010,0b00100,0b01000,0b10000,
+		0b11100,0b10000,0b10000,0b10000,0b11100,
+		0b00100,0b01010,0b10001,0b00000,0b00000,
+		0b00000,0b00000,0b00000,0b00000,0b11111,
+		0b00100,0b01000,0b00000,0b00000,0b00000,
+
+		0b01100,0b10000,0b11100,0b10010,0b11100,//a
+		0b00001,0b00001,0b01111,0b10001,0b01111,//b
+		0b00000,0b01110,0b00001,0b00001,0b01110,//c
+		0b10000,0b10000,0b11110,0b10001,0b11110,//d
+		0b01110,0b10001,0b11111,0b00001,0b01110,//e
+		0b01100,0b10010,0b00111,0b00010,0b00010,//f
+		0b01110,0b10001,0b11110,0b10000,0b01110,//g
+		0b00001,0b00001,0b01111,0b10001,0b10001,//h
+		0b00100,0b00000,0b00100,0b00100,0b00100,//i
+		0b10000,0b00000,0b10000,0b10000,0b01110,//j
+		0b00001,0b00001,0b00101,0b00011,0b00101,//k
+		0b00100,0b00100,0b00100,0b00100,0b00100,//l
+		0b00000,0b00000,0b01111,0b10101,0b10101,//m
+		0b00000,0b00000,0b01111,0b10001,0b10001,//n
+		0b00000,0b01110,0b10001,0b10001,0b01110,//o
+		0b00000,0b00110,0b01001,0b00111,0b00001,//p
+		0b00000,0b01100,0b10010,0b11100,0b10000,//q
+		0b00000,0b01101,0b10011,0b00001,0b00001,//r
+// This one's a little mutilated because otherwise it would be the same as
+// the capital s, which I've marked if you want to change it to that.
+		// 0b11110,0b00001,0b01110,0b10000,0b01111,//Capital S
+		0b00000,0b01110,0b00001,0b01110,0b01111,//s
+		0b00100,0b01110,0b00100,0b00100,0b00100,//t
+		0b00000,0b00000,0b10001,0b10001,0b11110,//u
+		0b00000,0b00000,0b10001,0b01010,0b00100,//v
+		0b00000,0b00000,0b10101,0b10101,0b01010,//w
+		0b00000,0b00000,0b01010,0b00100,0b01010,//x
+		0b10001,0b10001,0b11110,0b10000,0b01110,//y
+		0b00000,0b11110,0b01000,0b00100,0b11110//z
+		};
+
+void overstr5x5_x (word x,y,str; byte color)
+{
+SI = str;
+IF( DSBYTE[SI] != 0 )
+    {
+    do {
+	overletter5x5_x(x,y,DSBYTE[SI] - ' '*5 + #font_5x5,byte color);
+	x += 6;
+	str++;
+	SI = str;
+	} while( DSBYTE[SI] != 0 );
+    }
+}
+
+/* end of VGAXFNT5.H-- */

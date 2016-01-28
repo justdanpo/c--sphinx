@@ -1,0 +1,580 @@
+
+LIST OF BUILT IN C-- STACK PROCEDURES
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Last Updated:  16 April 1993
+
+
+CALLING FORMAT:  addpixel19(x,y,colour);
+		  x = x coordinate to ADD pixel (0 to 319).
+		  y = y coordinate to ADD pixel (0 to 199).
+		  colour = colour to ADD pixel.
+SIZE:  32 bytes.
+FUNCTION:  ADDs a pixel on the screen at the desired point with the desired
+	   colour in video mode 19 (320x200 in 256 colours).
+RETURNS:  nothing.
+
+
+CALLING FORMAT:  andpixel19(x,y,colour);
+		  x = x coordinate to and pixel (0 to 319).
+ 	          y = y coordinate to and pixel (0 to 199).
+		  colour = colour to and pixel.
+SIZE:  32 bytes.
+FUNCTION:  ANDs a pixel on the screen at the desired point with the desired
+	   colour in video mode 19 (320x200 in 256 colours).
+RETURNS:  nothing.
+
+
+CALLING FORMAT:  appendfile(filename,bufseg,bufoff,bytes);
+		  filename = offset address of name of file to append.
+		  bufseg = segment address of buffer to write from.
+		  bufoff = offset address of buffer to write from.
+		  bytes = number of bytes to append.
+DOS REQUIRED:  2.0 +
+SIZE:  77 bytes.
+FUNCTION:  Opens the file name specified, appends the specified number of
+           bytes from the buffer to the end of the file and then closes the
+           file.
+RETURN TYPE:  word
+RETURNS:  number of bytes appended.
+
+
+CALLING FORMAT:  bar19(x,y,xsize,ysize,colour);
+		  x = x coordinate of upper left corner (0 to 319).
+		  y = y coordinate of upper left corner (0 to 199).
+		  xsize = x length of bar.
+		  ysize = y length of bar.
+		  colour = colour for bar.
+SIZE:  51 bytes.
+FUNCTION:  Draws a bar (filled rectangle) with x and y coordinates and x and
+	   y size on the screen with the desired colour in video mode 19
+	   (320x200 256 colours).
+RETURNS:  nothing.
+NOTE:  DI and SI are destroyed.
+
+
+CALLING FORMAT:  box19(x,y,xsize,ysize,colour);
+		  x = x coordinate of upper left corner (0 to 319).
+		  y = y coordinate of upper left corner (0 to 199).
+		  xsize = x length of box.
+		  ysize = y length of box.
+		  colour = colour for box.
+SIZE:  77 bytes.
+FUNCTION:  Draws a box (rectangle) with x and y coordinates and x and y size
+	   on the screen with the desired colour in video mode 19 (320x200
+	   256 colours).
+RETURNS:  nothing.
+NOTE:  DI and SI are destroyed.
+
+
+CALLING FORMAT:  getimage19(x,y,xsize,ysize,imagebuf_seg,imagebuf_offset);
+		  x = x coordinate to put image (0 to 319).
+		  y = y coordinate to put image (0 to 199).
+                  xsize = X size of image in pixels.  
+                  ysize = Y size of image in pixels.  
+		  imagebuf_seg = segment address of image buffer.
+		  imagebuf_offset = offset address of image buffer.
+SIZE:  56 bytes.
+FUNCTION:  Gets an image from the screen in video mode 19 (320x200 in 256
+           colours).  Format of the image buffer is first word is x size,
+           second word is y size and the rest is the picture in pixel values.
+           Size of the buffer required is xsize*ysize+4 bytes in length to 
+           hold the image.  The image gotten with this procedure may be put
+           on the screen with procedure putimage19.
+RETURNS:  nothing.
+NOTE:  DI and SI are destroyed.
+
+
+CALLING FORMAT:  getpixel19(x,y);
+		  x = x coordinate of pixel to get colour (0 to 319).
+		  y = y coordinate of pixel to get colour (0 to 199).
+SIZE:  28 bytes.
+FUNCTION:  Returns the colour of a pixel on the screen at the specified
+	   point in video mode 19 (320x200 in 256 colours).
+RETURN TYPE:  byte.
+RETURNS:  colour of the pixel.
+
+
+CALLING FORMAT:  line19(x1,y1,x2,y2,colour);
+		  x1 = x starting coordinate of the line (0 to 319).
+		  y1 = y starting coordinate of the line (0 to 199).
+		  x2 = x ending coordinate of the line (0 to 319).
+		  y2 = y ending coordinate of the line (0 to 199).
+                  colour = desired colour of line (0 to 255).
+SIZE:  154 bytes.
+FUNCTION:  Draws a line from (x1,y1) to (x2,y2) with the specified colour in
+           video mode 19 (320x200 in 256 colours).
+RETURNS:  nothing.
+NOTE:  DI and SI are destroyed.
+
+
+CALLING FORMAT:  negpixel19(x,y);
+		  x = x coordinate of pixel to NEGATE (0 to 319).
+		  y = y coordinate of pixel to NEGATE (0 to 199).
+SIZE:  28 bytes.
+FUNCTION:  NEGATEs a pixel on the screen at the desired point in video mode
+	   19 (320x200 in 256 colours).
+RETURNS:  nothing.
+
+
+CALLING FORMAT:  notbar19(x,y,xsize,ysize);
+		  x = x coordinate of upper left corner (0 to 319).
+		  y = y coordinate of upper left corner (0 to 199).
+		  xsize = x length of bar.
+		  ysize = y length of bar.
+SIZE:  48 bytes.
+FUNCTION:  NOTs a bar (filled rectangle) with x and y coordinates and x and y
+           size on the screen in video mode 19 (320x200-256 colours).
+RETURNS:  nothing.
+NOTE:  DI and SI are destroyed.
+
+
+CALLING FORMAT:  notbox19(x,y,xsize,ysize);
+		  x = x coordinate of upper left corner (0 to 319).
+		  y = y coordinate of upper left corner (0 to 199).
+		  xsize = x length of box.
+		  ysize = y length of box.
+SIZE:  78 bytes.
+FUNCTION:  NOTs a box (rectangle) with x and y coordinates and x and y size
+           on the screen in video mode 19 (320x200-256 colours).
+RETURNS:  nothing.
+NOTE:  DI and SI are destroyed.
+
+
+CALLING FORMAT:  notpixel19(x,y);
+		  x = x coordinate of pixel to NOT (0 to 319).
+		  y = y coordinate of pixel to NOT (0 to 199).
+SIZE:  28 bytes.
+FUNCTION:  NOTs a pixel on the screen at the desired point in video mode 19
+	   (320x200 in 256 colours).
+RETURNS:  nothing.
+
+
+CALLING FORMAT:  orpixel19(x,y,colour);
+		  x = x coordinate to OR pixel (0 to 319).
+		  y = y coordinate to OR pixel (0 to 199).
+		  colour = colour to OR pixel.
+SIZE:  32 bytes.
+FUNCTION:  ORs a pixel on the screen at the desired point with the desired
+	   colour in video mode 19 (320x200 in 256 colours).
+RETURNS:  nothing.
+
+
+CALLING FORMAT:  overimage19(x,y,imageloc,clearcolour);
+		  x = x coordinate to put image (0 to 319).
+		  y = y coordinate to put image (0 to 199).
+		  imageloc = location of image buffer.
+                  clearcolour = colour value which is not transfered.
+SIZE:  63 bytes.
+FUNCTION:  Puts an image and an x,y location from an image buffer in video
+	   mode 19 (320x200 in 256 colours).  Format of the image buffer is
+	   first word is x size, second word is y size and the rest is the
+	   picture in pixel values.  Any pixel values equal to clearcolour
+           will not be copied, thus allowing for the definition of non-
+           rectangular shapes.
+RETURNS:  nothing.
+NOTE:  DI and SI are destroyed.
+
+
+CALLING FORMAT:  passtr(cstringoffset,passtringoffset);
+		  cstringoffset = offset address of C type string.
+		  passtringoffset = offset address of Pascal type string.
+SIZE:  24 or 22 bytes.
+FUNCTION:  Copies a Pascal type string to a C type string.  A Pascal type 
+           string is a string whos first byte specifies the length of the
+           string.  A C type string is a string which is terminated with
+           the byte value zero.
+RETURN TYPE:  word 
+RETURNS:  the length of the new string generated not including the
+          terminating zero byte.
+NOTE:  DI and SI are destroyed.
+
+
+CALLING FORMAT:  putimage19(x,y,imageloc);
+		  x = x coordinate to put image (0 to 319).
+		  y = y coordinate to put image (0 to 199).
+		  imageloc = location of image buffer.
+SIZE:  47 bytes.
+FUNCTION:  Puts an image and an x,y location from an image buffer in video
+	   mode 19 (320x200 in 256 colours).  Format of the image buffer is
+	   first word is x size, second word is y size and the rest is the
+	   picture in pixel values.
+RETURNS:  nothing.
+NOTE:  DI and SI are destroyed.
+
+
+CALLING FORMAT:  putpixel19(x,y,colour);
+ 		  x = x coordinate to put pixel (0 to 319).
+		  y = y coordinate to put pixel (0 to 199).
+		  colour = colour to put pixel.
+SIZE:  32 bytes.
+FUNCTION:  Puts a pixel on the screen at the desired point in the desired
+	   colour in video mode 19 (320x200 in 256 colours).
+RETURNS:  nothing.
+
+
+CALLING FORMAT:  rand();
+SIZE:  61 bytes.
+FUNCTION:  Returns a random number with the range of a word variable.
+RETURN TYPE:  word, int, byte or char (valid random number for all).
+RETURNS:  the random number generated.
+NOTE:  BX also equals the random number generated.
+
+
+CALLING FORMAT:  randomize();
+SIZE:  21 bytes.
+FUNCTION:  Seeds the random number generator with the current system tick
+	   counter value.
+RETURNS:  nothing.
+
+
+CALLING FORMAT:  readfile(filename,bufseg,bufoff,bytes);
+		  filename = offset address of name of file to read from.
+		  bufseg = segment address of buffer to read into.
+		  bufoff = offset address of buffer to read into.
+		  bytes = number of bytes to read.
+DOS REQUIRED:  2.0 +
+SIZE:  58 bytes.
+FUNCTION:  Opens the file name specified, reads the number bytes into the
+	   buffer and then closes the file.
+RETURN TYPE:  word
+RETURNS:  number of bytes read.
+
+
+CALLING FORMAT:  spawn(filename,parameters,environment);
+		  filename = offset address of name of file to be spawned.
+		  parameters = offset address command line parameters,
+                               the parameter string starts with a length
+                               byte and ends with a carrage return (ASCII
+                               value of 13).  The lenght byte does not
+                               include itself or the terminator.
+		  environment = segment address of environmental variable
+                                table.  Each entry in the table will be a 
+                                0 terminating string of the format:
+                                   FUNDOS=C:\FUN
+                                The entire table is terminated with an extra
+                                NULL character (ASCII value 0).
+                                If the segment address is 0, the spawned 
+                                program will inherit the envronment block of
+                                the parent program.
+DOS REQUIRED:  3.0 +
+SIZE:  49 bytes.
+FUNCTION:  Spawns the specified filename and gives it the given parameters
+           and environment block.
+RETURN TYPE:  word
+RETURNS:  ES,BX,DX = undefined
+          Successful:    AX = 0
+          Unsuccessful:  AX = errorcode
+NOTE:  When COM files are loaded, they are given all of the memory of the
+       largest block available.  In order to have memory to spawn a program,
+       the COM file must reduce its memory size by using RESIZEMEM, or 
+       ensuring that the resize compiler option is ON, to free some for the
+       spawned program to be loaded into.
+
+
+CALLING FORMAT:  srand(seedword1,seedword2);
+		  seedword1 = first word for the random number seed.
+		  seedword2 = second word for the random number seed.
+SIZE:  23 bytes.
+FUNCTION:  Seeds the random number generator.  The random number generator
+	   uses a double word seed value for generating the random numbers.
+RETURNS:  nothing.
+
+
+CALLING FORMAT:  strcat(deststrffset,sourcestroffset);
+		  deststroffset = offset address of destination string.
+		  sourcestroffset = offset address of source string.
+SIZE:  24 or 22 bytes.
+FUNCTION:  Copies the source string on to the end of the destination 
+           string.
+RETURNS:  nothing.
+NOTE:  DI and SI are destroyed.
+
+
+CALLING FORMAT:  STRLEN(stroffset);
+		  stroffset = memory location of string
+SIZE:  17 bytes.
+FUNCTION:  Calculates the length of the string which is terminated by the
+           byte value of zero.
+RETURN TYPE:  word
+RETURNS:  length of string in bytes excluding terminating byte
+NOTE:  BX also equals the length of string.
+          
+
+CALLING FORMAT:  strpas(passtringoffset,cstringoffset);
+		  passtringoffset = offset address of Pascal type string.
+		  cstringoffset = offset address of C type string.
+SIZE:  25 or 23 bytes.
+FUNCTION:  Copies a C type string to a Pascal type string.  A Pascal type 
+           string is a string whos first byte specifies the length of the
+           string.  A C type string is a string which is terminated with
+           the byte value zero.
+RETURNS:  nothing.
+NOTE:  DI and SI are destroyed.
+
+
+CALLING FORMAT:  subpixel19(x,y,colour);
+		  x = x coordinate to subtract pixel (0 to 319).
+		  y = y coordinate to subtract pixel (0 to 199).
+		  colour = colour to subtract pixel.
+SIZE:  32 bytes.
+FUNCTION:  Subtracts a pixel on the screen at the desired point with the
+	   desired colour in video mode 19 (320x200 in 256 colours).
+RETURNS:  nothing.
+
+
+CALLING FORMAT:  writefile(filename,bufseg,bufoff,bytes);
+		  filename = offset address of name of file write to.
+  		  bufseg = segment address of buffer to write from.
+		  bufoff = offset address of buffer to write from.
+		  bytes = number of bytes to write.
+DOS REQUIRED:  2.0 +
+SIZE:  59 bytes.
+FUNCTION:  Creates the file with the name name specified, writes the number
+	   bytes from the buffer into the file and then closes the file.
+	   If the file already exists, the contents will be lost.
+RETURN TYPE:  word
+RETURNS:  number of bytes written.
+
+
+CALLING FORMAT:  XMSallocateEMB(sizeinK);
+                  sizeinK = amount in K of extended memory being requested.
+SIZE:  11 bytes.
+FUNCTION:  Allocates an extended memory block of specfied size.
+           See XMSgetversion().
+RETURN TYPE:  word
+RETURNS:  1 if the block is allocated, else 0.
+          DX = extended memory block (EMB) handle.
+
+
+CALLING FORMAT:  XMSfreeEMB(EMBhandle);
+                  EMBhandle = Extended memory block handle to free.
+SIZE:  11 bytes.
+FUNCTION:  Frees an extended memory block that was previously allocated with
+           XMSallocateEMB().  See XMSgetversion().
+RETURN TYPE:  word
+RETURNS:  1 if the block is freed, else 0.
+
+
+CALLING FORMAT:  XMSgetEMBinfo(EMBhandle);
+                  EMBhandle = Extended memory block handle.
+SIZE:  11 bytes.
+FUNCTION:  Returns additional information about an extended memory block.
+           See XMSgetversion().
+RETURN TYPE:  word
+RETURNS:  1 if block information is found, else 0.
+          BL = number of free EMB handles in the system
+          BH = the blocks lock count
+          DX = the block's length in K
+
+
+CALLING FORMAT:  XMSgetversion();
+SIZE:  39 bytes.
+FUNCTION:  Returns the version of the XMS driver in the current system, or
+           returns 0 if no XMS driver exists.  THIS PROCEDURE MUST BE CALLED
+           AND RETURN A VALUE OF 0x200 OR GREATER MUST BE CONFIRMED BEFORE
+           ANY OF THE OTHER XMS????????() FUNCTIONS ARE CALLED.  This
+           function internally obtains the call address for all of the other
+           XMS?????????() functions.
+RETURN TYPE:  word
+RETURNS:  Version of XMS supported, such as 0x0234 for version 2.34, 0 will
+          be returned if no XMS is supported.
+          BX = the XMS drivers internal revision number
+          DX = 1 if the HMA exists, else 0
+
+
+CALLING FORMAT:  XMSglobaldisableA20();
+SIZE:  8 bytes.
+FUNCTION:  Disables the A20 line.  This procedure should only called by
+           programs that control the HMA.  See XMSgetversion().
+RETURN TYPE:  word
+RETURNS:  1 if the A20 line is disabled, else 0.
+
+
+CALLING FORMAT:  XMSglobalenableA20();
+SIZE:  8 bytes.
+FUNCTION:  Enables the A20 line.  This procedure should only called by
+           programs that control the HMA.  XMSglobaldisableA20() should
+           be called before a program releases control of the system.
+           See XMSgetversion().
+RETURN TYPE:  word
+RETURNS:  1 if the A20 line is enabled, else 0.
+
+
+CALLING FORMAT:  XMSlocaldisableA20();
+SIZE:  8 bytes.
+FUNCTION:  Cancels a previous call to XMSlocalenableA20.
+           See XMSgetversion().
+RETURN TYPE:  word
+RETURNS:  1 if the A20 line is disabled, else 0.
+
+
+CALLING FORMAT:  XMSlocalenableA20();
+SIZE:  8 bytes.
+FUNCTION:  Enables the A20 line.  XMSlocaldisableA20() should be called
+           before a program releases control of the system.
+           See XMSgetversion().
+RETURN TYPE:  word
+RETURNS:  1 if the A20 line is enabled, else 0.
+
+
+CALLING FORMAT:  XMSlockEMB(EMBhandle);
+                  EMBhandle = Extended memory block handle to lock.
+SIZE:  11 bytes.
+FUNCTION:  Locks and extended memory block and returns a 32bit address to
+           it.  See XMSgetversion().
+RETURN TYPE:  word
+RETURNS:  1 if the block is locked, else 0.
+          DX:BX = 32bit linear address of the locked block.
+
+
+CALLING FORMAT:  XMSmoveEMB( destoffsethigh,destoffsetlow,desthandle,
+                             sourceoffsethigh,sourceoffsetlow,sourcehandle,
+                             lenghthigh,lengthlow);
+                  destoffsethigh = high word of offset from start of 
+                                   destination EMB.
+                  destoffsethigh = low word of offset from start of
+                                   destination EMB. 
+                  desthandle = Extended memory block handle of destination. 
+                  sourceoffsethigh = high word of offset from start of 
+                                     source EMB.
+                  sourceoffsethigh = low word of offset from start of
+                                     source EMB. 
+                  sourcehandle = Extended memory block handle of source. 
+                  lengthhigh = high word of number of byte to transfer.
+                  lengthlow = low word of number of byte to transfer.
+SIZE:  25 bytes.
+FUNCTION:  Copies a block of data from conventional memory or an extended
+           memory block to conventional memory or an extended memory block.
+           If desthandle is 0, the destoffsethigh is the segment address of
+           the destination and destoffsetlow is the offset address of the
+           destination.  The same is true if sourcehandle is 0, thus allowing
+           conventional memory (first MEG of memory) to be transfered between
+           EMBs.  See XMSgetversion().
+RETURN TYPE:  word
+RETURNS:  1 if the block is copied successfully, else 0.
+
+
+CALLING FORMAT:  XMSqueryA20();
+SIZE:  8 bytes.
+FUNCTION:  Returns whether or not the A20 line is physically enabled.
+           See XMSgetversion().
+RETURN TYPE:  word
+RETURNS:  1 if the A20 line is enabled, else 0.
+
+
+CALLING FORMAT:  XMSqueryfreeEMB();
+SIZE:  8 bytes.
+FUNCTION:  Returns the size of the largest free extended memory block
+           available, and the total amount of free extended memory available.
+           See XMSgetversion().
+RETURN TYPE:  word
+RETURNS:  Size in K of the largest free extended memory block.
+          DX = total amount in K of free extended memory.
+
+
+CALLING FORMAT:  XMSreallocateEMB(newsize,EMBhandle);
+                  newsize = new size desired for EMB in K.
+                  EMBhandle = unlocked EMB handle to resize.
+SIZE:  12 bytes.
+FUNCTION:  Requests a new size for a previously allocated extended memory
+           block.  See XMSgetversion().
+RETURN TYPE:  word
+RETURNS:  1 if block is reallocated, else 0.
+
+
+CALLING FORMAT:  XMSreleaseHMA();
+SIZE:  8 bytes.
+FUNCTION:  Releases the High Memory Area so it can be used by other programs,
+           it must first be allocated by XMSrequestHMA().
+           See XMSgetversion().
+RETURN TYPE:  word
+RETURNS:  1 if HMA is released successfully, else 0.
+
+
+CALLING FORMAT:  XMSreleaseUMB(segmentofUMB);
+                  segmentofUMB = segment address of upper memory block.
+SIZE:  11 bytes.
+FUNCTION:  Releases ownership of a previously allocated UMB by a call to 
+           XMSrequestUMB().  See XMSgetversion().
+RETURN TYPE:  word
+RETURNS:  1 if the block is released successfully, else 0.
+
+
+CALLING FORMAT:  XMSrequestHMA(spaceinbytes);
+                  spaceinbytes = number of bytes needed by the caller if
+                                 a TSR or device driver, 0xFFFF if an
+                                 application program.
+SIZE:  11 bytes.
+FUNCTION:  Attempts to allocate the 64K-16bytes high memory area.  If you do
+           not know what the HMA is or if you do not understand the A20 line
+           method of addressing the HMA, then don't bother messing with the 
+           HMA.
+           See XMSgetversion().
+RETURN TYPE:  word
+RETURNS:  1 if the HMA is allocated to the program, else 0.
+
+
+CALLING FORMAT:  XMSrequestUMB(sizeinparagraphs);
+                 sizeinparagraphs = size of requested block in 16 byte units.
+SIZE:  11 bytes.
+FUNCTION:  Attempts to allocated an upper memory block for use by the
+           program.  UMBs are blocks of memory above 640K and below 1024K
+           that are not being used by video ram, BIOS or ROM.
+           See XMSgetversion().
+RETURN TYPE:  word
+RETURNS:  1 if the UMB is allocated, else 0.
+          BX = segment of UMB.
+          DX = if successful: 
+                 actual size of the UMB in paragraphs.
+               if unsuccessful:
+                 size of largest available UMB in paragraphs.
+
+
+CALLING FORMAT:  XMSunlockEMB(EMBhandle);
+                  EMBhandle = extended memory block handle to unlock.
+SIZE:  11 bytes.
+FUNCTION:  Unlocks a previously locked extended memory block.
+           See XMSgetversion().
+RETURN TYPE:  word
+RETURNS:  1 if the EMB is unlocked, else 0.
+
+
+CALLING FORMAT:  xorbar19(x,y,xsize,ysize,colour);
+		  x = x coordinate of upper left corner (0 to 319).
+		  y = y coordinate of upper left corner (0 to 199).
+		  xsize = x length of bar.
+		  ysize = y length of bar.
+		  colour = colour for bar.
+SIZE:  55 bytes.
+FUNCTION:  XORs a bar (filled rectangle) with x and y coordinates and x and y
+           size on the screen with the desired colour in video mode 19
+           (320x200 256 colours).
+RETURNS:  nothing.
+NOTE:  DI and SI are destroyed.
+
+
+CALLING FORMAT:  xorbox19(x,y,xsize,ysize,colour);
+		  x = x coordinate of upper left corner (0 to 319).
+		  y = y coordinate of upper left corner (0 to 199).
+		  xsize = x length of box.
+		  ysize = y length of box.
+		  colour = colour for box.
+SIZE:  83 bytes.
+FUNCTION:  XORs a box (rectangle) with x and y coordinates and x and y size
+           on the screen with the desired colour in video mode 19 (320x200
+           256 colours).
+RETURNS:  nothing.
+NOTE:  DI and SI are destroyed.
+
+
+CALLING FORMAT:  xorpixel19(x,y,colour);
+		  x = x coordinate to xor pixel (0 to 319).
+		  y = y coordinate to xor pixel (0 to 199).
+		  colour = colour to xor pixel.
+SIZE:  32 bytes.
+FUNCTION:  XORs a pixel on the screen at the desired point with the desired
+		   colour in video mode 19 (320x200 in 256 colours).
+RETURNS:  nothing.
+
+
+/* end of STAKPROC.DOC */

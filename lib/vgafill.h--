@@ -1,0 +1,149 @@
+/*
+    SPHINX Programming (C) 1993.
+    TITLE:  VGAFILL.H--
+    DESCRIPTION:  This file contains a collection of procedures for flood
+                  filling on VGA mode 19 (320x200, 256 colour) screens.
+    LAST UPDATED: 26 Dec 1993
+    PROCEDURES DEFINED IN THIS FILE:
+        void fill19(x_origin,y_origin,byte new_color)
+        void _fill19(x_origin,y_origin,byte new_color)
+*/
+?ifndef _VGAFILL_
+?define _VGAFILL_ TRUE
+?warning FALSE
+
+void fill19 (word x_origin,y_origin;byte new_color)
+{
+	ES=0xA000;
+	_fill19(x_origin,y_origin,byte new_color);
+}
+
+void _fill19 (word x_origin,y_origin;byte new_color)
+/* This procedure performs a flood fill starting at the specified pixel.
+It reads and writes directly from/to screen memory.
+Be sure to have lots of stack available, for this is a recursive algorithm
+and tends to eat-up a lot of stack on complex fills (such as a spiral).
+80286+ required. */
+word start,end;
+{
+	$PUSH AX
+	$PUSH BX
+	$PUSH CX
+	$PUSH DX
+	$PUSH DI
+	$PUSH SI
+// get the old color to overwrite
+	$MOV AX,y_origin
+	$MOV BX,AX             // and now: a quick(er ?) way to multiply by 320
+	$SHL AX,8              // AX = y_origin*256
+	$SHL BX,6              // AX = y_origin*64
+	$ADD AX,BX             // AX = 320*y_origin == (256+64)*y_origin
+	$MOV SI,AX             // SI = y_origin*320 (offset to start of line)
+	$ADD AX,x_origin
+	BX><AX;
+	$MOV AH,ESBYTE[BX]     // AH = old color
+	$CMP AH,new_color
+	$JE NEAR FILL_DONE
+// first find the start of the old color on the current line
+	$MOV CX,x_origin
+	$MOV BX,SI
+	$ADD BX,CX
+FIND_START:
+	$JCXZ FOUND_START
+	$DEC BX
+	$MOV AL,ESBYTE[BX]
+	$CMP AL,AH
+	$JNE FOUND_START
+	$DEC CX
+	$JMP SHORT FIND_START
+FOUND_START:
+	$MOV start,CX
+// now find the end of the old color on the current line
+	$MOV CX,x_origin
+	$MOV BX,SI
+	$ADD BX,CX
+FIND_END:
+	$CMP CX,319
+	$JE FOUND_END
+	$INC BX
+	$MOV AL,ESBYTE[BX]
+	$CMP AL,AH
+	$JNE FOUND_END
+	$INC CX
+	$JMP SHORT FIND_END
+FOUND_END:
+	$MOV end,CX
+// fill the current line
+	$MOV DX,SI
+	$ADD DX,start
+	$MOV DI,DX
+	$MOV CX,end
+	$SUB CX,start
+	CX++;
+	$MOV AL,new_color
+	$CLD
+	$REPZ
+	$STOSB
+/* fill above */
+	$CMP y_origin,0
+	$JLE GO_DOWN
+	$MOV CX,start
+	$MOV DI,end
+	$MOV BX,SI
+	$SUB BX,320
+	$ADD BX,CX
+DO_UP:
+	$MOV AL,ESBYTE[BX]
+	$CMP AL,AH
+	$JNE CONTINUE_UP
+	$PUSH CX
+	$MOV DX,y_origin
+	$DEC DX
+	$PUSH DX
+	$MOV DL,new_color
+	$XOR DH,DH
+	$PUSH DX
+	$CALL _fill19     // _fill19(CX,y_origin-1,new_color);
+CONTINUE_UP:
+	$CMP CX,DI
+	$JE GO_DOWN
+	$INC BX
+	$INC CX
+	$JMP SHORT DO_UP
+// fill below
+GO_DOWN:
+	$CMP y_origin,199
+	$JGE FILL_DONE
+	$MOV CX,start
+	$MOV BX,SI
+	$ADD BX,320
+	$ADD BX,CX
+DO_DOWN:
+	$MOV AL,ESBYTE[BX]
+	$CMP AL,AH
+	$JNE CONTINUE_DOWN
+	$PUSH CX
+	$MOV DX,y_origin
+	$INC DX
+	$PUSH DX
+	$MOV DL,new_color
+	$XOR DH,DH
+	$PUSH DX
+	$CALL _fill19     // _fill19(CX,y_origin+1,new_color);
+CONTINUE_DOWN:
+	$CMP CX,DI
+	$JE FILL_DONE
+	$INC BX
+	$INC CX
+	$JMP SHORT DO_DOWN
+FILL_DONE:
+	$POP SI
+	$POP DI
+	$POP DX
+	$POP CX
+	$POP BX
+	$POP AX
+}
+
+?endif
+/* end of VGAFILL.H-- */

@@ -1,0 +1,32 @@
+/*
+    SPHINX C-- example program
+    Name:  CREATE.C--
+    Description:  This file demonstrates some of the C-- file commands.
+                  A file called 'OUTPUT' is created and written to.
+*/
+
+?include "FILE.H--"
+?include "WRITE.H--"
+
+word filehandle;     /* file handle holder */
+
+?define BYTESTOWRITE 12
+byte buffer[BYTESTOWRITE]="Hello there!"; /* buffer to be written to file */
+
+main ()
+{
+filehandle = create("OUTPUT",FA_NORMAL);  /* create file with normal attrib's */
+IF(filehandle == 0)                    /* if file did not open */
+    WRITESTR("Unable to create file.\n"); /* display error message */
+ELSE{
+    WRITESTR("File created O.K.\n");
+    IF( write(filehandle,#buffer,BYTESTOWRITE) != BYTESTOWRITE )
+        WRITESTR("Error Writing to file.\n"); 
+    ELSE WRITESTR("File written to O.K.\n");
+    IF( close(filehandle) == 0 )  /* close the file */
+        WRITESTR("File closed O.K.\n");
+    ELSE WRITESTR("Error closing file.\n");
+    }
+}
+
+/* end of CREATE.C-- */

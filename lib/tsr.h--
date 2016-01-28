@@ -1,0 +1,82 @@
+/*
+    SPHINX Programming (C) 1994.
+    NAME:  TSR.H--
+    DESCRIPTION:  This file defines several procedures useful to Terminate
+                  and Stay Resident programs.
+    LAST MODIFIED:  31 May 1994
+    PROCEDURES DEFINED IN THIS FILE:
+        : word instcheck(name,len)
+        : void KEEP( , , ,offset_of_end_of_program)
+        : void RELEASEENV()
+*/
+?ifndef _TSR_
+?define _TSR_ TRUE
+?warning FALSE
+
+: word instcheck (word name, len)
+/* checks whether the program with name "name" is already resident in
+     memory.
+   "name" points to a null-terminated string containing the name of
+     the program. "len" is equal to strlen(name)+1 if strlen(name)<8,
+     and 8 otherwise.
+   This routine will only work correctly  under DOS 4+, unless your
+     program writes its name in its Memory Control Block.  Moreover,
+     it will fail to detect programs loaded high.
+*/
+/*  Written by Jean-Marc Lasgouttes (Jean-Marc.Lasgouttes@inria.fr).
+    Modified by SPHINX.  */
+{
+?DOSrequired 0x0200
+	AH=0x52;                            //
+	$INT 0x21;                           // Get the DOS data segment
+	BX-=2;                              //    in ES
+	ES=ESWORD[BX];                      //
+	do{
+		$CLD;                              //
+		SI=name;                          //
+		DI=8;                             // Compare the name to 'name'
+		CX=len;                           //
+		$REPZ                              //
+		$CMPSB                             //
+		IF(ZEROFLAG){
+			DX=ES+1;
+			AX=CS;                          // First make sure
+			IF(AX!=DX)                    //   it is not ourself
+				IF(DX==ESWORD[1])           // Does the block owns itself?
+					return(DX);                   // Returns true
+		}
+		ES=ES+ESWORD[3]+1;                // Go to the next MCB
+//		ES=AX;
+	}while(ESBYTE[0]!=0x5A);            // Loop until the last MCB
+	return(0);                              // Return false
+}
+/*  RETURNS: AX = segment of the first block in memory that:
+                  - has the name "name"
+                  - owns itself
+                  - is not the current program.
+             AX = 0 if no such block exists.
+             BX, CX, DX, SI, DI, ES destroyed.
+*/
+
+: void RELEASEENV () /* Releases the memory used by the environment block
+                        of the program */
+{
+?DOSrequired 0x0200
+ES = DSWORD[0x002C];     // offset in the PSP that holds the env. segment
+AH = 0x49;
+$ INT 0x21;
+}
+/*  RETURNS: AH, ES destroyed
+             CF clear if successful
+             CF set on error
+             AX = error code (see Ralf Brown's interrupt list)
+*/
+
+: void KEEP ()  // DX = end offset address of program block to keep resident.
+{
+?DOSrequired 0x0100
+$ INT 0x27
+}
+
+?endif
+/* end of TSR.H-- */

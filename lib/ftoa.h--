@@ -1,0 +1,687 @@
+/*----------- Конвертации float в текстовую строку и обратно ----------------
+:void FALOG()
+:float falog(float val)
+:void FTOA()
+:void ftoa(float a;int buf)
+:void FTOAN()
+:void ftoan(float a;int buf,num)
+:void ATOF()
+:float ATOFF()
+----------------------------------------------------------------------------*/
+?ifndef _FTOA_
+?define _FTOA_ TRUE
+?warning FALSE
+
+//Константы
+float fp1e17=1.0E17;	// constant for scaling
+float fp1e18=1.0E18;	// constant for scaling
+word int10=10;	// constant for scaling
+//Переменные
+word newcw=0,tbufftoa[5]=0;
+
+char mzero='-';
+char pzero="0.0";
+char errors="ERROR";
+
+:void FALOG()
+// Извлекает число с вершины стека сопроцессора и возводит 10 в эту степень.
+// Вход: число в ST(0)
+// Выход: Результат в 10**X в ST(0)
+{
+	asm{
+		fldl2t				// load log2(10)
+		fmulp ST(1) 	//log2(10) * argument
+		fld ST(0) 		 // duplicate product
+		frndint 			 // get int part of product
+		fxch ST(1)		 // scale fractional part
+		fsub ST,ST(1)
+		f2xm1 				 // raise 2 to power-1
+		fld1
+		faddp ST(1) // correct for the -1
+		fscale						// scale by int part
+		fstp st(1)				// discard coprocessor junk
+	}
+}
+
+:float falog(float val)
+//возводит 10 в степень переменной
+{
+	asm fld val
+	@FALOG();
+	asm fstp val
+	asm fwait
+	EAX=val;
+}
+
+:void FTOA()
+//Конвертирует вещественное число, находящееся в ST(0) в текстовую строку
+//с 8 знаками после запятой
+//AX - адрес буфера для текстовой строки
+{
+	AX><DI;
+	ES=DS;
+	asm{
+		fxam		//проверка вершины стека
+		fstsw AX
+		fwait
+	}
+	AH><AL;
+	AL&=0X47;
+	$CMP AL,4
+	$JZ NUMER
+	if(AL==6){
+		AL='-';
+		$stosb
+NUMER:					//это число
+		asm{
+			fabs			 // force number positive
+			fxtract 	 // extract exponent
+			fxch st(1) // put exponent on top
+			fldlg2		 // form power of 10
+			fmulp st(1)
+			fstcw tbufftoa	//oldcw // save current rounding mode
+			fwait
+		}
+		newcw=tbufftoa|0xc00; //set bit field for rounding
+		asm{
+			fldcw newcw // force new rounding mode
+			fld st(0) 	// duplicate power of ten
+			frndint 		// find integer part of
+			fist newcw		// exponent and save it
+			fldcw tbufftoa // restore old rounding mode
+			fsubp st(1) // find fractional part of
+		}
+		@FALOG(); //power of ten
+		asm{
+			fmulp st(1) // then times mantissa
+			fmul fp1e18 // scale mantissa for BCD
+			frndint 		// zap any remaining fraction
+		}
+		FOR(;;){
+			asm{
+				fcom fp1e17 // is mantissa < 1.0e17?
+				fstsw AX
+				fwait
+			}
+			asm sahf
+			IF(NOTCARRYFLAG)BREAK;
+			asm fimul int10 // yes, mantissa * 10
+			newcw--;	// and decrement exponent
+		}
+		FOR(;;){
+			asm{
+				fcom fp1e18 // is mantissa < 1.0e18?
+				fstsw AX
+				fwait
+			}
+			asm sahf
+			IF(CARRYFLAG)BREAK;
+			asm fidiv int10 // yes, mantissa / 10
+			newcw++; //and increment exponent
+		}
+		asm{
+			fbstp tbufftoa	// unload mantissa in BCD
+			fwait
+		}
+		AX='.0';
+		asm stosw
+		BX=4;
+		AH=0;
+		do{
+			AL=DSBYTE[BX+#tbufftoa+4];
+			$ROR AX,4
+			AL+=0x30;
+			$STOSB
+			AX>>=12;
+			AL+=0x30;
+			$STOSB
+			BX--;
+		}while(NOTZEROFLAG);
+		BX=newcw;
+		IF(BX!=0){
+			AL='E'; 	//store 'E' for exponent
+			asm stosb
+			$JNS NOMINUS
+			AL='-';
+			-BX;
+			asm stosb
+NOMINUS:
+			AX><BX;
+			IF(AX>=10){
+				$AAM
+				AL><AH;
+				AL+='0';
+				$STOSB
+				AL=AH;
+			}
+			AL+='0';
+			$STOSB
+		}
+		AL=0;
+		asm stosb;
+	}
+	ELSE{
+		IF(AL==0X40)SI=#pzero;
+		ELSE IF(AL==0X42)SI=#mzero;
+		ELSE SI=#errors;
+		do{
+			asm lodsb
+			asm stosb
+		}while(AL!=0);
+	}
+	asm fstp st(0) // discard original value
+}
+
+:void ftoa(float a;int buf)
+//Конвертирует вещественное число в текстовую строку
+//с 8 знаками после запятой
+//buf - адрес буфера для текстовой строки
+//a 	- конвертируемое число
+{
+	asm fld a
+	DI=buf;
+	ES=DS;
+	asm{
+		fxam
+		fstsw AX
+		fwait
+	}
+	AH><AL;
+	AL&=0X47;
+	$CMP AL,4
+	$JZ NUMER
+	if(AL==6){
+		AL='-';
+		$stosb
+NUMER:
+		asm{
+			fabs			 // force number positive
+			fxtract 	 // extract exponent
+			fxch st(1) // put exponent on top
+			fldlg2		 // form power of 10
+			fmulp st(1)
+			fstcw tbufftoa // save current rounding mode
+			fwait
+		}
+		newcw=tbufftoa|0xc00; //set bit field for rounding
+		asm{
+			fldcw newcw // force new rounding mode
+			fld st(0) 	// duplicate power of ten
+			frndint 		// find integer part of
+			fist newcw		// exponent and save it
+			fldcw tbufftoa // restore old rounding mode
+			fsubp st(1) // find fractional part of
+		}
+		@FALOG(); //power of ten
+		asm{
+			fmulp st(1) // then times mantissa
+			fmul fp1e18 // scale mantissa for BCD
+			frndint 		// zap any remaining fraction
+		}
+		FOR(;;){
+			asm{
+				fcom fp1e17 // is mantissa < 1.0e17?
+				fstsw AX
+				fwait
+			}
+			asm sahf
+			IF(NOTCARRYFLAG)BREAK;
+			asm fimul int10 // yes, mantissa * 10
+			newcw--;	// and decrement exponent
+		}
+		FOR(;;){
+			asm{
+				fcom fp1e18 // is mantissa < 1.0e18?
+				fstsw AX
+				fwait
+			}
+			asm sahf
+			IF(CARRYFLAG)BREAK;
+			asm fidiv int10 // yes, mantissa / 10
+			newcw++; //and increment exponent
+		}
+		asm{
+			fbstp tbufftoa	// unload mantissa in BCD
+			fwait
+		}
+		AX='.0';
+		asm stosw
+		BX=4;
+		AH=0;
+		do{
+			AL=DSBYTE[BX+#tbufftoa+4];
+			$ROR AX,4
+			AL+=0x30;
+			$STOSB
+			AX>>=12;
+			AL+=0x30;
+			$STOSB
+			BX--;
+		}while(NOTZEROFLAG);
+		BX=newcw;
+		IF(BX!=0){
+			AL='E'; 	//store 'E' for exponent
+			asm stosb
+			$JNS NOMINUS
+			AL='-';
+			-BX;
+			asm stosb
+NOMINUS:
+			AX><BX;
+			IF(AX>=10){
+				$AAM
+				AH><AL;
+				AL+='0';
+				$STOSB
+				AL=AH;
+			}
+			AL+='0';
+			$STOSB
+		}
+		AL=0;
+		asm stosb;
+	}
+	ELSE{
+		IF(AL==0X40)SI=#pzero;
+		ELSE IF(AL==0X42)SI=#mzero;
+		ELSE SI=#errors;
+		do{
+			asm lodsb
+			asm stosb
+		}while(AL!=0);
+	}
+	asm fstp st(0) // discard original value
+}
+
+:void FTOAN()
+//Конвертирует вещественное число, находящееся в ST(0) в текстовую строку
+//с заданым числом знаков после запятой
+//AX - адрес буфера для текстовой строки
+//BX - число знаков после запятой не более 16 (для типа float больше 8 знаков
+//		 не имеет смысла ставить
+{
+	AX><DI;
+	SI=BX;
+	ES=DS;
+	asm{
+		fxam
+		fstsw AX
+		fwait
+	}
+	AH><AL;
+	AL&=0X47;
+	$CMP AL,4
+	$JZ NUMER
+	if(AL==6){
+		AL='-';
+		$stosb
+NUMER:
+		asm{
+			fabs			 // force number positive
+			fxtract 	 // extract exponent
+			fxch st(1) // put exponent on top
+			fldlg2		 // form power of 10
+			fmulp st(1)
+			fstcw tbufftoa // save current rounding mode
+			fwait
+		}
+		newcw=tbufftoa|0xc00; //set bit field for rounding
+		asm{
+			fldcw newcw // force new rounding mode
+			fld st(0) 	// duplicate power of ten
+			frndint 		// find integer part of
+			fist newcw		// exponent and save it
+			fldcw tbufftoa // restore old rounding mode
+			fsubp st(1) // find fractional part of
+		}
+		@FALOG(); //power of ten
+		asm{
+			fmulp st(1) // then times mantissa
+			fmul fp1e18 // scale mantissa for BCD
+			frndint 		// zap any remaining fraction
+		}
+		FOR(;;){
+			asm{
+				fcom fp1e17 // is mantissa < 1.0e17?
+				fstsw AX
+				fwait
+			}
+			asm sahf
+			IF(NOTCARRYFLAG)BREAK;
+			asm fimul int10 // yes, mantissa * 10
+			newcw--;	// and decrement exponent
+		}
+		FOR(;;){
+			asm{
+				fcom fp1e18 // is mantissa < 1.0e18?
+				fstsw AX
+				fwait
+			}
+			asm sahf
+			IF(CARRYFLAG)BREAK;
+			asm fidiv int10 // yes, mantissa / 10
+			newcw++; //and increment exponent
+		}
+		asm{
+			fbstp tbufftoa	// unload mantissa in BCD
+			fwait
+		}
+		AX='.0';
+		asm stosw
+		DX><SI;
+		$shr DX,1
+		IF(CARRYFLAG){
+			SI=1;
+			DX++;
+		}
+		ELSE SI=0;
+		BX=#tbufftoa+8;
+		AH=0;
+		do{
+			AL=DSBYTE[BX];
+			$ROR AX,4
+			AL+=0x30;
+			$STOSB
+			IF(DX==SI)BREAK;
+			AX>>=12;
+			AL+=0x30;
+			$STOSB
+			BX--;
+			DX--;
+		}while(NOTZEROFLAG);
+		BX=newcw;
+		IF(BX!=0){
+			AL='E'; 	//store 'E' for exponent
+			asm stosb
+			$JNS NOMINUS
+			AL='-';
+			-BX;
+			asm stosb
+NOMINUS:
+			AX><BX;
+			IF(AX>=10){
+				$AAM
+				AH><AL;
+				AL+='0';
+				$STOSB
+				AL=AH;
+			}
+			AL+='0';
+			$STOSB
+		}
+		AL=0;
+		asm stosb;
+	}
+	ELSE{
+		IF(AL==0X40)SI=#pzero;
+		ELSE IF(AL==0X42)SI=#mzero;
+		ELSE SI=#errors;
+		do{
+			asm lodsb
+			asm stosb
+		}while(AL!=0);
+	}
+	asm fstp st(0) // discard original value
+}
+
+:void ftoan(float a;int buf,num)
+//Конвертирует вещественное число в текстовую строку
+//с заданым числом знаков после запятой
+//buf - адрес буфера для текстовой строки
+//a 	- конвертируемое число
+//num - число знаков после запятой не более 16 (для типа float больше 8 знаков
+//			не имеет смысла ставить
+{
+	asm fld a
+	DI=buf;
+	ES=DS;
+	asm{
+		fxam
+		fstsw AX
+		fwait
+	}
+	AH><AL;
+	AL&=0X47;
+	$CMP AL,4
+	$JZ NUMER
+	if(AL==6){
+		AL='-';
+		$stosb
+NUMER:
+		asm{
+			fabs			 // force number positive
+			fxtract 	 // extract exponent
+			fxch st(1) // put exponent on top
+			fldlg2		 // form power of 10
+			fmulp st(1)
+			fstcw tbufftoa // save current rounding mode
+			fwait
+		}
+		newcw=tbufftoa|0xc00; //set bit field for rounding
+		asm{
+			fldcw newcw // force new rounding mode
+			fld st(0) 	// duplicate power of ten
+			frndint 		// find integer part of
+			fist newcw		// exponent and save it
+			fldcw tbufftoa // restore old rounding mode
+			fsubp st(1) // find fractional part of
+		}
+		@FALOG(); //power of ten
+		asm{
+			fmulp st(1) // then times mantissa
+			fmul fp1e18 // scale mantissa for BCD
+			frndint 		// zap any remaining fraction
+		}
+		FOR(;;){
+			asm{
+				fcom fp1e17 // is mantissa < 1.0e17?
+				fstsw AX
+				fwait
+			}
+			asm sahf
+			IF(NOTCARRYFLAG)BREAK;
+			asm fimul int10 // yes, mantissa * 10
+			newcw--;	// and decrement exponent
+		}
+		FOR(;;){
+			asm{
+				fcom fp1e18 // is mantissa < 1.0e18?
+				fstsw AX
+				fwait
+			}
+			asm sahf
+			IF(CARRYFLAG)BREAK;
+			asm fidiv int10 // yes, mantissa / 10
+			newcw++; //and increment exponent
+		}
+		asm{
+			fbstp tbufftoa	// unload mantissa in BCD
+			fwait
+		}
+		AX='.0';
+		asm stosw
+		DX=num;
+		$shr DX,1
+		IF(CARRYFLAG){
+			SI=1;
+			DX++;
+		}
+		ELSE SI=0;
+		BX=#tbufftoa+8;
+		AH=0;
+		do{
+			AL=DSBYTE[BX];
+			$ROR AX,4
+			AL+=0x30;
+			$STOSB
+			IF(DX==SI)BREAK;
+			AX>>=12;
+			AL+=0x30;
+			$STOSB
+			BX--;
+			DX--;
+		}while(NOTZEROFLAG);
+		BX=newcw;
+		IF(BX!=0){
+			AL='E'; 	//store 'E' for exponent
+			asm stosb
+			$JNS NOMINUS
+			AL='-';
+			-BX;
+			asm stosb
+NOMINUS:
+			AX><BX;
+			IF(AX>=10){
+				$AAM
+				AH><AL;
+				AL+='0';
+				$STOSB
+				AL=AH;
+			}
+			AL+='0';
+			$STOSB
+		}
+		AL=0;
+		asm stosb;
+	}
+	ELSE{
+		IF(AL==0X40)SI=#pzero;
+		ELSE IF(AL==0X42)SI=#mzero;
+		ELSE SI=#errors;
+		do{
+			asm lodsb
+			asm stosb
+		}while(AL!=0);
+	}
+	asm fstp st(0) // discard original value
+}
+
+:void ATOF()
+//Конвертирует текстовую строку в вещественное число
+//Вход AX-адрес строки
+//Выход ST(0) - результирующее вещественное число
+{
+	SI><AX;
+	$CALL NEAR CONVERT
+	GOTO CONTCONV;
+CONVERT:
+	asm fldz			// initialize result
+	CX=0;
+	DX=-1;
+	do{
+		do{
+			asm lodsb
+		}while (AL==' ');
+	}while (AL==9);
+	IF(AL!='+'){
+		IF(AL=='-'){
+			CX--;
+			GOTO CONV2;
+		}
+		ELSE GOTO CONV3;
+	}
+CONV2:
+	asm lodsb
+CONV3:
+	IF(AL>='0'){
+		IF(AL<='9'){
+			AX&=0xf;
+			tbufftoa=AX;
+			asm{
+				fimul int10
+				fiadd tbufftoa
+			}
+			IF(int DX>=0)DX++;
+			GOTO CONV2;
+		}
+	}
+	IF(AL=='.'){
+		DX++;
+		GOTO CONV2;
+	}
+	asm{
+		JCXZ CONV6
+		FCHS
+	}
+CONV6:
+	IF(int DX <0)DX=0;
+	$RET
+CONTCONV:
+	-DX;				 // save -1 * decimal places
+	newcw=DX;
+	AL|=0x20; 	 // fold char to lower case
+	IF(AL!='e')asm fldz
+	ELSE $CALL NEAR CONVERT
+	asm fiadd newcw // adjust exponent for dec. places in mantissa
+	@FALOG(); 		// raise 10 to power
+	asm fmul ST,ST(1) 			 // exponent * mantissa
+}
+
+:float ATOFF()
+//Конвертирует текстовую строку в вещественное число
+//Вход AX-адрес строки
+//Выход EAX - результирующее вещественное число
+float i;
+{
+	SI><AX;
+	$CALL NEAR CONVERT
+	GOTO CONTCONV;
+CONVERT:
+	asm fldz			// initialize result
+	CX=0;
+	DX=-1;
+	do{
+		do{
+			asm lodsb
+		}while (AL==' ');
+	}while (AL==9);
+	IF(AL!='+'){
+		IF(AL=='-'){
+			CX--;
+			GOTO CONV2;
+		}
+		ELSE GOTO CONV3;
+	}
+CONV2:
+	asm lodsb
+CONV3:
+	IF(AL>='0'){
+		IF(AL<='9'){
+			AX&=0xf;
+			tbufftoa=AX;
+			asm{
+				fimul int10
+				fiadd tbufftoa
+			}
+			IF(int DX>=0)DX++;
+			GOTO CONV2;
+		}
+	}
+	IF(AL=='.'){
+		DX++;
+		GOTO CONV2;
+	}
+	asm{
+		JCXZ CONV6
+		FCHS
+	}
+CONV6:
+	IF(int DX <0)DX=0;
+	$RET
+CONTCONV:
+	-DX;				 // save -1 * decimal places
+	newcw=DX;
+	AL|=0x20; 	 // fold char to lower case
+	IF(AL!='e')asm fldz
+	ELSE $CALL NEAR CONVERT
+	asm fiadd newcw // adjust exponent for dec. places in mantissa
+	@FALOG(); 		// raise 10 to power
+	asm {
+		fmul ST,ST(1) 			 // exponent * mantissa
+		fstp i
+		fwait
+	}
+	EAX=i;
+}
+
+?endif

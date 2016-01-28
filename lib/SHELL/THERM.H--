@@ -1,0 +1,34 @@
+?warning FALSE
+/*****************************************************************************
+* .NAME   : ShowTherm2
+* .TITLE  : Показывает столбик
+*****************************************************************************/
+void ShowTherm2(int wrow,wcol,width,percent)
+char buffer[132];
+{
+/* длина заполненной части */
+	AX=width*percent/100;
+	BX><AX;
+/* заполненный столбик */
+	FOR(SI=0;SI<BX;SI++)buffer[SI]='█';
+/* незаполненный столбик */
+	FOR(;SI<width;SI++)buffer[SI]=' ';
+/* завершающий ноль */
+	buffer[SI]=0;
+/* вывод градусника на экран */
+	Say(wrow,wcol,0x7f,#buffer);
+}
+
+/*****************************************************************************
+* .NAME   : ShowTherm
+* .TITLE  : Показывает столбик с процентами
+*****************************************************************************/
+void ShowTherm(int wrow,wcol,width,percent)
+char string[7];
+{
+	ShowTherm2(wrow,wcol,width-5,percent);
+/* вывод процентов */
+	INTTOSTR(percent,#string);
+	DSWORD[BX]='%';
+	Say(wrow,wcol+width-4,_scheme.schAccentText[Window.scheme],#string);
+}

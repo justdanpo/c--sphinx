@@ -1,0 +1,30 @@
+/*
+     SPHINX C-- Program that demonstrates the two looping structures of C--
+*/
+
+?include "WRITE.H--"
+
+main ()
+int count;        /* loop counter */
+{
+WRITESTR("SPHINX C-- loop demo started.\n");
+
+WRITESTR("\nStart loop:        ");
+count = 20;
+loop(count)
+    {WRITEWORD(count);
+    WRITE(' ');
+    }
+
+WRITESTR("\nStart do {} while: ");
+count = 20;
+do {WRITEWORD(count);
+    WRITE(' ');
+    count--;
+    } while( count > 0);
+
+WRITESTR("\n\nDone.");
+}
+
+
+/* end of LOOPS.C-- */

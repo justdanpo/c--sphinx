@@ -1,0 +1,28 @@
+/*
+    NAME:  VCPI.C--
+    DESCRIPTION:  This program detects whether or not the VCPI Interface is
+                  installed on the host machine and if available, displays
+                  the version number.
+*/
+
+
+?include "WRITE.H--"
+?include "VCPI.H--"
+
+
+void main ()
+word vcpi;
+{
+WRITELN();
+vcpi = @CHECK_VCPI();
+IF( vcpi != 0 )
+    {WRITESTR("VCPI version ");
+    WRITEWORD(vcpi/256);
+    WRITESTR(".");
+    WRITEWORD(vcpi&255);
+    WRITESTR(" available!\n");
+    }
+ELSE WRITESTR("VCPI not available.\n");
+}
+
+/* end of VCPI.C-- */

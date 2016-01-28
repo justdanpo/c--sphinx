@@ -1,0 +1,1505 @@
+// ------------------------------------------------------------------- //
+//        WINBASE.H-- для Sphinx C-- (KERNEL32.DLL)                    //
+//        Основан на WINBASE.H, WINNT.H, TLHELP32.H из C++ Builder     //
+//        Предложения и плевки отправляйте на hd_keeper@mail.ru        //
+// ------------------------------------------------------------------- //
+
+#include "windef.h--"
+
+// Описание констант
+
+#define SHARE_READ	    0x00000001
+
+#define FILE_BEGIN           0
+#define FILE_CURRENT         1
+#define FILE_END             2
+
+#define INVALID_HANDLE_VALUE -1
+#define INVALID_FILE_SIZE    0xFFFFFFFF
+
+#define NOPARITY            0
+#define ODDPARITY           1
+#define EVENPARITY          2
+#define MARKPARITY          3
+#define SPACEPARITY         4
+
+#define ONESTOPBIT          0
+#define ONE5STOPBITS        1
+#define TWOSTOPBITS         2
+
+#define IGNORE              0           // Ignore signal
+#define INFINITE            0xFFFFFFFF  // Infinite timeout
+
+//
+// Events
+//
+
+#define EV_RXCHAR           0x0001  // Any Character received
+#define EV_RXFLAG           0x0002  // Received certain character
+#define EV_TXEMPTY          0x0004  // Transmitt Queue Empty
+#define EV_CTS              0x0008  // CTS changed state
+#define EV_DSR              0x0010  // DSR changed state
+#define EV_RLSD             0x0020  // RLSD changed state
+#define EV_BREAK            0x0040  // BREAK received
+#define EV_ERR              0x0080  // Line status error occurred
+#define EV_RING             0x0100  // Ring signal detected
+#define EV_PERR             0x0200  // Printer error occured
+#define EV_RX80FULL         0x0400  // Receive buffer is 80 percent full
+#define EV_EVENT1           0x0800  // Provider specific event 1
+#define EV_EVENT2           0x1000  // Provider specific event 2
+
+#define FILE_FLAG_WRITE_THROUGH         0x80000000
+#define FILE_FLAG_OVERLAPPED            0x40000000
+#define FILE_FLAG_NO_BUFFERING          0x20000000
+#define FILE_FLAG_RANDOM_ACCESS         0x10000000
+#define FILE_FLAG_SEQUENTIAL_SCAN       0x08000000
+#define FILE_FLAG_DELETE_ON_CLOSE       0x04000000
+#define FILE_FLAG_BACKUP_SEMANTICS      0x02000000
+#define FILE_FLAG_POSIX_SEMANTICS       0x01000000
+#define FILE_FLAG_OPEN_REPARSE_POINT    0x00200000
+#define FILE_FLAG_OPEN_NO_RECALL        0x00100000
+
+#define FILE_SHARE_READ                 0x00000001
+#define FILE_SHARE_WRITE                0x00000002
+#define FILE_ATTRIBUTE_READONLY         0x00000001
+#define FILE_ATTRIBUTE_HIDDEN           0x00000002
+#define FILE_ATTRIBUTE_SYSTEM           0x00000004
+#define FILE_ATTRIBUTE_DIRECTORY        0x00000010
+#define FILE_ATTRIBUTE_ARCHIVE          0x00000020
+#define FILE_ATTRIBUTE_NORMAL           0x00000080
+#define FILE_ATTRIBUTE_TEMPORARY        0x00000100
+#define FILE_ATTRIBUTE_COMPRESSED       0x00000800
+#define FILE_NOTIFY_CHANGE_FILE_NAME    0x00000001
+#define FILE_NOTIFY_CHANGE_DIR_NAME     0x00000002
+#define FILE_NOTIFY_CHANGE_ATTRIBUTES   0x00000004
+#define FILE_NOTIFY_CHANGE_SIZE         0x00000008
+#define FILE_NOTIFY_CHANGE_LAST_WRITE   0x00000010
+#define FILE_NOTIFY_CHANGE_SECURITY     0x00000100
+#define FILE_CASE_SENSITIVE_SEARCH      0x00000001
+#define FILE_CASE_PRESERVED_NAMES       0x00000002
+#define FILE_UNICODE_ON_DISK            0x00000004
+#define FILE_PERSISTENT_ACLS            0x00000008
+#define FILE_FILE_COMPRESSION           0x00000010
+#define FILE_VOLUME_IS_COMPRESSED       0x00008000
+
+#define IO_COMPLETION_MODIFY_STATE  0x0002
+
+#define DELETE                          0x00010000
+#define READ_CONTROL                    0x00020000
+#define WRITE_DAC                       0x00040000
+#define WRITE_OWNER                     0x00080000
+#define SYNCHRONIZE                     0x00100000
+#define STANDARD_RIGHTS_REQUIRED        0x000F0000
+#define STANDARD_RIGHTS_READ            READ_CONTROL
+#define STANDARD_RIGHTS_WRITE           READ_CONTROL
+#define STANDARD_RIGHTS_EXECUTE         READ_CONTROL
+#define STANDARD_RIGHTS_ALL             0x001F0000
+#define SPECIFIC_RIGHTS_ALL             0x0000FFFF
+
+#define PROCESS_TERMINATE         0x0001
+#define PROCESS_CREATE_THREAD     0x0002
+#define PROCESS_VM_OPERATION      0x0008
+#define PROCESS_VM_READ           0x0010
+#define PROCESS_VM_WRITE          0x0020
+#define PROCESS_DUP_HANDLE        0x0040
+#define PROCESS_CREATE_PROCESS    0x0080
+#define PROCESS_SET_QUOTA         0x0100
+#define PROCESS_SET_INFORMATION   0x0200
+#define PROCESS_QUERY_INFORMATION 0x0400
+#define PROCESS_ALL_ACCESS        STANDARD_RIGHTS_REQUIRED|SYNCHRONIZE|0x0FFF
+
+#define THREAD_TERMINATE               0x0001
+#define THREAD_SUSPEND_RESUME          0x0002
+#define THREAD_GET_CONTEXT             0x0008
+#define THREAD_SET_CONTEXT             0x0010
+#define THREAD_SET_INFORMATION         0x0020
+#define THREAD_QUERY_INFORMATION       0x0040
+#define THREAD_SET_THREAD_TOKEN        0x0080
+#define THREAD_IMPERSONATE             0x0100
+#define THREAD_DIRECT_IMPERSONATION    0x0200
+#define THREAD_ALL_ACCESS              STANDARD_RIGHTS_REQUIRED|SYNCHRONIZE|0x03FF
+
+#define DUPLICATE_CLOSE_SOURCE      0x00000001
+#define DUPLICATE_SAME_ACCESS       0x00000002
+#define MAILSLOT_NO_MESSAGE         -1
+#define MAILSLOT_WAIT_FOREVER       -1
+
+#define PAGE_NOACCESS          0x01
+#define PAGE_READONLY          0x02
+#define PAGE_READWRITE         0x04
+#define PAGE_WRITECOPY         0x08
+#define PAGE_EXECUTE           0x10
+#define PAGE_EXECUTE_READ      0x20
+#define PAGE_EXECUTE_READWRITE 0x40
+#define PAGE_EXECUTE_WRITECOPY 0x80
+#define PAGE_GUARD            0x100
+#define PAGE_NOCACHE          0x200
+#define MEM_COMMIT           0x1000
+#define MEM_RESERVE          0x2000
+#define MEM_DECOMMIT         0x4000
+#define MEM_RELEASE          0x8000
+#define MEM_FREE            0x10000
+#define MEM_PRIVATE         0x20000
+#define MEM_MAPPED          0x40000
+#define MEM_TOP_DOWN       0x100000
+#define SEC_FILE           0x800000
+#define SEC_IMAGE         0x1000000
+#define SEC_RESERVE       0x4000000
+#define SEC_COMMIT        0x8000000
+#define SEC_NOCACHE      0x10000000
+#define MEM_IMAGE         SEC_IMAGE
+
+#define CREATE_NEW          1
+#define CREATE_ALWAYS       2
+#define OPEN_EXISTING       3
+#define OPEN_ALWAYS         4
+#define TRUNCATE_EXISTING   5
+
+#define PROGRESS_CONTINUE   0
+#define PROGRESS_CANCEL     1
+#define PROGRESS_STOP       2
+#define PROGRESS_QUIET      3
+
+#define COPY_FILE_FAIL_IF_EXISTS        0x00000001
+#define COPY_FILE_RESTARTABLE           0x00000002
+#define COPY_FILE_OPEN_SOURCE_FOR_WRITE 0x00000004
+
+#define PIPE_ACCESS_INBOUND         0x00000001
+#define PIPE_ACCESS_OUTBOUND        0x00000002
+#define PIPE_ACCESS_DUPLEX          0x00000003
+#define PIPE_CLIENT_END             0x00000000
+#define PIPE_SERVER_END             0x00000001
+#define PIPE_WAIT                   0x00000000
+#define PIPE_NOWAIT                 0x00000001
+#define PIPE_READMODE_BYTE          0x00000000
+#define PIPE_READMODE_MESSAGE       0x00000002
+#define PIPE_TYPE_BYTE              0x00000000
+#define PIPE_TYPE_MESSAGE           0x00000004
+#define PIPE_UNLIMITED_INSTANCES    255
+
+#define SECURITY_ANONYMOUS         0x00000000
+#define SECURITY_IDENTIFICATION    0x00010000
+#define SECURITY_IMPERSONATION     0x00020000
+#define SECURITY_DELEGATION        0x00030000
+#define SECURITY_CONTEXT_TRACKING  0x00040000
+#define SECURITY_EFFECTIVE_ONLY    0x00080000
+#define SECURITY_SQOS_PRESENT      0x00100000
+#define SECURITY_VALID_SQOS_FLAGS  0x001F0000
+
+#define PST_UNSPECIFIED      0x00000000
+#define PST_RS232            0x00000001
+#define PST_PARALLELPORT     0x00000002
+#define PST_RS422            0x00000003
+#define PST_RS423            0x00000004
+#define PST_RS449            0x00000005
+#define PST_MODEM            0x00000006
+#define PST_FAX              0x00000021
+#define PST_SCANNER          0x00000022
+#define PST_NETWORK_BRIDGE   0x00000100
+#define PST_LAT              0x00000101
+#define PST_TCPIP_TELNET     0x00000102
+#define PST_X25              0x00000103
+
+#define PCF_DTRDSR        0x0001
+#define PCF_RTSCTS        0x0002
+#define PCF_RLSD          0x0004
+#define PCF_PARITY_CHECK  0x0008
+#define PCF_XONXOFF       0x0010
+#define PCF_SETXCHAR      0x0020
+#define PCF_TOTALTIMEOUTS 0x0040
+#define PCF_INTTIMEOUTS   0x0080
+#define PCF_SPECIALCHARS  0x0100
+#define PCF_16BITMODE     0x0200
+
+#define SP_SERIALCOMM     0x0001
+#define SP_PARITY         0x0001
+#define SP_BAUD           0x0002
+#define SP_DATABITS       0x0004
+#define SP_STOPBITS       0x0008
+#define SP_HANDSHAKING    0x0010
+#define SP_PARITY_CHECK   0x0020
+#define SP_RLSD           0x0040
+
+#define BAUD_075          0x00000001
+#define BAUD_110          0x00000002
+#define BAUD_134_5        0x00000004
+#define BAUD_150          0x00000008
+#define BAUD_300          0x00000010
+#define BAUD_600          0x00000020
+#define BAUD_1200         0x00000040
+#define BAUD_1800         0x00000080
+#define BAUD_2400         0x00000100
+#define BAUD_4800         0x00000200
+#define BAUD_7200         0x00000400
+#define BAUD_9600         0x00000800
+#define BAUD_14400        0x00001000
+#define BAUD_19200        0x00002000
+#define BAUD_38400        0x00004000
+#define BAUD_56K          0x00008000
+#define BAUD_128K         0x00010000
+#define BAUD_115200       0x00020000
+#define BAUD_57600        0x00040000
+#define BAUD_USER         0x10000000
+
+#define DATABITS_5        0x0001
+#define DATABITS_6        0x0002
+#define DATABITS_7        0x0004
+#define DATABITS_8        0x0008
+#define DATABITS_16       0x0010
+#define DATABITS_16X      0x0020
+
+#define STOPBITS_10       0x0001
+#define STOPBITS_15       0x0002
+#define STOPBITS_20       0x0004
+#define PARITY_NONE       0x0100
+#define PARITY_ODD        0x0200
+#define PARITY_EVEN       0x0400
+#define PARITY_MARK       0x0800
+#define PARITY_SPACE      0x1000
+
+#define COMMPROP_INITIALIZED 0xE73CF52E
+
+#define DTR_CONTROL_DISABLE    0x00
+#define DTR_CONTROL_ENABLE     0x01
+#define DTR_CONTROL_HANDSHAKE  0x02
+
+#define RTS_CONTROL_DISABLE    0x00
+#define RTS_CONTROL_ENABLE     0x01
+#define RTS_CONTROL_HANDSHAKE  0x02
+#define RTS_CONTROL_TOGGLE     0x03
+
+#define GMEM_FIXED          0x0000
+#define GMEM_MOVEABLE       0x0002
+#define GMEM_NOCOMPACT      0x0010
+#define GMEM_NODISCARD      0x0020
+#define GMEM_ZEROINIT       0x0040
+#define GMEM_MODIFY         0x0080
+#define GMEM_DISCARDABLE    0x0100
+#define GMEM_NOT_BANKED     0x1000
+#define GMEM_SHARE          0x2000
+#define GMEM_DDESHARE       0x2000
+#define GMEM_NOTIFY         0x4000
+#define GMEM_LOWER          GMEM_NOT_BANKED
+#define GMEM_VALID_FLAGS    0x7F72
+#define GMEM_INVALID_HANDLE 0x8000
+#define GHND                GMEM_MOVEABLE|GMEM_ZEROINIT
+#define GPTR                GMEM_FIXED|GMEM_ZEROINIT
+#define GMEM_DISCARDED      0x4000
+#define GMEM_LOCKCOUNT      0x00FF
+
+#define LMEM_FIXED          0x0000
+#define LMEM_MOVEABLE       0x0002
+#define LMEM_NOCOMPACT      0x0010
+#define LMEM_NODISCARD      0x0020
+#define LMEM_ZEROINIT       0x0040
+#define LMEM_MODIFY         0x0080
+#define LMEM_DISCARDABLE    0x0F00
+#define LMEM_VALID_FLAGS    0x0F72
+#define LMEM_INVALID_HANDLE 0x8000
+#define LHND                LMEM_MOVEABLE|LMEM_ZEROINIT
+#define LPTR                LMEM_FIXED|LMEM_ZEROINIT
+#define NONZEROLHND         LMEM_MOVEABLE
+#define NONZEROLPTR         LMEM_FIXED
+#define LMEM_DISCARDED      0x4000
+#define LMEM_LOCKCOUNT      0x00FF
+
+#define DEBUG_PROCESS               0x00000001
+#define DEBUG_ONLY_THIS_PROCESS     0x00000002
+#define CREATE_SUSPENDED            0x00000004
+#define DETACHED_PROCESS            0x00000008
+#define CREATE_NEW_CONSOLE          0x00000010
+#define NORMAL_PRIORITY_CLASS       0x00000020
+#define IDLE_PRIORITY_CLASS         0x00000040
+#define HIGH_PRIORITY_CLASS         0x00000080
+#define REALTIME_PRIORITY_CLASS     0x00000100
+#define CREATE_NEW_PROCESS_GROUP    0x00000200
+#define CREATE_UNICODE_ENVIRONMENT  0x00000400
+#define CREATE_SEPARATE_WOW_VDM     0x00000800
+#define CREATE_SHARED_WOW_VDM       0x00001000
+#define CREATE_FORCEDOS             0x00002000
+#define CREATE_DEFAULT_ERROR_MODE   0x04000000
+#define CREATE_NO_WINDOW            0x08000000
+#define PROFILE_USER                0x10000000
+#define PROFILE_KERNEL              0x20000000
+#define PROFILE_SERVER              0x40000000
+#define THREAD_BASE_PRIORITY_LOWRT  15
+#define THREAD_BASE_PRIORITY_MAX    2
+#define THREAD_BASE_PRIORITY_MIN   -2
+#define THREAD_BASE_PRIORITY_IDLE  -15
+#define THREAD_PRIORITY_LOWEST          THREAD_BASE_PRIORITY_MIN
+#define THREAD_PRIORITY_BELOW_NORMAL    THREAD_PRIORITY_LOWEST+1
+#define THREAD_PRIORITY_NORMAL          0
+#define THREAD_PRIORITY_HIGHEST         THREAD_BASE_PRIORITY_MAX
+#define THREAD_PRIORITY_ABOVE_NORMAL    THREAD_PRIORITY_HIGHEST-1
+#define THREAD_PRIORITY_ERROR_RETURN    0x7FFFFFFF
+#define THREAD_PRIORITY_TIME_CRITICAL   THREAD_BASE_PRIORITY_LOWRT
+#define THREAD_PRIORITY_IDLE            THREAD_BASE_PRIORITY_IDLE
+
+#define EXCEPTION_DEBUG_EVENT       1
+#define CREATE_THREAD_DEBUG_EVENT   2
+#define CREATE_PROCESS_DEBUG_EVENT  3
+#define EXIT_THREAD_DEBUG_EVENT     4
+#define EXIT_PROCESS_DEBUG_EVENT    5
+#define LOAD_DLL_DEBUG_EVENT        6
+#define UNLOAD_DLL_DEBUG_EVENT      7
+#define OUTPUT_DEBUG_STRING_EVENT   8
+#define RIP_EVENT                   9
+
+#define DRIVE_UNKNOWN     0
+#define DRIVE_NO_ROOT_DIR 1
+#define DRIVE_REMOVABLE   2
+#define DRIVE_FIXED       3
+#define DRIVE_REMOTE      4
+#define DRIVE_CDROM       5
+#define DRIVE_RAMDISK     6
+
+#define FILE_TYPE_UNKNOWN   0x0000
+#define FILE_TYPE_DISK      0x0001
+#define FILE_TYPE_CHAR      0x0002
+#define FILE_TYPE_PIPE      0x0003
+#define FILE_TYPE_REMOTE    0x8000
+
+#define STD_INPUT_HANDLE    -10
+#define STD_OUTPUT_HANDLE   -11
+#define STD_ERROR_HANDLE    -12
+
+#define OF_READ             0x00000000
+#define OF_WRITE            0x00000001
+#define OF_READWRITE        0x00000002
+#define OF_SHARE_COMPAT     0x00000000
+#define OF_SHARE_EXCLUSIVE  0x00000010
+#define OF_SHARE_DENY_WRITE 0x00000020
+#define OF_SHARE_DENY_READ  0x00000030
+#define OF_SHARE_DENY_NONE  0x00000040
+#define OF_PARSE            0x00000100
+#define OF_DELETE           0x00000200
+#define OF_VERIFY           0x00000400
+#define OF_CANCEL           0x00000800
+#define OF_CREATE           0x00001000
+#define OF_PROMPT           0x00002000
+#define OF_EXIST            0x00004000
+#define OF_REOPEN           0x00008000
+#define OFS_MAXPATHNAME     128
+
+#define HANDLE_FLAG_INHERIT             0x00000001
+#define HANDLE_FLAG_PROTECT_FROM_CLOSE  0x00000002
+#define HINSTANCE_ERROR                 32
+
+#define GET_TAPE_MEDIA_INFORMATION 0
+#define GET_TAPE_DRIVE_INFORMATION 1
+#define SET_TAPE_MEDIA_INFORMATION 0
+#define SET_TAPE_DRIVE_INFORMATION 1
+
+#define FORMAT_MESSAGE_ALLOCATE_BUFFER 0x00000100
+#define FORMAT_MESSAGE_IGNORE_INSERTS  0x00000200
+#define FORMAT_MESSAGE_FROM_STRING     0x00000400
+#define FORMAT_MESSAGE_FROM_HMODULE    0x00000800
+#define FORMAT_MESSAGE_FROM_SYSTEM     0x00001000
+#define FORMAT_MESSAGE_ARGUMENT_ARRAY  0x00002000
+#define FORMAT_MESSAGE_MAX_WIDTH_MASK  0x000000FF
+
+#define BACKUP_INVALID          0x00000000
+#define BACKUP_DATA             0x00000001
+#define BACKUP_EA_DATA          0x00000002
+#define BACKUP_SECURITY_DATA    0x00000003
+#define BACKUP_ALTERNATE_DATA   0x00000004
+#define BACKUP_LINK             0x00000005
+#define BACKUP_PROPERTY_DATA    0x00000006
+#define BACKUP_OBJECT_ID        0x00000007
+#define BACKUP_REPARSE_DATA     0x00000008
+#define BACKUP_SPARSE_BLOCK     0x00000009
+
+#define STREAM_NORMAL_ATTRIBUTE         0x00000000
+#define STREAM_MODIFIED_WHEN_READ       0x00000001
+#define STREAM_CONTAINS_SECURITY        0x00000002
+#define STREAM_CONTAINS_PROPERTIES      0x00000004
+#define STREAM_SPARSE_ATTRIBUTE         0x00000008
+
+#define STARTF_USESHOWWINDOW    0x00000001
+#define STARTF_USESIZE          0x00000002
+#define STARTF_USEPOSITION      0x00000004
+#define STARTF_USECOUNTCHARS    0x00000008
+#define STARTF_USEFILLATTRIBUTE 0x00000010
+#define STARTF_RUNFULLSCREEN    0x00000020
+#define STARTF_FORCEONFEEDBACK  0x00000040
+#define STARTF_FORCEOFFFEEDBACK 0x00000080
+#define STARTF_USESTDHANDLES    0x00000100
+#define STARTF_USEHOTKEY        0x00000200
+
+#define DONT_RESOLVE_DLL_REFERENCES     0x00000001
+#define LOAD_LIBRARY_AS_DATAFILE        0x00000002
+#define LOAD_WITH_ALTERED_SEARCH_PATH   0x00000008
+
+#define DDD_RAW_TARGET_PATH         0x00000001
+#define DDD_REMOVE_DEFINITION       0x00000002
+#define DDD_EXACT_MATCH_ON_REMOVE   0x00000004
+#define DDD_NO_BROADCAST_SYSTEM     0x00000008
+
+#define FIND_FIRST_EX_CASE_SENSITIVE   0x00000001
+
+#define MOVEFILE_REPLACE_EXISTING       0x00000001
+#define MOVEFILE_COPY_ALLOWED           0x00000002
+#define MOVEFILE_DELAY_UNTIL_REBOOT     0x00000004
+#define MOVEFILE_WRITE_THROUGH          0x00000008
+#define MOVEFILE_CREATE_HARDLINK        0x00000010
+#define MOVEFILE_FAIL_IF_NOT_TRACKABLE  0x00000020
+
+#define LOGON32_LOGON_INTERACTIVE   2
+#define LOGON32_LOGON_NETWORK       3
+#define LOGON32_LOGON_BATCH         4
+#define LOGON32_LOGON_SERVICE       5
+#define LOGON32_PROVIDER_DEFAULT    0
+#define LOGON32_PROVIDER_WINNT35    1
+#define LOGON32_PROVIDER_WINNT40    2
+#define LOGON32_PROVIDER_WINNT50    3
+
+#define HW_PROFILE_GUIDLEN         39
+#define MAX_PROFILE_LEN            80
+#define DOCKINFO_UNDOCKED          1
+#define DOCKINFO_DOCKED            2
+#define DOCKINFO_USER_SUPPLIED     4
+#define DOCKINFO_USER_UNDOCKED     DOCKINFO_USER_SUPPLIED|DOCKINFO_UNDOCKED
+#define DOCKINFO_USER_DOCKED       DOCKINFO_USER_SUPPLIED|DOCKINFO_DOCKED
+
+#define AC_LINE_OFFLINE                 0x00
+#define AC_LINE_ONLINE                  0x01
+#define AC_LINE_BACKUP_POWER            0x02
+#define AC_LINE_UNKNOWN                 0xFF
+#define BATTERY_FLAG_HIGH               0x01
+#define BATTERY_FLAG_LOW                0x02
+#define BATTERY_FLAG_CRITICAL           0x04
+#define BATTERY_FLAG_CHARGING           0x08
+#define BATTERY_FLAG_NO_BATTERY         0x80
+#define BATTERY_FLAG_UNKNOWN            0xFF
+#define BATTERY_PERCENTAGE_UNKNOWN      0xFF
+#define BATTERY_LIFE_UNKNOWN            0xFFFFFFFF
+
+#define TH32CS_SNAPHEAPLIST 0x00000001
+#define TH32CS_SNAPPROCESS  0x00000002
+#define TH32CS_SNAPTHREAD   0x00000004
+#define TH32CS_SNAPMODULE   0x00000008
+#define TH32CS_SNAPALL      TH32CS_SNAPHEAPLIST|TH32CS_SNAPPROCESS|TH32CS_SNAPTHREAD|TH32CS_SNAPMODULE
+#define TH32CS_INHERIT      0x80000000
+
+#define HF32_DEFAULT      1
+#define HF32_SHARED       2
+
+#define LF32_FIXED    0x00000001
+#define LF32_FREE     0x00000002
+#define LF32_MOVEABLE 0x00000004
+
+#define CP_ACP                    0
+#define CP_OEMCP                  1
+#define CP_MACCP                  2
+#define CP_THREAD_ACP             3
+#define CP_SYMBOL                 42
+#define CP_UTF7                   65000
+#define CP_UTF8                   65001
+
+#define NORM_IGNORECASE           0x00000001
+#define NORM_IGNORENONSPACE       0x00000002
+#define NORM_IGNORESYMBOLS        0x00000004
+#define NORM_IGNOREKANATYPE       0x00010000
+#define NORM_IGNOREWIDTH          0x00020000
+#define SORT_DEFAULT              0x00000000
+#define SORT_STRINGSORT           0x00001000
+
+#define LANG_NEUTRAL                     0x00
+#define LANG_AFRIKAANS                   0x36
+#define LANG_ALBANIAN                    0x1c
+#define LANG_ARABIC                      0x01
+#define LANG_BASQUE                      0x2d
+#define LANG_BELARUSIAN                  0x23
+#define LANG_BULGARIAN                   0x02
+#define LANG_CATALAN                     0x03
+#define LANG_CHINESE                     0x04
+#define LANG_CROATIAN                    0x1a
+#define LANG_CZECH                       0x05
+#define LANG_DANISH                      0x06
+#define LANG_DUTCH                       0x13
+#define LANG_ENGLISH                     0x09
+#define LANG_ESTONIAN                    0x25
+#define LANG_FAEROESE                    0x38
+#define LANG_FARSI                       0x29
+#define LANG_FINNISH                     0x0b
+#define LANG_FRENCH                      0x0c
+#define LANG_GERMAN                      0x07
+#define LANG_GREEK                       0x08
+#define LANG_HEBREW                      0x0d
+#define LANG_HINDI                       0x39
+#define LANG_HUNGARIAN                   0x0e
+#define LANG_ICELANDIC                   0x0f
+#define LANG_INDONESIAN                  0x21
+#define LANG_ITALIAN                     0x10
+#define LANG_JAPANESE                    0x11
+#define LANG_KOREAN                      0x12
+#define LANG_LATVIAN                     0x26
+#define LANG_LITHUANIAN                  0x27
+#define LANG_MACEDONIAN                  0x2f
+#define LANG_MALAY                       0x3e
+#define LANG_NORWEGIAN                   0x14
+#define LANG_POLISH                      0x15
+#define LANG_PORTUGUESE                  0x16
+#define LANG_ROMANIAN                    0x18
+#define LANG_RUSSIAN                     0x19
+#define LANG_SERBIAN                     0x1a
+#define LANG_SLOVAK                      0x1b
+#define LANG_SLOVENIAN                   0x24
+#define LANG_SPANISH                     0x0a
+#define LANG_SWAHILI                     0x41
+#define LANG_SWEDISH                     0x1d
+#define LANG_THAI                        0x1e
+#define LANG_TURKISH                     0x1f
+#define LANG_UKRAINIAN                   0x22
+#define LANG_VIETNAMESE                  0x2a
+#define SUBLANG_NEUTRAL                  0x00
+#define SUBLANG_DEFAULT                  0x01
+#define SUBLANG_SYS_DEFAULT              0x02
+
+#define LANG_SYSTEM_DEFAULT    0x0800
+#define LANG_USER_DEFAULT      0x0400
+#define LOCALE_NEUTRAL         0x0000
+#define LOCALE_SYSTEM_DEFAULT  LANG_SYSTEM_DEFAULT
+#define LOCALE_USER_DEFAULT    LANG_USER_DEFAULT
+
+// Описание структур
+
+struct OVERLAPPED {
+  DWORD Internal;
+  DWORD InternalHigh;
+  DWORD Offset;
+  DWORD OffsetHigh;
+  HANDLE hEvent;
+};
+
+struct SECURITY_ATTRIBUTES {
+  DWORD nLength;
+  LPVOID lpSecurityDescriptor;
+  BOOL bInheritHandle;
+};
+
+struct PROCESS_INFORMATION {
+  HANDLE hProcess;
+  HANDLE hThread;
+  DWORD dwProcessId;
+  DWORD dwThreadId;
+};
+
+struct FILETIME {
+  DWORD dwLowDateTime;
+  DWORD dwHighDateTime;
+};
+
+struct SYSTEMTIME {
+  WORD wYear;
+  WORD wMonth;
+  WORD wDayOfWeek;
+  WORD wDay;
+  WORD wHour;
+  WORD wMinute;
+  WORD wSecond;
+  WORD wMilliseconds;
+};
+
+struct COMMPROP {
+  WORD wPacketLength;
+  WORD wPacketVersion;
+  DWORD dwServiceMask;
+  DWORD dwReserved1;
+  DWORD dwMaxTxQueue;
+  DWORD dwMaxRxQueue;
+  DWORD dwMaxBaud;
+  DWORD dwProvSubType;
+  DWORD dwProvCapabilities;
+  DWORD dwSettableParams;
+  DWORD dwSettableBaud;
+  WORD wSettableData;
+  WORD wSettableStopParity;
+  DWORD dwCurrentTxQueue;
+  DWORD dwCurrentRxQueue;
+  DWORD dwProvSpec1;
+  DWORD dwProvSpec2;
+  CHAR wcProvChar[1];
+};
+
+struct COMSTAT {
+  DWORD Flags;
+  DWORD cbInQue;
+  DWORD cbOutQue;
+};
+
+struct DCB {
+  DWORD DCBlength;
+  DWORD BaudRate;
+  DWORD Flags;
+  WORD wReserved;
+  WORD XonLim;
+  WORD XoffLim;
+  BYTE ByteSize;
+  BYTE Parity;
+  BYTE StopBits;
+  CHAR XonChar;
+  CHAR XoffChar;
+  CHAR ErrorChar;
+  CHAR EofChar;
+  CHAR EvtChar;
+  WORD wReserved1;
+};
+
+struct COMMTIMEOUTS {
+  DWORD ReadIntervalTimeout;
+  DWORD ReadTotalTimeoutMultiplier;
+  DWORD ReadTotalTimeoutConstant;
+  DWORD WriteTotalTimeoutMultiplier;
+  DWORD WriteTotalTimeoutConstant;
+};
+
+struct COMMCONFIG {
+  DWORD dwSize;
+  WORD wVersion;
+  WORD wReserved;
+  struct DCB dcb;
+  DWORD dwProviderSubType;
+  DWORD dwProviderOffset;
+  DWORD dwProviderSize;
+  CHAR wcProviderData[1];
+};
+
+struct SYSTEM_INFO {
+  union {
+    DWORD dwOemId;
+    WORD wProcessorArchitecture;
+  };
+  DWORD dwPageSize;
+  LPVOID lpMinimumApplicationAddress;
+  LPVOID lpMaximumApplicationAddress;
+  DWORD dwActiveProcessorMask;
+  DWORD dwNumberOfProcessors;
+  DWORD dwProcessorType;
+  DWORD dwAllocationGranularity;
+  WORD wProcessorLevel;
+  WORD wProcessorRevision;
+};
+
+struct MEMORYSTATUS {
+  DWORD dwLength;
+  DWORD dwMemoryLoad;
+  DWORD dwTotalPhys;
+  DWORD dwAvailPhys;
+  DWORD dwTotalPageFile;
+  DWORD dwAvailPageFile;
+  DWORD dwTotalVirtual;
+  DWORD dwAvailVirtual;
+};
+
+struct EXCEPTION_RECORD {
+  DWORD ExceptionCode;
+  DWORD ExceptionFlags;
+  LPVOID ExceptionRecord;
+  LPVOID ExceptionAddress;
+  DWORD NumberParameters;
+  DWORD ExceptionInformation[EXCEPTION_MAXIMUM_PARAMETERS];
+};
+
+struct EXCEPTION_DEBUG_INFO {
+  struct EXCEPTION_RECORD ExceptionRecord;
+  DWORD dwFirstChance;
+};
+
+struct CREATE_THREAD_DEBUG_INFO {
+  HANDLE hThread;
+  LPVOID lpThreadLocalBase;
+  LPVOID lpStartAddress;
+};
+
+struct CREATE_PROCESS_DEBUG_INFO {
+  HANDLE hFile;
+  HANDLE hProcess;
+  HANDLE hThread;
+  LPVOID lpBaseOfImage;
+  DWORD dwDebugInfoFileOffset;
+  DWORD nDebugInfoSize;
+  LPVOID lpThreadLocalBase;
+  LPVOID lpStartAddress;
+  LPVOID lpImageName;
+  WORD fUnicode;
+};
+
+struct EXIT_THREAD_DEBUG_INFO {
+  DWORD dwExitCode;
+};
+
+struct EXIT_PROCESS_DEBUG_INFO {
+  DWORD dwExitCode;
+};
+
+struct LOAD_DLL_DEBUG_INFO {
+  HANDLE hFile;
+  LPVOID lpBaseOfDll;
+  DWORD dwDebugInfoFileOffset;
+  DWORD nDebugInfoSize;
+  LPVOID lpImageName;
+  WORD fUnicode;
+};
+
+struct UNLOAD_DLL_DEBUG_INFO {
+  LPVOID lpBaseOfDll;
+};
+
+struct OUTPUT_DEBUG_STRING_INFO {
+  LPSTR lpDebugStringData;
+  WORD fUnicode;
+  WORD nDebugStringLength;
+};
+
+struct RIP_INFO {
+  DWORD dwError;
+  DWORD dwType;
+};
+
+struct DEBUG_EVENT {
+  DWORD dwDebugEventCode;
+  DWORD dwProcessId;
+  DWORD dwThreadId;
+  union {
+    struct EXCEPTION_DEBUG_INFO Exception;
+    struct CREATE_THREAD_DEBUG_INFO CreateThread;
+    struct CREATE_PROCESS_DEBUG_INFO CreateProcessInfo;
+    struct EXIT_THREAD_DEBUG_INFO ExitThread;
+    struct EXIT_PROCESS_DEBUG_INFO ExitProcess;
+    struct LOAD_DLL_DEBUG_INFO LoadDll;
+    struct UNLOAD_DLL_DEBUG_INFO UnloadDll;
+    struct OUTPUT_DEBUG_STRING_INFO DebugString;
+    struct RIP_INFO RipInfo;
+  };
+};
+
+struct OFSTRUCT {
+  BYTE cBytes;
+  BYTE fFixedDisk;
+  WORD nErrCode;
+  WORD Reserved1;
+  WORD Reserved2;
+  CHAR szPathName[OFS_MAXPATHNAME];
+};
+
+struct BY_HANDLE_FILE_INFORMATION {
+  DWORD dwFileAttributes;
+  struct FILETIME ftCreationTime;
+  struct FILETIME ftLastAccessTime;
+  struct FILETIME ftLastWriteTime;
+  DWORD dwVolumeSerialNumber;
+  DWORD nFileSizeHigh;
+  DWORD nFileSizeLow;
+  DWORD nNumberOfLinks;
+  DWORD nFileIndexHigh;
+  DWORD nFileIndexLow;
+};
+
+struct TIME_ZONE_INFORMATION {
+  LONG Bias;
+  CHAR StandardName[32];
+  struct SYSTEMTIME StandardDate;
+  LONG StandardBias;
+  CHAR DaylightName[32];
+  struct SYSTEMTIME DaylightDate;
+  LONG DaylightBias;
+};
+
+struct STARTUPINFO {
+  DWORD cb;
+  LPSTR lpReserved;
+  LPSTR lpDesktop;
+  LPSTR lpTitle;
+  DWORD dwX;
+  DWORD dwY;
+  DWORD dwXSize;
+  DWORD dwYSize;
+  DWORD dwXCountChars;
+  DWORD dwYCountChars;
+  DWORD dwFillAttribute;
+  DWORD dwFlags;
+  WORD wShowWindow;
+  WORD cbReserved2;
+  LPVOID lpReserved2;
+  HANDLE hStdInput;
+  HANDLE hStdOutput;
+  HANDLE hStdError;
+};
+
+struct WIN32_FIND_DATA {
+  DWORD dwFileAttributes;
+  struct FILETIME ftCreationTime;
+  struct FILETIME ftLastAccessTime;
+  struct FILETIME ftLastWriteTime;
+  DWORD nFileSizeHigh;
+  DWORD nFileSizeLow;
+  DWORD dwReserved0;
+  DWORD dwReserved1;
+  CHAR cFileName[MAX_PATH];
+  CHAR cAlternateFileName[14];
+};
+
+struct WIN32_FILE_ATTRIBUTE_DATA {
+  DWORD dwFileAttributes;
+  struct FILETIME ftCreationTime;
+  struct FILETIME ftLastAccessTime;
+  struct FILETIME ftLastWriteTime;
+  DWORD nFileSizeHigh;
+  DWORD nFileSizeLow;
+};
+
+struct HW_PROFILE_INFO {
+  DWORD dwDockInfo;
+  CHAR szHwProfileGuid[HW_PROFILE_GUIDLEN];
+  CHAR szHwProfileName[MAX_PROFILE_LEN];
+};
+
+struct OSVERSIONINFO {
+  DWORD dwOSVersionInfoSize;
+  DWORD dwMajorVersion;
+  DWORD dwMinorVersion;
+  DWORD dwBuildNumber;
+  DWORD dwPlatformId;
+  CHAR szCSDVersion[ 128 ];
+};
+
+struct OSVERSIONINFOEX {
+  DWORD dwOSVersionInfoSize;
+  DWORD dwMajorVersion;
+  DWORD dwMinorVersion;
+  DWORD dwBuildNumber;
+  DWORD dwPlatformId;
+  CHAR szCSDVersion[ 128 ];
+  WORD wServicePackMajor;
+  WORD wServicePackMinor;
+  WORD wReserved[2];
+};
+
+struct SYSTEM_POWER_STATUS {
+  BYTE ACLineStatus;
+  BYTE BatteryFlag;
+  BYTE BatteryLifePercent;
+  BYTE Reserved1;
+  DWORD BatteryLifeTime;
+  DWORD BatteryFullLifeTime;
+};
+
+struct MEMORYSTATUSVLM {
+  DWORD dwLength;
+  DWORD dwMemoryLoad;
+  LONG ullTotalPhys;
+  LONG ullAvailPhys;
+  LONG ullTotalPageFile;
+  LONG ullAvailPageFile;
+  LONG ullTotalVirtual;
+  LONG ullAvailVirtual;
+  LONG ullAvailExtendedVirtual;
+};
+
+struct HEAPLIST32 {
+  DWORD dwSize;
+  DWORD th32ProcessID;
+  DWORD th32HeapID;
+  DWORD dwFlags;
+};
+
+struct HEAPENTRY32 {
+  DWORD dwSize;
+  HANDLE hHandle;
+  DWORD dwAddress;
+  DWORD dwBlockSize;
+  DWORD dwFlags;
+  DWORD dwLockCount;
+  DWORD dwResvd;
+  DWORD th32ProcessID;
+  DWORD th32HeapID;
+};
+
+struct PROCESSENTRY32 {
+  DWORD dwSize;
+  DWORD cntUsage;
+  DWORD th32ProcessID;
+  DWORD th32DefaultHeapID;
+  DWORD th32ModuleID;
+  DWORD cntThreads;
+  DWORD th32ParentProcessID;
+  LONG pcPriClassBase;
+  DWORD dwFlags;
+  CHAR szExeFile[MAX_PATH];
+};
+
+struct THREADENTRY32 {
+  DWORD dwSize;
+  DWORD cntUsage;
+  DWORD th32ThreadID;
+  DWORD th32OwnerProcessID;
+  LONG tpBasePri;
+  LONG tpDeltaPri;
+  DWORD dwFlags;
+};
+
+struct MODULEENTRY32 {
+  DWORD dwSize;
+  DWORD th32ModuleID;
+  DWORD th32ProcessID;
+  DWORD GlblcntUsage;
+  DWORD ProccntUsage;
+  LPVOID modBaseAddr;
+  DWORD modBaseSize;
+  HMODULE hModule;
+  CHAR szModule[MAX_MODULE_NAME32+1];
+  CHAR szExePath[MAX_PATH];
+};
+
+
+// Импорт функций
+
+extern WINAPI "kernel32.dll"
+{
+				 AddAtomA();
+				 AreFileApisANSI();
+				 BackupRead();
+				 BackupSeek();
+				 BackupWrite();
+         Beep();
+         BeginUpdateResourceA();
+         BuildCommDCBA();
+         BuildCommDCBAndTimeoutsA();
+         CallNamedPipeA();
+         CancelIo();
+         CancelWaitableTimer();
+         ClearCommBreak();
+         ClearCommError();
+	BOOL   CloseHandle();
+         CommConfigDialogA();
+         CompareFileTime();
+         CompareStringA();
+         ConnectNamedPipe();
+         ContinueDebugEvent();
+         ConvertDefaultLocale();
+         ConvertThreadToFiber();
+         CopyFileA();
+         CopyFileExA();
+	dword  CreateDirectoryA();
+         CreateDirectoryExA();
+         CreateEventA();
+         CreateFiber();
+	HANDLE CreateFileA();
+				 CreateFileMappingA();
+				 CreateIoCompletionPort();
+				 CreateMailslotA();
+				 CreateMutexA();
+				 CreateNamedPipeA();
+				 CreatePipe();
+	dword  CreateProcessA();
+				 CreateRemoteThread();
+				 CreateSemaphoreA();
+				 CreateTapePartition();
+	dword  CreateThread();
+				 CreateToolhelp32Snapshot();
+				 CreateWaitableTimerA();
+				 DebugActiveProcess();
+				 DebugBreak();
+				 DefineDosDeviceA();
+				 DeleteAtom();
+				 DeleteCriticalSection();
+				 DeleteFiber();
+	dword  DeleteFileA();
+				 DeviceIoControl();
+				 DisableThreadLibraryCalls();
+				 DisconnectNamedPipe();
+				 DosDateTimeToFileTime();
+				 DuplicateHandle();
+				 EndUpdateResourceA();
+				 EnterCriticalSection();
+				 EnumCalendarInfoA();
+				 EnumDateFormatsA();
+				 EnumResourceLanguagesA();
+				 EnumResourceNamesA();
+				 EnumResourceTypesA();
+				 EnumSystemCodePagesA();
+				 EnumSystemLocalesA();
+				 EnumTimeFormatsA();
+				 EraseTape();
+				 EscapeCommFunction();
+	void   ExitProcess();
+	dword  ExitThread();
+				 ExpandEnvironmentStringsA();
+				 FatalAppExitA();
+				 FatalExit();
+				 FileTimeToDosDateTime();
+				 FileTimeToLocalFileTime();
+				 FileTimeToSystemTime();
+				 FindAtomA();
+				 FindClose();
+				 FindCloseChangeNotification();
+				 FindFirstChangeNotificationA();
+	dword  FindFirstFileA();
+         FindFirstFileExA();
+         FindNextChangeNotification();
+	dword  FindNextFileA();
+				 FindResourceA();
+				 FindResourceExA();
+				 FlushFileBuffers();
+				 FlushInstructionCache();
+				 FlushViewOfFile();
+				 FoldStringA();
+				 FormatMessageA();
+				 FreeEnvironmentStringsA();
+				 FreeLibrary();
+				 FreeLibraryAndExitThread();
+				 FreeResource();
+				 GetACP();
+				 GetAtomNameA();
+				 GetBinaryTypeA();
+				 GetCPInfo();
+				 GetCommConfig();
+				 GetCommMask();
+				 GetCommModemStatus();
+				 GetCommProperties();
+				 GetCommState();
+				 GetCommTimeouts();
+	dword  GetCommandLineA();
+				 GetCompressedFileSizeA();
+				 GetComputerNameA();
+				 GetCurrencyFormatA();
+				 GetCurrentDirectoryA();
+				 GetCurrentProcess();
+				 GetCurrentProcessId();
+				 GetCurrentThread();
+				 GetCurrentThreadId();
+				 GetDateFormatA();
+				 GetDefaultCommConfigA();
+				 GetDiskFreeSpaceA();
+				 GetDiskFreeSpaceExA();
+				 GetDriveTypeA();
+				 GetEnvironmentStringsA();
+				 GetEnvironmentVariableA();
+				 GetExitCodeProcess();
+				 GetExitCodeThread();
+				 GetFileAttributesA();
+				 GetFileAttributesExA();
+				 GetFileInformationByHandle();
+				 GetFileSize();
+				 GetFileTime();
+				 GetFileType();
+				 GetFullPathNameA();
+				 GetHandleInformation();
+	dword  GetLastError();
+				 GetLocalTime();
+				 GetLocaleInfoA();
+				 GetLogicalDriveStringsA();
+				 GetLogicalDrives();
+				 GetMailslotInfo();
+	dword  GetModuleFileNameA();
+	dword  GetModuleHandleA();
+				 GetNamedPipeHandleStateA();
+				 GetNamedPipeInfo();
+				 GetNumberFormatA();
+				 GetOEMCP();
+				 GetOverlappedResult();
+				 GetPriorityClass();
+				 GetPrivateProfileIntA();
+				 GetPrivateProfileSectionA();
+				 GetPrivateProfileSectionNamesA();
+				 GetPrivateProfileStringA();
+	dword  GetProcAddress();
+				 GetProcessAffinityMask();
+				 GetProcessHeap();
+				 GetProcessHeaps();
+				 GetProcessPriorityBoost();
+				 GetProcessShutdownParameters();
+				 GetProcessTimes();
+				 GetProcessVersion();
+				 GetProcessWorkingSetSize();
+				 GetProfileIntA();
+				 GetProfileSectionA();
+				 GetProfileStringA();
+				 GetQueuedCompletionStatus();
+				 GetShortPathNameA();
+				 GetStartupInfoA();
+				 GetStdHandle();
+				 GetStringTypeA();
+				 GetStringTypeExA();
+				 GetSystemDefaultLangID();
+				 GetSystemDirectoryA();
+				 GetSystemInfo();
+				 GetSystemPowerStatus();
+	void   GetSystemTime();
+				 GetSystemTimeAdjustment();
+				 GetSystemTimeAsFileTime();
+				 GetTapeParameters();
+				 GetTapePosition();
+				 GetTapeStatus();
+				 GetTempFileNameA();
+				 GetTempPathA();
+				 GetThreadContext();
+				 GetThreadLocale();
+				 GetThreadPriority();
+				 GetThreadPriorityBoost();
+				 GetThreadSelectorEntry();
+				 GetThreadTimes();
+				 GetTickCount();
+				 GetTimeFormatA();
+				 GetTimeZoneInformation();
+				 GetUserDefaultLCID();
+				 GetUserDefaultLangID();
+				 GetVersion();
+				 GetVersionExA();
+				 GetVolumeInformationA();
+				 GetWindowsDirectoryA();
+				 GlobalAddAtomA();
+	dword  GlobalAlloc();
+				 GlobalCompact();
+				 GlobalDeleteAtom();
+				 GlobalFindAtomA();
+				 GlobalFix();
+				 GlobalFlags();
+	dword  GlobalFree();
+         GlobalGetAtomNameA();
+				 GlobalHandle();
+	dword  GlobalLock();
+				 GlobalMemoryStatus();
+				 GlobalReAlloc();
+				 GlobalSize();
+				 GlobalUnWire();
+				 GlobalUnfix();
+	BOOL   GlobalUnlock();
+				 GlobalWire();
+				 Heap32First();
+				 Heap32ListFirst();
+				 Heap32ListNext();
+				 Heap32Next();
+				 HeapAlloc();
+				 HeapCompact();
+				 HeapCreate();
+				 HeapDestroy();
+				 HeapFree();
+				 HeapLock();
+				 HeapReAlloc();
+				 HeapSize();
+				 HeapUnlock();
+				 HeapValidate();
+				 HeapWalk();
+				 InitAtomTable();
+				 InitializeCriticalSection();
+				 InterlockedCompareExchange();
+				 InterlockedDecrement();
+				 InterlockedExchange();
+				 InterlockedExchangeAdd();
+				 InterlockedIncrement();
+				 IsBadCodePtr();
+				 IsBadHugeReadPtr();
+				 IsBadHugeWritePtr();
+				 IsBadReadPtr();
+				 IsBadStringPtrA();
+				 IsBadWritePtr();
+				 IsDBCSLeadByte();
+				 IsDBCSLeadByteEx();
+				 IsProcessorFeaturePresent();
+				 IsValidCodePage();
+				 IsValidLocale();
+				 LCMapStringA();
+				 LeaveCriticalSection();
+	dword  LoadLibraryA();
+				 LoadLibraryExA();
+				 LoadModule();
+				 LoadResource();
+				 LocalAlloc();
+				 LocalCompact();
+				 LocalFileTimeToFileTime();
+				 LocalFlags();
+				 LocalFree();
+				 LocalLock();
+				 LocalReAlloc();
+				 LocalShrink();
+				 LocalSize();
+				 LocalUnlock();
+				 LockFile();
+				 LockFileEx();
+				 LockResource();
+				 MapViewOfFile();
+				 MapViewOfFileEx();
+				 Module32First();
+				 Module32Next();
+	dword  MoveFileA();
+				 MoveFileExA();
+				 MulDiv();
+				 MultiByteToWideChar();
+				 OpenEventA();
+				 OpenFile();
+				 OpenFileMappingA();
+				 OpenMutexA();
+				 OpenProcess();
+				 OpenSemaphoreA();
+				 OpenWaitableTimerA();
+				 OutputDebugStringA();
+				 PeekNamedPipe();
+				 PostQueuedCompletionStatus();
+				 PrepareTape();
+				 Process32First();
+				 Process32Next();
+				 PulseEvent();
+				 PurgeComm();
+				 QueryDosDeviceA();
+				 QueryPerformanceCounter();
+				 QueryPerformanceFrequency();
+				 QueueUserAPC();
+				 RaiseException();
+				 ReadDirectoryChanges();
+	BOOL   ReadFile();
+				 ReadFileEx();
+				 ReadProcessMemory();
+				 ReleaseMutex();
+				 ReleaseSemaphore();
+	dword  RemoveDirectoryA();
+				 ResetEvent();
+				 ResumeThread();
+				 RtlFillMemory();
+				 RtlMoveMemory();
+				 RtlZeroMemory();
+				 SearchPathA();
+				 SetCommBreak();
+				 SetCommConfig();
+				 SetCommMask();
+				 SetCommState();
+				 SetCommTimeouts();
+				 SetComputerNameA();
+	dword  SetCurrentDirectoryA();
+				 SetDefaultCommConfigA();
+				 SetEndOfFile();
+				 SetEnvironmentVariableA();
+				 SetErrorMode();
+				 SetEvent();
+				 SetFileApisToANSI();
+				 SetFileApisToOEM();
+				 SetFileAttributesA();
+	dword  SetFilePointer();
+				 SetFileTime();
+				 SetHandleCount();
+				 SetHandleInformation();
+				 SetLastError();
+				 SetLocalTime();
+				 SetLocaleInfoA();
+				 SetMailslotInfo();
+				 SetNamedPipeHandleState();
+				 SetPriorityClass();
+				 SetProcessAffinityMask();
+				 SetProcessPriorityBoost();
+				 SetProcessShutdownParameters();
+				 SetProcessWorkingSetSize();
+				 SetStdHandle();
+				 SetSystemPowerState();
+				 SetSystemTime();
+				 SetSystemTimeAdjustment();
+				 SetTapeParameters();
+				 SetTapePosition();
+				 SetThreadAffinityMask();
+				 SetThreadContext();
+				 SetThreadIdealProcessor();
+				 SetThreadLocale();
+				 SetThreadPriority();
+				 SetThreadPriorityBoost();
+				 SetTimeZoneInformation();
+				 SetUnhandledExceptionFilter();
+				 SetVolumeLabelA();
+				 SetWaitableTimer();
+				 SetupComm();
+				 SignalObjectAndWait();
+				 SizeofResource();
+				 Sleep();
+				 SleepEx();
+				 SuspendThread();
+				 SwitchToFiber();
+				 SwitchToThread();
+				 SystemTimeToFileTime();
+				 SystemTimeToTzSpecificLocalTime();
+				 TerminateProcess();
+	dword  TerminateThread();
+				 Thread32First();
+				 Thread32Next();
+				 TlsAlloc();
+				 TlsFree();
+				 TlsGetValue();
+				 TlsSetValue();
+				 Toolhelp32ReadProcessMemory();
+				 TransactNamedPipe();
+				 TransmitCommChar();
+				 TryEnterCriticalSection();
+				 UnhandledExceptionFilter();
+				 UnlockFile();
+				 UnlockFileEx();
+				 UnmapViewOfFile();
+				 UpdateResourceA();
+				 VerLanguageNameA();
+				 VirtualAlloc();
+				 VirtualAllocEx();
+				 VirtualFree();
+				 VirtualFreeEx();
+				 VirtualLock();
+				 VirtualProtect();
+				 VirtualProtectEx();
+				 VirtualQuery();
+				 VirtualQueryEx();
+				 VirtualUnlock();
+				 WaitCommEvent();
+				 WaitForDebugEvent();
+				 WaitForMultipleObjects();
+				 WaitForMultipleObjectsEx();
+				 WaitForSingleObject();
+				 WaitForSingleObjectEx();
+				 WaitNamedPipeA();
+				 WideCharToMultiByte();
+				 WinExec();
+	BOOL   WriteFile();
+				 WriteFileEx();
+				 WritePrivateProfileSectionA();
+				 WritePrivateProfileStringA();
+				 WriteProcessMemory();
+				 WriteProfileSectionA();
+				 WriteProfileStringA();
+				 WriteTapemark();
+				 _hread();
+				 _hwrite();
+	dword  _lclose();
+         _lcreat();
+         _llseek();
+	dword  _lopen();
+         _lread();
+         _lwrite();
+	dword  lstrcatA();
+	long   lstrcmpA();
+  long   lstrcmpiA();
+	dword  lstrcpyA();
+	dword  lstrcpynA();
+	long   lstrlenA();
+}
+
+#define AddAtom AddAtomA
+#define BeginUpdateResource BeginUpdateResourceA
+#define BuildCommDCB BuildCommDCBA
+#define BuildCommDCBAndTimeouts BuildCommDCBAndTimeoutsA
+#define CallNamedPipe CallNamedPipeA
+#define CommConfigDialog CommConfigDialogA
+#define CompareString CompareStringA
+#define CopyFile CopyFileA
+#define CopyFileEx CopyFileExA
+#define CopyMemory RtlMoveMemory
+#define CreateDirectory CreateDirectoryA
+#define CreateDirectoryEx CreateDirectoryExA
+#define CreateEvent CreateEventA
+#define CreateFile CreateFileA
+#define CreateFileMapping CreateFileMappingA
+#define CreateMailslot CreateMailslotA
+#define CreateMutex CreateMutexA
+#define CreateNamedPipe CreateNamedPipeA
+#define CreateProcess CreateProcessA
+#define CreateSemaphore CreateSemaphoreA
+#define CreateWaitableTimer CreateWaitableTimerA
+#define DefineDosDevice DefineDosDeviceA
+#define DeleteFile DeleteFileA
+#define EndUpdateResource EndUpdateResourceA
+#define EnumCalendarInfo EnumCalendarInfoA
+#define EnumDateFormats EnumDateFormatsA
+#define EnumResourceLanguages EnumResourceLanguagesA
+#define EnumResourceNames EnumResourceNamesA
+#define EnumResourceTypes EnumResourceTypesA
+#define EnumSystemCodePages EnumSystemCodePagesA
+#define EnumSystemLocales EnumSystemLocalesA
+#define EnumTimeFormats EnumTimeFormatsA
+#define ExpandEnvironmentStrings ExpandEnvironmentStringsA
+#define FatalAppExit FatalAppExitA
+#define FillMemory RtlFillMemory
+#define FindAtom FindAtomA
+#define FindFirstChangeNotification FindFirstChangeNotificationA
+#define FindFirstFile FindFirstFileA
+#define FindFirstFileEx FindFirstFileExA
+#define FindNextFile FindNextFileA
+#define FindResource FindResourceA
+#define FindResourceEx FindResourceExA
+#define FoldString FoldStringA
+#define FormatMessage FormatMessageA
+#define FreeEnvironmentStrings FreeEnvironmentStringsA
+#define GetAtomName GetAtomNameA
+#define GetBinaryType GetBinaryTypeA
+#define GetCommandLine GetCommandLineA
+#define GetCompressedFileSize GetCompressedFileSizeA
+#define GetComputerName GetComputerNameA
+#define GetCurrencyFormat GetCurrencyFormatA
+#define GetCurrentDirectory GetCurrentDirectoryA
+#define GetDateFormat GetDateFormatA
+#define GetDefaultCommConfig GetDefaultCommConfigA
+#define GetDiskFreeSpace GetDiskFreeSpaceA
+#define GetDiskFreeSpaceEx GetDiskFreeSpaceExA
+#define GetDriveType GetDriveTypeA
+#define GetEnvironmentStrings GetEnvironmentStringsA
+#define GetEnvironmentVariable GetEnvironmentVariableA
+#define GetFileAttributes GetFileAttributesA
+#define GetFileAttributesEx GetFileAttributesExA
+#define GetFullPathName GetFullPathNameA
+#define GetLocaleInfo GetLocaleInfoA
+#define GetLogicalDriveStrings GetLogicalDriveStringsA
+#define GetModuleFileName GetModuleFileNameA
+#define GetModuleHandle GetModuleHandleA
+#define GetNamedPipeHandleState GetNamedPipeHandleStateA
+#define GetNumberFormat GetNumberFormatA
+#define GetPrivateProfileInt GetPrivateProfileIntA
+#define GetPrivateProfileSection GetPrivateProfileSectionA
+#define GetPrivateProfileSectionNames GetPrivateProfileSectionNamesA
+#define GetPrivateProfileString GetPrivateProfileStringA
+#define GetProfileInt GetProfileIntA
+#define GetProfileSection GetProfileSectionA
+#define GetProfileString GetProfileStringA
+#define GetShortPathName GetShortPathNameA
+#define GetStartupInfo GetStartupInfoA
+#define GetStringType GetStringTypeA
+#define GetStringTypeEx GetStringTypeExA
+#define GetSystemDirectory GetSystemDirectoryA
+#define GetTempFileName GetTempFileNameA
+#define GetTempPath GetTempPathA
+#define GetTimeFormat GetTimeFormatA
+#define GetVersionEx GetVersionExA
+#define GetVolumeInformation GetVolumeInformationA
+#define GetWindowsDirectory GetWindowsDirectoryA
+#define GlobalAddAtom GlobalAddAtomA
+#define GlobalFindAtom GlobalFindAtomA
+#define GlobalGetAtomName GlobalGetAtomNameA
+#define IsBadStringPtr IsBadStringPtrA
+#define LCMapString LCMapStringA
+#define LoadLibrary LoadLibraryA
+#define LoadLibraryEx LoadLibraryExA
+#define MoveFile MoveFileA
+#define MoveFileEx MoveFileExA
+#define MoveMemory RtlMoveMemory
+#define OpenEvent OpenEventA
+#define OpenFileMapping OpenFileMappingA
+#define OpenMutex OpenMutexA
+#define OpenSemaphore OpenSemaphoreA
+#define OpenWaitableTimer OpenWaitableTimerA
+#define OutputDebugString OutputDebugStringA
+#define QueryDosDevice QueryDosDeviceA
+#define RemoveDirectory RemoveDirectoryA
+#define SearchPath SearchPathA
+#define SetComputerName SetComputerNameA
+#define SetCurrentDirectory SetCurrentDirectoryA
+#define SetDefaultCommConfig SetDefaultCommConfigA
+#define SetEnvironmentVariable SetEnvironmentVariableA
+#define SetFileAttributes SetFileAttributesA
+#define SetLocaleInfo SetLocaleInfoA
+#define SetVolumeLabel SetVolumeLabelA
+#define UpdateResource UpdateResourceA
+#define VerLanguageName VerLanguageNameA
+#define WaitNamedPipe WaitNamedPipeA
+#define WritePrivateProfileSection WritePrivateProfileSectionA
+#define WritePrivateProfileString WritePrivateProfileStringA
+#define WriteProfileSection WriteProfileSectionA
+#define WriteProfileString WriteProfileStringA
+#define ZeroMemory RtlZeroMemory
+#define lstrcat lstrcatA
+#define lstrcmp lstrcmpA
+#define lstrcmpi lstrcmpiA
+#define lstrcpy lstrcpyA
+#define lstrcpyn lstrcpynA
+#define lstrlen lstrlenA
+

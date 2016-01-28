@@ -1,0 +1,345 @@
+/*
+    Mikael Nilsson/Purple Prophet (C)opyright 1999.
+    TITLE:  IMAGE.H--
+    DESCRIPTION:  This file contains a collection of procedures for
+                  drawing and manipulate bitmaps.
+
+    LAST UPDATED: 7 april 2000
+    PROCEDURES DEFINED IN THIS FILE:
+
+	void getimageVESA(word xx,yy,width,height,bufseg,bufoff)
+	void imagescaleVESA(int xtopleft, ytopleft, xbotright, ybotright,
+		wsource, hsource; word bufseg)
+	void putimageVESA(word xx,yy,width,height,bufseg,bufoff,transp)
+	void xflipVESA(word imgwidth,imgheight,bufseg,bufoff)
+	void xorputimageVESA(word xx,yy,width,height,bufseg,bufoff,transp)
+	void yflipVESA(word imgwidth,imgheight,bufseg,bufoff)
+
+
+*/
+
+#ifndef _IMAGE_
+#define _IMAGE_ TRUE
+
+:void getimageVESA(word xx,yy,width,height,bufseg,bufoff)
+byte col;
+word memoff;
+word scroff;
+word whichwin;
+word xtemp;
+{
+	memoff=0;
+	whichwin=yy/vesa_win_gran;
+	$push AX
+	setreadwinVESA(AX);
+	$pop BX
+	BX=BX*vesa_win_gran;
+	scroff=yy-BX;
+	xtemp=0;
+	loop(height){
+		do{
+			ES=0xA000;
+			BX=scroff*1024+xx+xtemp;
+			col=ESBYTE[BX];
+			BX=memoff+bufoff;
+			ES=bufseg;
+			ESBYTE[BX]=col;
+			xtemp++;
+			memoff++;
+		}while(xtemp<width);
+		xtemp=0;
+		scroff++;
+		IF(scroff>=vesa_win_gran){
+			scroff=0;
+			whichwin++;
+			setreadwinVESA(whichwin);
+		}
+	}
+}
+
+:void imagescaleVESA(int xtopleft, ytopleft, xbotright, ybotright,
+		wsource, hsource; word bufseg)
+int xerrterm,yerrterm,xsource,ysource,screenx,screeny;
+int destwidth,destheight;
+word scriff;
+byte color;
+
+{
+	xsource=0;
+	ysource=0;
+	xerrterm=0;
+	yerrterm=0;
+	screenx=xtopleft;
+	screeny=ytopleft;
+	destwidth=xbotright-xtopleft;
+	destheight=ybotright-ytopleft;
+// case #1: fatter and taller destination bitmap
+	if(destwidth > wsource)
+		if(destheight > hsource){
+		do{
+			yerrterm+=hsource;
+			IF(yerrterm > destheight){
+				yerrterm-=destheight;
+				ysource++;
+			}
+			screeny++;
+			screenx=xtopleft;
+			xsource=0;
+			AX=screeny/vesa_win_gran;
+			$push AX
+			setwritewinVESA(AX);
+			$pop BX
+			BX=BX*vesa_win_gran;
+			scriff=screeny-BX<<10;
+			do{
+				ES=bufseg;
+				BX=ysource*wsource+xsource;
+				color=ESBYTE[BX];
+				ES=0xA000;
+				BX=scriff+screenx;
+				ESBYTE[BX]=color;
+				xerrterm+=wsource;
+				IF(xerrterm >= destwidth){
+					xerrterm-=destwidth;
+					xsource++;
+				}
+				screenx++;
+			}while(screenx < xbotright);
+		}while(screeny < ybotright);
+	}
+// case #2: fatter and shorter destination bitmap
+	if(destwidth > wsource)
+		if(destheight < hsource){
+		do{
+			yerrterm+=destheight;
+			IF(yerrterm > hsource){
+				yerrterm-=hsource;
+				screeny++;
+			}
+			ysource++;
+			screenx=xtopleft;
+			xsource=0;
+			AX=screeny/vesa_win_gran;
+			$push AX
+			setwritewinVESA(AX);
+			$pop BX
+			BX=BX*vesa_win_gran;
+			scriff=screeny-BX<<10;
+			do{
+				ES=bufseg;
+				BX=ysource*wsource+xsource;
+				color=ESBYTE[BX];
+				ES=0xA000;
+				BX=scriff+screenx;
+				ESBYTE[BX]=color;
+				xerrterm+=wsource;
+				IF(xerrterm >= destwidth){
+					xerrterm-=destwidth;
+					xsource++;
+				}
+				screenx++;
+			}while(screenx < xbotright);
+		}while(screeny < ybotright);
+	}
+// case #3: skinnier and taller destination bitmap
+	if(destwidth < wsource)
+		if(destheight > hsource){
+		do{
+			yerrterm+=hsource;
+			IF(yerrterm > destheight){
+				yerrterm-=destheight;
+				ysource++;
+			}
+			screeny++;
+			screenx=xtopleft;
+			xsource=0;
+			AX=screeny/vesa_win_gran;
+			$push AX
+			setwritewinVESA(AX);
+			$pop BX
+			BX=BX*vesa_win_gran;
+			scriff=screeny-BX<<10;
+			do{
+				ES=bufseg;
+				BX=ysource*wsource+xsource;
+				color=ESBYTE[BX];
+				ES=0xA000;
+				BX=scriff+screenx;
+				ESBYTE[BX]=color;
+				xerrterm+=destwidth;
+				IF(xerrterm > wsource){
+					xerrterm-=wsource;
+					screenx++;
+				}
+				xsource++;
+			}while(screenx < xbotright);
+		}while(screeny < ybotright);
+	}
+// case #4: skinnier and shorter destination bitmap
+	if(destwidth <= wsource)
+		if(destheight <= hsource){
+		do{
+			yerrterm+=destheight;
+			IF(yerrterm > hsource){
+				yerrterm-=hsource;
+				screeny++;
+			}
+			ysource++;
+			screenx=xtopleft;
+			xsource=0;
+			AX=screeny/vesa_win_gran;
+			$push AX
+			setwritewinVESA(AX);
+			$pop BX
+			BX=BX*vesa_win_gran;
+			scriff=screeny-BX<<10;
+			do{
+				ES=bufseg;
+				BX=ysource*wsource+xsource;
+				color=ESBYTE[BX];
+				ES=0xA000;
+				BX=scriff+screenx;
+				ESBYTE[BX]=color;
+				xerrterm+=destwidth;
+				IF(xerrterm > wsource){
+					xerrterm-=wsource;
+					screenx++;
+				}
+				xsource++;
+			}while(screenx < xbotright);
+		}while(screeny<ybotright);
+	}
+}
+
+:void putimageVESA(word xx,yy,width,height,bufseg,bufoff,transp)
+byte col;
+word memoff;
+word scroff;
+word whichwin;
+word xtemp;
+
+{
+	memoff=0;
+	whichwin=yy/vesa_win_gran;
+	$push AX
+	setwritewinVESA(AX);
+	$pop BX
+	BX=BX*vesa_win_gran;
+	scroff=yy-BX;
+	xtemp=0;
+	loop(height){
+		do{
+			BX=memoff+bufoff;
+			ES=bufseg;
+			col=ESBYTE[BX];
+			IF((transp==0)||(transp!=0)&&(col!=0)){
+				ES=0xA000;
+				BX=scroff*1024+xx+xtemp;
+				ESBYTE[BX]=col;
+			};
+			xtemp++;
+			memoff++;
+		}while(xtemp<width);
+		xtemp=0;
+		scroff++;
+		IF(scroff>=vesa_win_gran){
+			scroff=0;
+			whichwin++;
+			setwritewinVESA(whichwin);
+		}
+	}
+}
+
+:void xflipVESA(word imgwidth,imgheight,bufzeg,bufoff)
+
+word pointoff;
+word numberstep;
+word xloop;
+{
+	numberstep=imgwidth/2;
+	pointoff=0;
+	ES=bufzeg;
+	loop(imgheight){
+		xloop=0;
+		BX=pointoff+bufoff;
+		SI=BX+imgwidth-1;
+		do{
+			ESBYTE[BX]><ESBYTE[SI];
+			BX++;
+			SI--;
+			xloop++;
+		}while(xloop<numberstep);
+		pointoff+=imgwidth;
+	}
+}
+
+:void yflipVESA(word imgwidth,imgheight,bufzeg,bufoff)
+
+word pointoff;
+word numberstep;
+word xloop,yloop;
+{
+	numberstep=imgheight/2;
+	pointoff=0;
+	yloop=0;
+	ES=bufzeg;
+	do{
+		xloop=0;
+		BX=pointoff+bufoff;
+		AX=imgheight-1*imgwidth;
+		SI=BX+AX;
+		do{
+			ESBYTE[BX]><ESBYTE[SI];
+			BX+=imgwidth;
+			SI-=imgwidth;
+			xloop++;
+		}while(xloop<numberstep);
+		pointoff++;
+		yloop++;
+	}while(yloop<imgwidth);
+}
+
+:void xorputimageVESA(word xx,yy,width,height,bufseg,bufoff,transp)
+byte col;
+word memoff;
+word scroff;
+word whichwin;
+word xtemp;
+{
+	memoff=0;
+	whichwin=yy/vesa_win_gran;
+	$push AX,AX
+	setreadwinVESA(AX);
+	$pop AX
+	setwritewinVESA(AX);
+	$pop BX
+	BX=BX*vesa_win_gran;
+	scroff=yy-BX;
+	xtemp=0;
+	loop(height){
+		do{
+			BX=memoff+bufoff;
+			ES=bufseg;
+			col=ESBYTE[BX];
+//----------
+			IF((transp==0)||(transp!=0)&&(col!=0)){
+				ES=0xA000;
+				BX=scroff*1024+xx+xtemp;
+				ESBYTE[BX]^=col;
+			};
+//----------------
+			xtemp++;
+			memoff++;
+		}while(xtemp<width);
+		xtemp=0;
+		scroff++;
+		IF(scroff>=vesa_win_gran){
+			scroff=0;
+			whichwin++;
+			setreadwinVESA(whichwin);
+			setwritewinVESA(whichwin);
+		}
+	}
+}
+
+#endif

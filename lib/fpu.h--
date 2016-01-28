@@ -1,0 +1,132 @@
+/*-------------------------- Различные конвертации --------------------------
+dword float2numer(float f)
+:float long2float (long l)
+:float dword2float (dword d)
+:float int2float (int i)
+:float word2float (word w)
+:float char2float (char c)
+:float byte2float (byte b)
+:int INITFPU()
+----------------------------------------------------------------------------*/
+?ifndef _FPU_
+?define _FPU_ TRUE
+?warning FALSE
+
+:dword float2numer(float f)
+/* выделяет целую часть вещественного числа */
+dword i;
+word wu;
+{
+	asm{
+		fld f
+		fnstcw wu
+		fwait
+	}
+	AL=SSBYTE[#wu+1];
+	SSBYTE[#wu+1]|=0xc;
+	asm{
+		fldcw wu
+		fistp i
+	}
+	SSBYTE[#wu+1]=AL;
+	asm{
+//		fwait
+		fldcw wu
+	}
+	EAX=i;
+}
+
+:float long2float (long l)
+//преобразовать long во float
+{
+	asm{
+		fild l
+		fstp SSFLOAT[#l]
+		fwait
+	}
+	EAX=l;
+}
+
+:float dword2float (dword d)
+//преобразовать dword во float
+dword a[2];
+{
+?ifdef codesize
+	EAX=0;
+	a[4]=EAX;
+?else
+	a[4]=0;
+?endif
+	a[0]=d;
+	asm{
+		fildq a
+		fstp d
+		fwait
+	}
+	EAX=d;
+}
+
+:float int2float (int i)
+//преобразовать int во float
+dword f;
+{
+	asm{
+		fild i
+		fstp f
+		fwait
+	}
+	EAX=f;
+}
+
+:float word2float (word w)
+//преобразовать word во float
+dword f;
+{
+	SSWORD[#f+2]=0;
+	SSWORD[#f]=w;
+	asm{
+		fild f
+		fstp f
+		fwait
+	}
+	EAX=f;
+}
+
+:float char2float (char c)
+//преобразовать char во float
+dword f;
+{
+	SSWORD[#f]=c;
+	asm{
+		fild SSWORD[#f]
+		fstp f
+		fwait
+	}
+	EAX=f;
+}
+
+:float byte2float (byte b)
+//преобразовать byte во float
+dword f;
+{
+	SSWORD[#f]=b;
+	asm{
+		fild SSWORD[#f]
+		fstp f
+		fwait
+	}
+	EAX=f;
+}
+
+:int INITFPU()
+//проверить  наличие FPU
+//если FPU присутствует то AX=0, иначе AX=-1;
+{
+	AX=-1;
+	asm{
+		fninit
+		fnstsw AX
+	}
+}
+
+?endif

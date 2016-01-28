@@ -1,0 +1,49 @@
+/*
+    NAME:  CLICK.C--
+    DESCRIPTION:  Memory resident program that emmits a small beep from the
+                  speaker whenever a key is pressed or released.
+*/
+
+
+?include "SOUND.H--"
+?include "DOS.H--"
+?include "TSR.H--"
+
+?define  DELAYTIME  500    /* amount of LOOPs to delay for during beep */
+
+word oldkeyboardhandle[2]={}; /* address holder for old INT 0x9 handle */
+
+
+interrupt keyboardhandle()   
+/* this is called every time a key is pressed or released */
+{
+$ PUSHF
+$ CS:
+$ CALL FAR oldkeyboardhandle;   /* chain to old interrupt handle */
+
+$ PUSH AX
+$ PUSH BX
+$ PUSH CX
+$ PUSH DX
+
+@ SOUND(50);          /* activated speaker */
+CX = DELAYTIME;
+loop( CX )   
+    {}
+@ NOSOUND();          /* disactivate speaker */
+
+$ POP DX
+$ POP CX
+$ POP BX
+$ POP AX
+}
+
+
+main()
+{
+GETINTVECT(#oldkeyboardhandle,0x9);    /* get old keyboard interrupt handle */
+SETINTVECT( ,0x9,CS,#keyboardhandle);  /* attach to keyboard interrupt */
+@ KEEP( , , ,#main+1);       /* TSR, memory saved up to start of main() */
+}
+ÿÿÿ
+/* end of CLICK.C-- */

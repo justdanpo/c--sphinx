@@ -1,0 +1,17 @@
+Modification History For C-- Example Package:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+up to 14 Feb 1995 (up to version 1.01):  
+    HISTORY.DOC added.
+
+15 Feb 1995 (version 1.02):  
+    TINYDRAW example modified.  Menu text colours are now dynamic, so the 
+    menus will be visible with all palettes.
+
+16 May 1995 (version 1.03):  
+    XFONT5 example modified to display lower case letters.  
+
+28 Oct 1996 (final version):
+    STUFF directory and files added.
+
+/* end of HISTORY.DOC */

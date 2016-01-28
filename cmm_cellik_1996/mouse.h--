@@ -1,0 +1,199 @@
+/*
+    SPHINX Programming (C) 1993.
+    TITLE:  MOUSE.H--
+    DESCRIPTION:  This file contains a collection of procedures for using
+                  a mouse.  A Microsoft compatible mouse driver must be
+                  installed.
+    LAST MODIFIED:  26 Dec 1993
+    PROCEDURES DEFINED IN THIS FILE:
+        : word GETMOUSEPRESS( ,button)
+        : word GETMOUSERELEASE( ,button)
+        : void GETMOUSEXY()
+        : void HIDEMOUSE()
+        : word RESETMOUSE()
+        : void SETMOUSEHANDLE(segmentofhandle,offsetofhandle,eventmask)
+        : void SETMOUSEXLIMIT( , ,minimum,maximum)
+        : void SETMOUSEXY( , ,xloc,yloc)
+        : void SETMOUSEYLIMIT( , ,minimum,maximum)
+        : void SHOWMOUSE()
+*/
+
+// mouse event mask bit values for use with SETMOUSEHANDLE()
+enum { ME_MOVED=1, ME_LEFTPRESSED=2, ME_LEFTRELEASED=4, ME_RIGHTPRESSED=8,
+       ME_RIGHTRELEASED=16, NE_CENTERPRESSED=32, ME_CENTERRELEASED=64 };
+
+// button specifiers for GETMOUSEPRESS() and GETMOUSERELEASE()
+enum { MOUSELEFTBUTTON,MOUSERIGHTBUTTON,MOUSECENTERBUTTON };
+
+
+
+: word RESETMOUSE ()
+/* Initializes the mouse driver and returns the driver status.
+   If the mouse pointer was previously visible, it is removed from the
+   screen.
+   Any previously installed user handles for the mouse events are removed.
+*/
+{AX = 0;
+$ INT 0x33
+}
+/*  RETURNS:  If mouse support available:
+                        AX = 0xFFFF
+                        BX = number of mouse buttons
+              else if no mouse available:
+                        AX = 0
+*/
+
+
+: void SHOWMOUSE ()
+/* Displays the mouse pointer and cancels any exclusion area defined by
+   MOUSEEXCLUSIONAREA();
+*/
+{
+AX = 1;
+$ INT 0x33
+}
+/*  RETURNS:  AX = 1;
+*/
+
+
+: void HIDEMOUSE ()
+/* Removes the mouse pointer from the screen if it is currently visible.
+*/
+{
+AX = 2;
+$ INT 0x33
+}
+/*  RETURNS:  AX = 2;
+*/
+
+
+: void GETMOUSEXY ()
+/* Gets the mouse pointer position and button status.
+*/
+{
+AX = 3;
+$ INT 0x33
+}
+/*  RETURNS:  AX = 3;
+              BX = mouse button status:
+                     bit 0 set if left button is down            
+                     bit 1 set if right button is down            
+                     bit 2 set if center button is down            
+              CX = x coordinate
+              DX = y coordinate
+*/
+
+
+: void SETMOUSEXY ()    /* CX = X location;  DX = Y location */
+/* Sets the position of the mouse pointer.
+*/
+{
+AX = 4;
+$ INT 0x33
+}
+/*  RETURNS:  AX = 4;
+*/
+
+
+: word GETMOUSEPRESS ()    /* BX = button (0 for left, 1 for right,
+                                           or 2 for center) */
+/* Gets the number of presses and last press position for a specified
+   mouse button since the last call to this function for that button.
+*/
+{
+AX = 5;
+$ INT 0x33
+}
+/*  RETURNS:  AX = button status:
+                    bit 0 set if left button down
+                    bit 1 set if right button down
+                    bit 2 set if middle button down
+              BX = button press counter
+              CX = x coordinate of last button press
+              DX = y coordinate of last button press
+*/
+
+
+: word GETMOUSERELEASE ()    /* BX = button (0 for left, 1 for right,
+                                           or 2 for center) */
+/* Gets the number of releases and last release position for a specified
+   mouse button since the last call to this function for that button.
+*/
+{
+AX = 6;
+$ INT 0x33
+}
+/*  RETURNS:  AX = button status:
+                    bit 0 set if left button down
+                    bit 1 set if right button down
+                    bit 2 set if middle button down
+              BX = button release counter
+              CX = x coordinate of last release press
+              DX = y coordinate of last release press
+*/
+
+
+: void SETMOUSEXLIMIT ()    /* CX = minimum x coordinate,
+                               DX = maximum x coordinate */
+/* Sets the minimum and maximum x coordinates for the mouse pointer.
+*/
+{
+AX = 7;
+$ INT 0x33
+}
+/*  RETURNS:  AX = 7
+*/
+
+
+: void SETMOUSEYLIMIT ()    /* CX = minimum y coordinate,
+                               DX = maximum y coordinate */
+/* Sets the minimum and maximum y coordinates for the mouse pointer.
+*/
+{
+AX = 8;
+$ INT 0x33
+}
+/*  RETURNS:  AX = 8
+*/
+
+
+: void SETMOUSEHANDLE ()    /* AX = segment address of event handler
+                               BX = offset address of event handler 
+                               CX = event mask (if set, event will call
+                                                handle):
+                                    bit 0 == mouse movement
+                                    bit 1 == left button pressed
+                                    bit 2 == left button released
+                                    bit 3 == right button pressed
+                                    bit 4 == right button released
+                                    bit 5 == center button pressed
+                                    bit 6 == center button released */
+/* Sets the address and event mask for an application program's mouse event
+   handler.  The handle will be called via a far call by the mouse driver
+   when any of the specified mouse events have occured.  Events that are not
+   set in the event mask will still be reported in the event flags during
+   calls to the handler for which events are enabled.  When the handle is
+   called, the following registers will be set:
+        AX = mouse event flags (see event mask above)
+        BX = button state (bit 0 set if left button down, bit 1 set if right
+                           button down and bit 2 set if center button down)
+        CX = x coordinate of mouse pointer
+        DX = y coordinate of mouse pointer
+        DI = last raw horizontal mickey count
+        SI = last raw vertical mickey count
+        DS = mouse driver data segment
+   The mouse handle must issue a RETF after processing the event.
+*/
+{
+ES = AX;
+DX = BX;
+AX = 0xC;
+$ INT 0x33
+}
+/*  RETURNS:  AX = 0xC;
+              ES = segment of handler
+              DX = offset of handler
+*/
+
+
+/* end of MOUSE.H-- */

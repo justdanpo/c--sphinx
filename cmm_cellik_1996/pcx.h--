@@ -1,0 +1,366 @@
+/*
+    SPHINX Programming (C) 1994.
+    NAME:  PCX.H--
+    DESCRIPTION:  This file contains a collection of procedures for reading
+                  PCX format of graphics files.
+                  Current support is limited to 256 color PCX's which are
+                  320x200 or smaller.
+    LAST MODIFIED:  22 Apr 1994
+    PROCEDURES DEFINED IN THIS FILE:
+	byte readPCX(filename,bufseg,bufoffset,bufsize,buftype)
+	byte readPCXpalette(filename,palsegment,paloffset)
+        byte savePCX(filename,bufseg,bufoffset,xsize,ysize,palseg,paloffset)
+*/
+
+
+
+// error codes
+enum {  pcx_e_ok,        // no errors, everything OK
+        pcx_e_nofile,    // file could not be openned
+        pcx_e_noinput,   // unable to read enough data from input file
+        pcx_e_nooutput,  // unable to write enough data to output file
+        pcx_e_badheader, // PCX header was invalid
+        pcx_e_not256,    // PCX file is not 256 colours
+        pcx_e_toobig,    // PCX file is too big for given buffer
+        pcx_e_error      // some other error occurred
+     };
+
+// buffer types
+enum { pcx_raw,      // just raw data (no x and y sizes)
+       pcx_cut       // cut buffer format (includes x and y sizes)
+     };
+
+
+?align   // make sure we start off word aligned, so the buffer is contiguous
+// PCX header (128 bytes).
+?define PCX_HEADERSIZE 128
+?define PCXBUFSIZE 1024     // input file read buffer size
+byte PCX_manufacturer;      // manufacturer byte (always 0A0h)
+byte PCX_version;           // pcx Version
+byte PCX_encoding;          // (always 1)
+byte PCX_bits_per_pixel;    // color bits per pixel
+word PCX_xmin;              // image origin x
+word PCX_ymin;              // image origin y
+word PCX_xmax;              // image end x
+word PCX_ymax;              // image end y
+word PCX_hres;              // horizontal resolution
+word PCX_vres;              // vertical resolution
+byte PCX_palette1[48];      // (color palette, for older not 256 col vers.)
+byte PCX_reserved;          // reserved byte
+byte PCX_color_planes;      // number of color planes
+word PCX_bytes_per_line;    // line buffer size
+word PCX_palette_type;      // grey or color palette indicator
+byte PCX_reserved2[58];     // reserved
+// end of PCX header
+
+
+byte readPCXpalette (word filename,palsegment,paloffset)
+/*
+  This procedure reads the last 769 bytes of the PCX file.
+  Checks if we are at the palette (cuz pcx's have the palette at the end of
+  file) and then reads it into memory at PALETTE
+*/
+word filehandle;
+byte temp;
+{
+filehandle = FOPEN(0, , ,filename);   /* open file */
+IF(filehandle == 0)                    /* if file did not open */
+    return(pcx_e_nofile);
+CX = -1;
+DX = -769;
+BX = filehandle;
+AX = 0x4202;
+$INT 0x21
+IF( CARRYFLAG )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(pcx_e_noinput);}
+
+AX = FREAD( ,filehandle,1,#temp); 
+IF( temp != 0xC )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(pcx_e_badheader);}
+
+$ PUSH DS
+DS = palsegment;
+IF( FREAD( ,filehandle,768,paloffset) != 768 )
+    {$ POP DS
+    FCLOSE( ,filehandle);  /* close the file */
+    return(pcx_e_noinput);
+    }
+DI = paloffset;
+CX = 768;
+loop(CX)
+    {AL = DSBYTE[DI];   // convert the palette from
+    $ SHR AL,1          // 8 bits
+    $ SHR AL,1          // to 6 bits
+    DSBYTE[DI] = AL;    // and save it
+    DI++;
+    }
+$ POP DS
+FCLOSE( ,filehandle);  /* close the file */
+return(pcx_e_ok); 
+}
+
+
+byte readPCX (word filename,bufseg,bufoffset,bufsize; byte buftype)
+/*
+  Reads and checks the header of the pcx to make sure that it is a pcx file,
+  it then reads the data into the buffer given by bufseg:bufoffset.
+*/
+word filehandle;
+word xcount; 
+word ycount;  
+word local_bytesperline;
+byte readbuf[PCXBUFSIZE];
+{
+filehandle = FOPEN(0, , ,filename);   /* open file */
+IF(filehandle == 0)                    /* if file did not open */
+    return(pcx_e_nofile);
+
+// read the PCX file header into the header buffer
+IF( FREAD( ,filehandle,PCX_HEADERSIZE,#PCX_manufacturer) != PCX_HEADERSIZE )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(pcx_e_noinput);}
+IF( PCX_manufacturer != 0x0A )   // check the manufacturer byte
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(pcx_e_badheader);}
+IF( PCX_version != 5 )   // check the version
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(pcx_e_badheader);}
+
+IF( PCX_bits_per_pixel != 8 )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(pcx_e_not256);}
+
+IF( PCX_color_planes > 1 )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(pcx_e_not256);}
+
+xcount = PCX_xmax - PCX_xmin +1;
+ycount = PCX_ymax - PCX_ymin +1;
+local_bytesperline = xcount;
+
+AX = xcount;
+BX = ycount;
+$ MUL BX
+IF( DX > 0 )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(pcx_e_toobig);}
+IF( AX > bufsize )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(pcx_e_toobig);}
+
+$ CLD              // clear the direction flag
+
+ES = bufseg;
+DI = bufoffset;
+
+SI = PCXBUFSIZE;   // set input pointer to end, so data will have to be read
+
+IF( buftype == pcx_cut )  // if CUT buffer format, store x and y sizes first
+    {AX = xcount;
+    $ STOSW
+    AX = ycount;
+    $ STOSW
+    }
+
+do {
+    xcount = local_bytesperline;  // reset the image width
+
+    do {
+        IF( SI == PCXBUFSIZE )
+            {$ PUSH DI
+            $ PUSH ES
+            AX = FREAD( ,filehandle,PCXBUFSIZE,#readbuf);  // read some data
+            IF( AX == 0 )
+                {FCLOSE( ,filehandle);  /* close the file */
+                return(pcx_e_noinput);}
+            SI = 0;
+            $ POP ES
+            $ POP DI
+            }
+        AL = readbuf[SI];   // get a byte to unpack
+        SI++;
+
+        IF( AL >= 0xC0 )         // if byte is repeater code
+            {                    // yes,
+            AL &= 0x3F;   
+            CX = 0;
+            CL = AL;             // get count into cx
+            xcount -= CX;   // subtract it from the width counter
+
+            IF( SI == PCXBUFSIZE )
+                {$ PUSH DI
+                $ PUSH ES
+                $ PUSH CX
+                AX = FREAD( ,filehandle,PCXBUFSIZE,#readbuf);  // read some data
+                IF( AX == 0 )
+                    {FCLOSE( ,filehandle);  /* close the file */
+                    return(pcx_e_noinput);}
+                SI = 0;
+                $ POP CX
+                $ POP ES
+                $ POP DI
+                }
+            AL = readbuf[SI];   // get the byte pattern
+            SI++;
+
+            $ REPNE
+            $ STOSB             // write the byte
+            }
+        ELSE{              // not a pattern call soo...
+            xcount--;      // decrement our counter
+            $ STOSB        // write the byte to the screen
+            }
+        } while( xcount > 0 );
+
+    ycount--;
+    } while( ycount > 0 );
+
+FCLOSE( ,filehandle);  /* close the file */
+
+return(pcx_e_ok);
+}
+
+
+byte savePCX (word filename,bufseg,bufoffset,xsize,ysize,palseg,paloffset)
+/*
+  Saves the buffer and palette in a valid PCX file.
+  It works, but the compression could be done a little better.  Some how...
+*/
+word filehandle;
+word xcount; 
+byte writebuf[PCXBUFSIZE];
+byte currentbyte;
+byte currentcount;
+{
+AH = 0x3C;
+CX = 0;
+DX = filename;
+$ INT 0x21     /* create file */
+IF( CARRYFLAG )  // unable to create
+    return(pcx_e_nofile);
+filehandle = AX;
+
+ES = DS;
+DI = #PCX_manufacturer;
+CX = PCX_HEADERSIZE;
+AL = 0;
+$ REPZ
+$ STOSB   // zero the entire PCX header
+
+PCX_manufacturer = 0xA;
+PCX_version = 5;
+PCX_bits_per_pixel = 8;
+PCX_color_planes = 1;
+PCX_xmax = xsize-1;
+PCX_ymax = ysize-1;
+PCX_hres = 320;  
+PCX_vres = 200;  
+PCX_encoding = 1;
+PCX_bytes_per_line = xsize;
+PCX_palette_type = 1;      // grey or color palette indicator
+
+
+// write the PCX header to the file
+IF( FWRITE( ,filehandle,PCX_HEADERSIZE,#PCX_manufacturer) != PCX_HEADERSIZE )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(pcx_e_nooutput);}
+
+$ CLD              // clear the direction flag
+
+ES = bufseg;
+SI = bufoffset;
+
+DI = 0;   // set input pointer to end, so data will have to be read
+
+do {
+    xcount = xsize;  // reset the image width
+
+    do {
+        currentcount = 1;
+        currentbyte = ESBYTE[SI];
+        SI++;
+
+        do {
+            DL = FALSE;
+            IF( ESBYTE[SI] == currentbyte )
+                IF( xcount > 1 )
+                    IF( currentcount < 63 )
+                        {xcount--;
+                        currentcount++;
+                        SI++;
+                        DL = TRUE;
+                        }
+            } while( DL == TRUE );
+
+        IF( DI == PCXBUFSIZE )
+            {$ PUSH SI
+            $ PUSH ES
+            IF( FWRITE( ,filehandle,PCXBUFSIZE,#writebuf) != PCXBUFSIZE )
+                {FCLOSE( ,filehandle);  /* close the file */
+                return(pcx_e_noinput);}
+            $ POP ES
+            $ POP SI
+            DI = 0;
+            }
+        IF( currentcount > 1 )
+            {writebuf[DI] = 0xC0 + currentcount;
+            DI++;
+            }
+        ELSE IF( currentbyte >= 0xC0 )
+            {writebuf[DI] = 0xC0 + currentcount;
+            DI++;
+            }
+
+        IF( DI == PCXBUFSIZE )
+            {$ PUSH SI
+            $ PUSH ES
+            IF( FWRITE( ,filehandle,PCXBUFSIZE,#writebuf) != PCXBUFSIZE )
+                {FCLOSE( ,filehandle);  /* close the file */
+                return(pcx_e_noinput);}
+            $ POP ES
+            $ POP SI
+            DI = 0;
+            }
+        writebuf[DI] = currentbyte;
+        DI++;
+
+        xcount--;      // decrement our counter
+        } while( xcount > 0 );
+
+    ysize--;
+    } while( ysize > 0 );
+
+IF( DI > 0 )
+    {IF( FWRITE( ,filehandle,DI,#writebuf) == 0 )
+        {FCLOSE( ,filehandle);  /* close the file */
+        return(pcx_e_noinput);}
+    }
+
+/*** We must now save the palette ***/
+
+writebuf[0] = 0xC;      // palette notifier byte
+
+ES = palseg;
+SI = paloffset;
+
+DI = 0;
+do {AL = ESBYTE[SI];      // convert the palette from
+    $ SHL AL,1            // 6 bits
+    $ SHL AL,1            // to 8 bits
+    writebuf[1+DI] = AL;  // and save it
+    DI++;
+    SI++;
+    } while( DI < 768 );
+
+IF( FWRITE( ,filehandle,769,#writebuf) != 769 )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(pcx_e_nooutput);
+    }
+FCLOSE( ,filehandle);  /* close the file */
+
+return(pcx_e_ok);
+}
+
+/* end of PCX.H-- */

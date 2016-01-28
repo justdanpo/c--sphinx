@@ -1,0 +1,91 @@
+/*
+    Mikael Nilsson/Purple Prophet  (C)opyright 1999.
+    TITLE:  PIXEL.H--
+    DESCRIPTION:  This file contains a collection of procedures for writing
+                  pixels to the screen.
+
+    LAST UPDATED: 7 april 2000
+    PROCEDURES DEFINED IN THIS FILE:
+
+	byte getpixelVESA(word x,y)
+	void pixelclipVESA(word x,y;byte color)
+	void putpixelVESA(word x,y;byte color)
+	void xorpixelVESA(word x,y; byte color)
+	void xorpixelclipVESA(word x,y; byte color)
+
+*/
+
+#ifndef _PIXEL_
+#define _PIXEL_ TRUE
+
+:byte getpixelVESA(word x,y)
+{
+	AX=y/vesa_win_gran;
+	$push AX	//save whichwin
+	setreadwinVESA(AX);
+	$pop AX
+	AX=AX*vesa_win_gran;
+	BX=y-AX*1024+x;
+	ES=0xA000;
+	return(ESBYTE[BX]);
+}
+
+:void pixelclipVESA(word x,y;byte color)
+{
+	IF(y>=0)&&(y<=767)&&(x>=0)&&(x<=1023){
+		AX=y/vesa_win_gran;
+		$push AX
+		setwritewinVESA(AX);
+		$pop AX
+		AX=AX*vesa_win_gran;
+		BX=y-AX*1024+x;
+		ES=0xA000;
+		ESBYTE[BX]=color;
+	}
+}
+
+:void putpixelVESA(word x,y;byte color)
+{
+	AX=y/vesa_win_gran;
+	$push AX
+	setwritewinVESA(AX);
+	$pop AX
+	AX=AX*vesa_win_gran;
+	BX=y-AX*1024+x;
+	ES=0xA000;
+	ESBYTE[BX]=color;
+}
+
+:void xorpixelVESA(word x,y; byte color)
+{
+	AX=y/vesa_win_gran;
+	$push AX	//save whichwin
+	$push AX	//whichwin for parametr proc setwritewinVESA
+	setreadwinVESA(AX);
+	$pop AX
+	setwritewinVESA(AX);
+	$pop AX
+	AX=AX*vesa_win_gran;
+	BX=y-AX*1024+x;
+	ES=0xA000;
+	ESBYTE[BX] ^= color;
+}
+
+:void xorpixelclipVESA(word x,y;byte color)
+{
+	IF(y>=0)&&(y<=767)&&(x>=0)&&(x<=1023){
+		AX=y/vesa_win_gran;
+		$push AX	//save whichwin
+		$push AX	//whichwin for parametr proc setwritewinVESA
+		setreadwinVESA(AX);
+		$pop AX
+		setwritewinVESA(AX);
+		$pop AX
+		AX=AX*vesa_win_gran;
+		BX=y-AX*1024+x;
+		ES=0xA000;
+		ESBYTE[BX] ^= color;
+	}
+}
+
+#endif

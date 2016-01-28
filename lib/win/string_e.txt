@@ -1,0 +1,302 @@
+// ------------------------------------------------------------------- //
+//               STRING32.TXT for Sphinx C-- (STRING32.H--)            //
+//               Function for work with lines under Win32              //
+//               The offers and плевки send on hd_keeper@mail.ru       //
+// ------------------------------------------------------------------- //
+
+   The description of functions from STRING32.H-- is indicated below,
+intended for, work with ASCIIZ-lines and areas of memory under Win32. As it
+is accepted in C--, all functions are dynamic and do not increase a size of a
+code, if are not used. The functions are optimized under Pentium and 32-bit
+segments code. Though the functions also were intended for work under Windows
+in memory model FLAT, they will work under any other operational system for
+want of observance the following conditions:
+   1) The 32-bit operands contain correct displacements
+   2) The segment registers DS and ES are equal
+   3) The flag of a direction is dropped: DF = 0
+The 32-bit segments of a code are desirable (for maintenance of maximum
+Productivity), but not mandatory condition of application.
+   The size of functions is given for want of their introduction in a code of
+the program (@). In case Call of functions (CALL) it is necessary to add 1
+byte on the instruction RET.
+
+
+   --------------- Function for work with ASCIIZ-lines ---------------
+
+
+   strlen
+   Definition of length of a line
+
+:DWORD strlen (LPSTR str);
+str - pointer on a line
+Returns: length of a line, not including, finishing 0,
+Size: 12 bytes
+WinAPI analog: lstrlen
+
+
+   strend
+   Definition of an extremity of a line
+
+:LPSTR strend (LPSTR str);
+str - pointer on a line
+Returns: the pointer on an extremity of a line (on, finishing 0),
+Size: 10 bytes
+
+
+   strcpy
+   Copying of a line
+
+:LPSTR strcpy (LPSTR dest, src);
+src - pointer on an initial line
+Dest - pointer on the buffer, where will be copied src
+Returns: dest
+Size: 32 bytes
+WinAPI analog: lstrcpy
+
+
+   strcpyn, strncpy
+   Copying of a line with restriction on length
+
+:LPSTR strcpyn (LPSTR dest, src; DWORD max);
+src - pointer on an initial line
+dest - pointer on the buffer, where will be copied src
+max - maxima of numerals, how many to copy from src
+Returns: dest
+Size: 40 bytes
+WinAPI analog: lstrcpyn
+
+
+   strmov
+   Copying of a line (for overlapped lines)
+
+:LPSTR strmov (LPSTR dest, src);
+src - pointer on an initial line
+dest - pointer on the buffer, where will be copied src
+Returns: dest
+Size: 73 bytes
+
+
+   strmovn, strnmov
+   Copying of a line with restriction on length (for overlapped lines)
+
+:LPSTR strmovn (LPSTR dest, src; DWORD max);
+src - pointer on an initial line
+dest - pointer on the buffer, where will be copied src
+max - maxima of numerals, how many to copy from src
+Returns: dest
+Size: 79 bytes
+
+
+   strcat
+   Concatenation of lines (dest = dest + src)
+
+:LPSTR strcat (LPSTR dest, src);
+src - pointer on a line, which will be attributed to dest
+dest - pointer on a line, to which will be attributed src
+Returns: dest
+Size: 44 bytes
+WinAPI analog: lstrcat
+
+
+   strcmp
+   Comparison of lines
+
+:LONG strcmp (LPSTR str1, str2);
+str1, str2 - pointers on compared lines
+Returns: 0, if str1 = str2
+          < 0, if str1 < str2
+          > 0, if str1 > str2
+Size: 26 bytes
+WinAPI analog: lstrcmp
+
+
+   strcmpi, stricmp
+   Comparison of lines with ignoring of the register
+
+:LONG strcmpi (LPSTR str1, str2);
+str1, str2 - pointers on compared lines
+Returns: 0, if str1 = str2
+          < 0, if str1 < str2
+          > 0, if str1 > str2
+Size: 53 bytes
+WinAPI analog: lstrcmpi
+
+
+   strcmpn, strncmp
+   Comparison of lines with restriction on length
+
+:LONG strcmpn (LPSTR str1, str2; DWORD max);
+str1, str2 - pointers on compared lines
+max - maxima of numerals, how many to compare
+Returns: 0, if str1 = str2
+          < 0, if str1 < str2
+          > 0, if str1 > str2
+Size: 30 bytes
+WinAPI analog: CompareString
+
+
+   strcmpni, strcmpin, strncmpi, stricmpn, strnicmp, strincmp
+   Comparison of lines with restriction on length and ignoring of the register
+
+:LONG strcmpni (LPSTR str1, str2; DWORD max);
+str1, str2 - pointers on compared lines
+max - maxima of numerals, how many to compare
+Returns: 0, if str1 = str2
+          < 0, if str1 < str2
+          > 0, if str1 > str2
+Size: 57 bytes
+WinAPI analog: CompareString
+
+
+   strchr
+   Search of a numeral in a line
+
+:LPSTR strchr (LPSTR str; CHAR chr);
+str - pointer on a line
+chr - required numeral
+Returns: the pointer on the first found numeral
+Size: 27 bytes
+
+
+   strchrr, strrchr
+   Search of a numeral in a line from an extremity
+
+:LPSTR strchrr (LPSTR str; CHAR chr);
+str - pointer on a line
+chr - required numeral
+Returns: the pointer on the last found numeral
+Size: 26 bytes
+
+
+   strstr
+   Search of a substring in a line
+
+:LPSTR strstr (LPSTR str, substr);
+str - pointer on a line, in which is made search
+substr - pointer on a required substring
+Returns: the pointer on the first numeral of the found substring in str
+            (0, if not is found)
+Size: 63 bytes
+
+
+   strupr
+   Reduction of a line to the upper case
+
+:LPSTR strupr (LPSTR str);
+str - pointer on a line
+Returns: str
+Size: 24 bytes
+WinAPI analog: CharUpper
+
+
+   strlwr
+   Reduction of a line to a lower cascading
+
+:LPSTR strlwr (LPSTR str);
+str - pointer on a line
+Returns: str
+Size: 24 bytes
+WinAPI analog: CharLower
+
+
+   strtok
+   Partition of a line on words
+
+:LPSTR strtok (LPSTR dest, src, divs);
+src - pointer on an initial line or outcome of the previous call
+dest - pointer on the buffer, where will be copied a word
+divs - pointer on a line, containing a numeral - separators
+Returns: 0, if the words more are not present
+         Not 0, if the word is copied in dest (transmit this significance
+               In quality src for consequent search)
+Size: 50 bytes
+
+
+   --------------- Function for work with areas of memory ---------------
+
+
+   memsetz, memzset, memset0, mem0set
+   Обнуление of area of memory
+
+:void memsetz (LPVOID mem; DWORD size);
+mem - pointer on area of memory
+size - size of area in bytes
+Returns: anything
+Size: 16 bytes
+WinAPI analog: ZeroMemory
+
+
+   memset
+   Filling of area of memory
+
+:void memset (LPVOID mem; DWORD size; BYTE value);
+mem - pointer on area of memory
+size - size of area in bytes
+value - significance of byte of filling
+Returns: anything
+Size: 24 bytes
+WinAPI analog: FillMemory
+
+
+   memcpy
+   Copying of area of memory
+
+:void memcpy (LPVOID dest, src; DWORD size);
+src - pointer on area, whence to copy datas
+dest - pointer on area where to copy datas
+size - amount byte, how many to copy
+Returns: anything
+Size: 14 bytes
+WinAPI analog: CopyMemory
+
+
+   memsetd, memset32
+   Fast filling of area of memory
+
+:void memsetd (LPVOID mem; DWORD size, value);
+mem - pointer on area of memory
+size - size of area in double words (not in bytes!)
+value - significance of a double word of filling
+Returns: anything
+Size: 2 bytes
+
+
+   memcpyd, memcpy32
+   Fast copying of area of memory
+
+:void memcpyd (LPVOID dest, src; DWORD size);
+src - pointer on area, whence to copy datas
+dest - pointer on area where to copy datas
+size - amount of double words (not byte!), how many to copy
+Returns: anything
+Size: 2 bytes
+
+
+   memmov
+   Copying of area of memory (for overlapped areas)
+
+:void memmov (LPVOID dest, src; DWORD size);
+src - pointer on area, whence to copy datas
+dest - pointer on area where to copy datas
+size - amount byte, how many to copy
+Returns: anything
+Size: 57 bytes
+WinAPI analog: MoveMemory
+
+
+   memcmp
+   Comparison of areas of memory
+
+:LONG memcmp (LPVOID mem1, mem2; DWORD size);
+mem1, mem2 - pointers on compared areas
+size - amount byte, how many to compare (0 - any)
+Returns: 0, if mem1 = mem2
+          < 0, if mem1 < mem2
+          > 0, if mem1 > mem2
+Size: 26 bytes
+
+
+   --------------------------------------- --------------------------
+
+In total of functions: 24
+Total size: 811 bytes (835 bytes)

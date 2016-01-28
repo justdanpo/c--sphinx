@@ -1,0 +1,26 @@
+// ------------------------------------------------------------------- //
+//        CCHEADER.H-- для Sphinx C-- (COMCTL32.DLL)                   //
+//        Основан на COMMCTRL.H из C++ Builder                         //
+//        Предложения и плевки отправляйте на hd_keeper@mail.ru        //
+// ------------------------------------------------------------------- //
+
+// Описание функций
+
+:dword Header_GetItemCount( dword hwndHD) {
+SendMessage( hwndHD, HDM_GETITEMCOUNT, 0, 0); }
+
+:dword Header_InsertItem( dword hwndHD, i, phdi) {
+SendMessage( hwndHD, HDM_INSERTITEM, i, phdi); }
+
+:dword Header_DeleteItem( dword hwndHD, i) {
+SendMessage( hwndHD, HDM_DELETEITEM, i, 0); }
+
+:dword Header_GetItem( dword hwndHD, i, phdi) {
+SendMessage( hwndHD, HDM_GETITEM, i, phdi); }
+
+:dword Header_SetItem( dword hwndHD, i, phdi) {
+SendMessage( hwndHD, HDM_SETITEM, i, phdi); }
+
+:dword Header_Layout( dword hwndHD, playout) {
+SendMessage( hwndHD, HDM_LAYOUT, 0, playout); }
+

@@ -1,0 +1,752 @@
+?warning FALSE
+?define WINDOW TRUE
+
+:char _isInfo=NO;	//флаг активности информационного окна
+
+/*****************************************************************************
+* .NAME   : ShowTitle
+* .TITLE  : Выводит заголовок у текущего окна.
+* .DESCR  : Только для рамок типа brdNorton1 (со сплошным верхом).
+*****************************************************************************/
+void ShowTitle(int str)
+char buffer[128];
+int width,len;
+{
+// если тип рамки без заголовка если нет рамки, то ничего не выводить
+	IF(Window.border!=0)&&(Window.btype==brdNorton1){
+		len=STRLEN(str);
+		width=wcols();
+		IF(AX<len)len=AX;
+		buffer[0]=0;
+		CX=width-len;
+		CX>>=1;
+		STRSETSZ(#buffer,CX);
+		STRNCAT(#buffer,str,width);
+		STRSETSZ(#buffer,width);
+		prints(wlrow()-1,wlcol()+1,_scheme.schActiveTitle[Window.scheme],#buffer);
+		CloseChar();
+	}
+}
+
+/*****************************************************************************
+* .NAME   : hWindow
+* .TITLE  : Раскрывает окно.
+* .DESCR  : Если заголовок == "" -> окно имеет тонкую рамку.
+*****************************************************************************/
+void hWindow(int wrow,wcol,height,width,title,scheme,shadow)
+int btype;
+int erow, ecol;
+{
+	SI=title;
+	IF(DSBYTE[SI]==0)btype=brdNorton2;
+	ELSE btype=brdNorton1;
+	IF(_winfo.total)&&(Window.btype==brdNorton1){
+// удаляем символ закрытия на предыдущем окне
+		wbprintc(0,_scheme.schInactiveTitle[Window.scheme],' ');
+		wbprintc(1,_scheme.schInactiveTitle[Window.scheme],' ');
+// заголовок выводим неактивным цветом
+		fill_(wlrow()-1,wlcol()+1,wlrow()-1,wcols()+Window.scol+Window.border,256,
+                     _scheme.schInactiveTitle[Window.scheme]);
+	}
+	IF(wrow>=200)wrow=_vinfo.numrows-height-2/2;
+	IF(wcol>=200)wcol=_vinfo.numcols-width-2/2;
+	erow=wrow+height+1;
+	ecol=wcol+width+1;
+	wopen(wrow,wcol,erow,ecol,btype,scheme,3,shadow);
+	ShowTitle(title);
+}
+
+/*****************************************************************************
+* .NAME   : rWindow
+* .TITLE  : Закрывает окно (и освобождает память под ним).
+* .DESCR  : Окно просто закрывается, а не захлопывается.
+*****************************************************************************/
+void rWindow()
+{
+	mshidecur(); // спрятать курсор мыши
+	wclose();
+	IF(_winfo.total!=0)&&(Window.btype==brdNorton1){
+// рисуем символ закрытия на ставшем текущим окне, если он был удален
+		CloseChar();
+// заголовок активным цветом
+		fill_(wlrow()-1,wlcol()+1,wlrow()-1,wcols()+Window.scol+Window.border,
+			256,_scheme.schActiveTitle[Window.scheme]);
+	}
+	msshowcur(); // показать курсор мыши
+}
+
+/*------------------------------
+ нарисовать символ закрытия окна
+ -------------------------------*/
+void CloseChar()
+{
+	AH=0;
+	wbprintc(0,byte _scheme.schNormalText[Window.scheme]&0x0F,byte _chars.window1);
+	AH=0;
+	wbprintc(1,byte _scheme.schNormalText[Window.scheme]&0x0F,byte _chars.window2);
+}
+
+/*****************************************************************************
+* .NAME   : vprints
+* .TITLE  : Специальная функция для быстрого вывода на экран
+* .DESCR  : строк просмотра.
+*****************************************************************************/
+:void vprints(int wrow,wcol,width,margin,attr,str)
+{
+	mshidecur(); // спрятать курсор мыши
+/* see if window has border */
+	BX=Window.border;
+/* calculate video RAM address */
+	ES=_vinfo.videoseg;
+	AX=Window.srow+wrow+BX*_vinfo.numcols+Window.scol+wcol+BX*2;
+	DI><AX;
+	SI=str;
+/* сдвиг */
+	FOR(BX=0;(BX<margin)&&(DSBYTE[SI]!=0)&&(DSBYTE[SI]!=ascii_return);BX++,SI++);
+/* печать */
+	FOR(;(BX<width)&&(DSBYTE[SI]!=0)&&(DSBYTE[SI]!=ascii_return);BX++){
+		$LODSB;
+		AH=attr;
+		$stosw;
+	}
+/* заполнение пробелами хвоста */
+	FOR(;BX<width;BX++){
+		AL=' '; AH=attr;
+		$STOSW
+	}
+	msshowcur(); // показать курсор мыши
+}
+
+/*-------------------------
+	Вывод символа на рамку
+---------------------------*/
+void wbprintc(int offs,attr,ch)
+{
+/* check for active window */
+	IF(_winfo.total!=0)&&(Window.border!=0){
+/* calculate screen coordinates to display character at */
+		BL=Window.srow;
+		BH=Window.scol+offs;
+/* test calculated coordinates for validity */
+		IF((BL<Window.erow)&&(BH<Window.ecol)&&(offs>=0)){
+/* display the character */
+			printc(BL,BH,attr,ch);
+		}
+	}
+}
+
+/*-------------------------------------------------
+	 Вывод символа в окно
+--------------------------------------------------*/
+:void wprintc(int wrow,wcol,attr,ch)
+{
+/* check for active window && check for valid coordinates*/
+	IF(_winfo.total!=0)&&(wchkcoord(wrow,wcol)==0){
+/* calculate video RAM address */
+		ES=_vinfo.videoseg;
+		AX=wrow+Window.srow+Window.border*_vinfo.numcols+wcol+Window.scol+Window.border*2;
+		DI><AX;
+		AL=ch;
+		$stosb;
+		AL=attr;
+		$stosb
+	}
+}
+
+void prints(int row,col,attr,str)
+{
+	mshidecur(); // спрятать курсор мыши
+/* calculate video RAM address */
+	ES=_vinfo.videoseg;
+	DI=_vinfo.numcols*row+col*2;
+/* do while more characters */
+	AH=attr;
+	FOR(SI=str;DSBYTE[SI]!=0;){
+/* write character and attribute */
+		$LODSB
+		$STOSW
+	}
+	msshowcur(); // показать курсор мыши
+}
+
+/*****************************************************************************
+* .NAME   : Say
+* .TITLE  : Вывод строки в координатах.
+*****************************************************************************/
+void Say(int wrow,wcol,attr,str)//тоже что и wprints
+int border;
+{
+/* check for active window && check for valid coordinates*/
+	IF(_winfo.total!=0)&&(wchkcoord(wrow,wcol)==0){
+/* see if window has border */
+		border=Window.border;
+		prints(Window.srow+wrow+border,Window.scol+wcol+border,attr,str);
+	}
+}
+
+/*****************************************************************************
+* .NAME   : hprints
+* .TITLE  : Печать строки символов с подсветкой горячих клавиш.
+*****************************************************************************/
+:void hprints(int wrow,wcol,attr,button,hilight)
+int i;
+int hot[8];
+int numhot;
+char string[132];
+{
+/* просматриваем строку, выкидывая символы горячих клавиш, */
+/* а за одно запоминаем, где они расположены               */
+	numhot=0;
+	FOR(i=0,DI=0;DSBYTE[i+button]!=0;i++){
+		IF(DSBYTE[i+button]!='`'){
+			string[DI]=DSBYTE[i+button];
+			DI++;
+		}
+		ELSE{
+			hot[numhot]=i;
+			numhot++;
+		}
+	}
+/* завершающий 0 */
+	string[DI]=0;
+/* выводим строку */
+	Say(wrow,wcol,attr,#string);
+/* а теперь пытаемся подсветить горячую клавишу */
+	i=_scheme.schHotKey[Window.scheme]&0x0f;
+	FOR(SI=0;(SI<numhot)&&(hilight!=0);SI++){
+		wprintc(wrow,wcol+hot[SI],attr&0xF0|i,string[hot[SI]]);
+	}
+}
+
+/*****************************************************************************
+* .NAME   : hprints2
+* .TITLE  : Печать строки символов с подсветкой выбраныХ слов.
+*****************************************************************************/
+:void hprints2(int wrow,wcol,attr,str,hilight)
+char m1[132];
+int atr;
+{
+	atr=attr;
+	FOR(DI=str,SI=0;DSBYTE[DI]!=0;DI++,SI++){
+		IF((DSBYTE[DI]=='^')&&(DSBYTE[DI+1]=='U')){
+			m1[SI]=0;
+			$push DI
+			$push SI
+			Say(wrow,wcol,atr,#m1);
+			IF(hilight){
+				IF(atr==attr){
+					atr=_scheme.schHotKey[Window.scheme]&0x0F;
+					atr=attr&0xF0|atr;
+				}
+				ELSE atr=attr;
+			}
+			$pop SI
+			$pop DI
+			DI+=2;
+			wcol+=SI;
+			SI=0;
+		}
+		m1[SI]=DSBYTE[DI];
+	}
+	m1[SI]=0;
+	Say(wrow,wcol,atr,#m1);
+}
+
+/*****************************************************************************
+* .NAME   : Button
+* .TITLE  : Изображает кнопку.
+*****************************************************************************/
+:void Button(int wrow,wcol,button,activ,pressed)
+int len;
+char bracket1;
+char bracket2;
+int sattr;
+int battr;
+{
+	len=STRLEN(button);
+	STROCC(button,'`');
+	len-=AX;
+	len+=2;
+	bracket1=' ';
+	bracket2=' ';
+// определение цвета
+	sattr=_scheme.schNormalText[Window.scheme]&0xF0; // тень
+	battr=_scheme.schInactiveTitle[Window.scheme];
+	IF(activ==TRUE){
+		battr=_scheme.schActiveTitle[Window.scheme];
+		bracket1='';
+		bracket2='';
+  }
+//	ELSE battr=0x79;
+	mshidecur();
+	IF(pressed){
+// убрать тень нижняя часть
+		wfill(wrow,wcol,wrow+1,wcol+len,' ',_scheme.schNormalText[Window.scheme]);
+// боковая часть (левая)
+		wfill(wrow,wcol,wrow+1,wcol,' ',_scheme.schNormalText[Window.scheme]);
+		wcol++; // кнопка сдвинута вправо
+		battr=0x79;
+	}
+	ELSE{
+// вывод тени нижняя часть
+		wfill(wrow+1,wcol+1,wrow+1,wcol+len,'▀',sattr);
+// боковая часть
+		wprintc(wrow,wcol+len,sattr,_chars.rightShadow1);
+		wprintc(wrow+1,wcol+len,sattr,_chars.rightShadow3);
+	}
+// заполнить поле кнопки цветом
+	wfill(wrow,wcol,wrow,wcol+len-1,0,battr);
+// вывести текст кнопки подсветить hotkey
+	hprints(wrow,wcol+1,battr,button,TRUE);
+// стрелки по бокам
+	wprintc(wrow,wcol,battr,bracket1);
+	wprintc(wrow,wcol+len-1,battr,bracket2);
+	msshowcur();
+}
+
+:void wfill(int wsrow,wscol,werow,wecol,ch,attr)
+{
+/* check for active window */
+	IF(_winfo.total!=0){
+/* check for window border */
+		BX=Window.border;
+/* fill in specified region */
+		fill_(Window.srow+wsrow+BX,Window.scol+wscol+BX,
+          Window.srow+werow+BX,Window.scol+wecol+BX,ch,attr);
+	}
+}
+
+/*****************************************************************************
+* .TITLE : Перемещение окна (мышью).
+*****************************************************************************/
+struct{
+	int area;
+	int mrow; // последние координаты
+	int mcol; // мыши
+	int offset;
+	byte current2;
+	byte current3;
+	long tmr;
+}MovBox;
+
+/*****************************************************************************
+* .NAME   : MoveBox
+* .TITLE  : Перемещение рамки в новые координаты.
+*****************************************************************************/
+void MoveBox(int row,col)
+int height,width;
+{
+	height=Window.erow-Window.srow+1;
+	width=Window.ecol-Window.scol+1;
+// коррекция
+	IF(row<0)row=0;
+	IF(col<0)col=0;
+	IF(row+height>_vinfo.numrows)row=_vinfo.numrows-height;
+	IF(col+width>_vinfo.numcols)col=_vinfo.numcols-width;
+// корректировка позиции в заголовке, где стоит мышь
+	MovBox.offset=MovBox.mcol-col;
+	ES=MovBox.area;
+	BX=ES;
+	IF(BX==0)||(ESWORD[0]!=row)||(ESWORD[2]!=col){
+		IF(BX!=0)wrestore(BX);
+		MovBox.area=wsave(row,col,row+Window.erow-Window.srow,col+Window.ecol-Window.scol);
+	}
+	timer();
+	EBX><EAX;
+	IF(MovBox.tmr+2<=EBX){
+		MovBox.current2--;
+		$jns NN1
+		MovBox.current2=2;
+NN1:
+		MovBox.current3--;
+		$jns NN2
+		MovBox.current3=1;
+NN2:
+		MovBox.tmr=EBX;
+	}
+// верх
+	FOR(DI=1,BL=MovBox.current2;int DI<width;DI++,BL++){
+		AL=BL/3;
+		IF(AH==0)CL='';
+		ELSE{
+			IF(width-1==DI)CL='┐';
+			ELSE CL='─';
+		}
+		printc_(row,col+DI,0x70,CL);
+	}
+// правый край
+	FOR(DI=1,BL=MovBox.current3;int DI<height;DI++,BL++){
+		AL=BL%2;
+		IF(ZEROFLAG)CL='';
+		ELSE{
+			IF(height-1==DI)CL='┘';
+			ELSE CL='│';
+		}
+		printc_(row+DI,col+width-1,0x70,CL);
+	}
+// низ
+	FOR(DI=width-2,BL=MovBox.current2;int DI>=0;DI--,BL++){
+		AL=BL/3;
+		IF(AH==0)CL='';
+		ELSE{
+			IF(DI==0)CL='└';
+			ELSE CL='─';
+		}
+		printc_(row+height-1,col+DI,0x70,CL);
+	}
+// левый край
+	FOR(DI=height-2,BL=MovBox.current3;int DI>=0;DI--,BL++){
+		AL=BL%2;
+		IF(ZEROFLAG)CL='';
+		ELSE{
+			IF(DI==0)CL='┌';
+			ELSE CL='│';
+		}
+		printc_(row+DI,col,0x70,CL);
+	}
+}
+
+/*****************************************************************************
+* .NAME   : MoveWindowStart
+* .TITLE  : Начало перемещения окна.
+*****************************************************************************/
+void MoveWindowStart()
+int buttons;
+{
+// считаваем статус мыши
+	msstatus(#buttons,#MovBox.mrow,#MovBox.mcol);
+	MovBox.offset=MovBox.mcol-Window.scol; // позиция в заголовке, где стоит мышь
+	MovBox.area=0;
+	MovBox.current2=0;
+	MovBox.current3=0;
+	MovBox.tmr=0;
+}
+
+/*****************************************************************************
+* .NAME   : MoveWindowFinish
+* .TITLE  : Окончание перемещения окна.
+*****************************************************************************/
+void MoveWindowFinish()
+{
+	wrestore(MovBox.area);
+	wmove(MovBox.mrow,MovBox.mcol-MovBox.offset);
+}
+
+/*****************************************************************************
+* .NAME   : MoveWindowDo
+* .TITLE  : Само перемещение окна.
+*****************************************************************************/
+void MoveWindowDo()
+int buttons;
+{
+// считываем статус мыши
+	msstatus(#buttons,#MovBox.mrow,#MovBox.mcol);
+	MoveBox(MovBox.mrow,MovBox.mcol-MovBox.offset);
+}
+
+/*-------------------------------------------------
+			Moves active window to a new location
+--------------------------------------------------*/
+void wmove(int nsrow,nscol)
+int p,q,nerow,necol;
+char hasShadow;
+int xerow;
+int xecol;
+{
+	hasShadow=NO;
+/* check for active windows */
+	if(_winfo.total!=0){
+/* check for valid coordinates */
+		IF(nsrow<1)nsrow=1;
+		IF(nscol<0)nscol=0;
+// определим, есть ли тень
+		IF(Window.wsbuf!=0)hasShadow=1;
+		xerow=Window.erow-Window.srow+nsrow+hasShadow;
+		xecol=Window.ecol-Window.scol+nscol+hasShadow+hasShadow;
+		AH=0;
+#ifdef BACKGROUND
+		AL=_vinfo.numrows-2;
+#else
+		AL=_vinfo.numrows-1;
+#endif
+		IF(AX<=xerow)nsrow=AX-xerow+nsrow;
+		AL=_vinfo.numcols-1; AH=0;
+		IF(AX<=xecol)nscol=AX-xecol+nscol;
+		nerow=Window.erow-Window.srow+nsrow;
+		necol=Window.ecol-Window.scol+nscol;
+// если уже в этих координатах
+		if(nsrow!=Window.srow)||(nscol!=Window.scol){
+/* if window has shadow, close it before the move */
+			IF(hasShadow)wshadoff();
+/* save current window */
+			q=wsave(Window.srow,Window.scol,Window.erow,Window.ecol);
+			if(AX!=0){
+/* restore what current window's buffer holds */
+				wrestore(Window.wbuf);
+/* save area of screen where window will be moved to */
+				p=wsave(nsrow,nscol,nerow,necol);
+				IF(AX!=0){
+/* change coordinates in saved window's buffer
+   and restore window to new coordinates */
+					ES=q;
+					ESWORD[0]=nsrow;
+					ESWORD[2]=nscol;
+					ESWORD[4]=nerow;
+					ESWORD[6]=necol;
+					wrestore(ES);
+/* update window record */
+					Window.wbuf  =p;
+					Window.row   =Window.row-Window.srow+nsrow;
+					Window.column=Window.column-Window.scol+nscol;
+					Window.srow  =nsrow;
+					Window.scol  =nscol;
+					Window.erow  =nerow;
+					Window.ecol  =necol;
+/* if window has shadow, redraw it */
+					IF(hasShadow)wshadow();
+/* reset cursor position */
+					GOTOXY(Window.column,Window.row);
+					BackWin();
+				}
+			}
+		}
+	}
+}
+
+/*------------------------------------------------
+   Вывод стоки в окно с обработкой ESC последовательн
+--------------------------------------------------*/
+:void wputs(int str)
+int cwcol;
+byte scol,border;
+int wrow,wcol;
+{
+/* check for active window */
+	if(_winfo.total!=0){
+		mshidecur(); // спрятать курсор мыши
+/* get effective coordinates from window's record */
+		scol=Window.scol+Window.lmargin;
+		border=Window.border;
+		IF(scol+border>=Window.column)Window.column=scol+border;
+/* do while not end of string */
+		SI=str;
+		for(;DSBYTE[SI]!=0;SI++){
+/* test the input character for control characters */
+			AL=DSBYTE[SI];
+			switch(byte AL){
+				case ascii_linefeed: Window.row++;
+				CASE ascii_return:
+					Window.column=scol+border;
+					break;
+				CASE ascii_backspace:
+					wreadcur(#wrow,#wcol);
+					IF(wrow+wcol!=0){
+						IF(scol+border==Window.column){
+							Window.column=Window.ecol-border;
+							Window.row--;
+							IF(Window.srow+border>=Window.row)Window.row++;
+						}
+						ELSE Window.column--;
+					}
+					BREAK;
+				CASE ascii_tab:
+					cwcol=Window.column-border-scol;
+					Window.column+=TABSTOP(cwcol,8)-cwcol;
+					BREAK;
+				case ascii_escape:
+					SI=process_esc(SI);
+					BREAK;
+				default:
+/* calculate address in video RAM */
+					$push AX
+					ES=_vinfo.videoseg;
+					AX=_vinfo.numcols*Window.row+Window.column*2;
+					DI><AX;
+					$pop AX
+					AH=Window.attr;
+					$stosw
+					Window.column++;
+			}
+/* see if wrap-around is needed */
+			IF(Window.ecol-border<Window.column){
+				Window.column=scol+border;
+				Window.row++;
+			}
+/* see if scroll is needed */
+			IF(Window.erow-border<Window.row){
+				$PUSH SI
+				wscroll(1,1);
+				$POP SI
+				Window.row--;
+			}
+			GOTOXY(Window.column,Window.row);
+		}
+		msshowcur(); // показать курсор мыши
+	}
+}
+
+/*---------------------------------------------------------------------------*/
+/* this function will process an Escape sequence when encountered */
+
+:int process_esc(int stri)
+int wrow,wcol;
+{
+	SI=stri;
+	for(;DSBYTE[SI]==ascii_escape;SI++){
+		SI++;
+		AL=DSBYTE[SI];
+		BL=Window.attr;
+		switch(byte AL){
+			case '+':   /* increase text attribute */
+				BL++;
+				Window.attr=BL;
+				break;
+			CASE '-':   /* decrease text attribute */
+				BL--;
+				Window.attr=BL;
+				break;
+			CASE 'A':   /* change attribute */
+				SI++;
+				Window.attr=DSBYTE[SI];
+				BREAK;
+			CASE 'F':   /* change foreground attribute */
+				SI++;
+				BL&=0xf8;
+				Window.attr=DSBYTE[SI]&7|BL;
+				BREAK;
+			CASE 'B':   /* change background attribute */
+				SI++;
+				BL&=0x8f;
+				Window.attr=DSBYTE[SI]&0x70|BL;
+				BREAK;
+			CASE 'I':   /* toggle intensity bit */
+				IF(BL&8!=0)BL&=0xf7;
+				ELSE BL|=8;
+				Window.attr=BL;
+				BREAK;
+			CASE 'L':   /* toggle blinking bit */
+				IF(BL&0x80!=0)BL&=0x7f;
+				ELSE BL|=0x80;
+				Window.attr=BL;
+				BREAK;
+			CASE 'R':   /* set cursor row */
+				wreadcur(#wrow,#wcol);
+				SI++;
+				wgotoxy(DSBYTE[SI],wcol);
+				BREAK;
+			case 'C':   /* set cursor column */
+				wreadcur(#wrow,#wcol);
+				SI++;
+				wgotoxy(wrow,DSBYTE[SI]);
+				BREAK;
+			default:
+				SI--;
+		}
+	}
+	SI--;
+	AX><SI;
+}
+
+/*-------------------------------------------------
+		координаты курсора в окне
+--------------------------------------------------*/
+:void wreadcur(int wrow,wcol)
+{
+/* check for active window */
+	IF(_winfo.total!=0){
+/* read effective cursor coordinates */
+		GETXY();
+		BX><AX;
+/* calculate window cursor coordinates */
+		DI=wrow;
+		AL=BH-Window.srow-Window.border;
+		DSWORD[DI]=AL;
+		DI=wcol;
+		AL=BL-Window.scol-Window.border;
+		DSWORD[DI]=AL;
+	}
+}
+
+/*****************************************************************************
+* .NAME   : FillBox
+*****************************************************************************/
+:void FillBox(int wrow,wcol,height,width,ch,attr)
+{
+	wfill(wrow,wcol,wrow+height-1,wcol+width-1,ch,attr);
+}
+
+/*****************************************************************************
+* .NAME   : hInfoWindow
+* .TITLE  : Показать информационное окно
+*****************************************************************************/
+:void hInfoWindow(int str,scheme)
+{
+/* если уже присутствует на экране - быстро изменить размер */
+	IF(_isInfo)rInfoWindow();
+	hWindow(modeCenter,modeCenter,3,STRLEN(str)+4,"",scheme,TRUE);
+	Say(1,2,_scheme.schNormalText[Window.scheme],str);
+	_isInfo=YES;
+}
+
+/*****************************************************************************
+* .NAME   : Убрать информационное окно
+*****************************************************************************/
+:void rInfoWindow()
+{
+	IF(_isInfo){
+		rWindow();
+		_isInfo=NO;
+	}
+}
+
+/*****************************************************************************
+* .NAME   : cprints
+* .TITLE  : Выводит строку, отцентрированную в ширине
+*****************************************************************************/
+:void cprints(int wrow,wcol,width,attr,str)
+char buf[133];
+{
+	wfill(wrow,wcol,wrow,wcol+width-1,' ',attr);
+	DI=str;
+	BX=STRLEN(DI);
+	IF(AX>width){
+		ES=DS;
+		STRNCPY(#buf,DI,width);
+		DI=#buf;
+		BX=width;
+	}
+	Say(wrow,width-BX/2+wcol,attr,DI);
+}
+
+/*------------------------------------------------
+		Скролинг всего окна
+--------------------------------------------------*/
+:void wscroll(byte count,direction)
+{
+/* check for active window */
+	IF(_winfo.total!=0){
+		mshidecur(); // спрятать курсор мыши
+/* check scroll count against number of rows in scroll boundary */
+		AL=Window.erow-Window.border-Window.srow+Window.border+1;
+		IF(count>AL)count=AL;
+/* use BIOS function call 6 (up) or 7 (down) to scroll window */
+		BH=_scheme.schNormalText[Window.scheme];
+		CH=Window.srow+Window.border;
+		CL=Window.scol+Window.border;
+		DH=Window.erow-Window.border;
+		DL=Window.ecol-Window.border;
+		AL=count;
+		IF(direction==0)AL=7;
+		ELSE AL=6;
+		$int 0x10
+		msshowcur(); // показать курсор мыши
+	}
+}
+
+/*---------------------------------------------
+ Вывод строки отцентрированную по ширине окна
+ ---------------------------------------------*/
+:void pascal CPRINT(word row,attr,str)
+{
+	cprints(row,0,Window.ecol-Window.scol-Window.border,attr,str);
+}

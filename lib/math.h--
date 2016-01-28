@@ -1,0 +1,135 @@
+/*
+    SPHINX Programming (C) 1993.
+    NAME:  MATH.H--
+    DESCRIPTION:  This file contains some math procedure definitions.
+    PROCEDURES DEFINED IN THIS FILE ARE:
+        : int ABS(number)
+        : word SQRT(number)
+        : dword SQRT_386(number)   // NOT YET TESTED!!!  :-)
+				:DIVDWORD(highpar1,lowpar1,highpar2,lowpar2) - ¤¥«¥­¨¥ ¤Ά®©­λε α«®Ά
+*/
+?ifndef _MATH_
+?define _MATH_ TRUE
+?warning FALSE
+
+:int ABS()  /* AX = signed number to get absolute value of */
+{
+	IF(int AX<0)-AX;
+}
+/* Returns:  AX = absolute value */
+
+:word SQRT()  /* AX = number to root */
+{
+	IF(AX>1){
+		BX=128;   // initial guess
+		DI=BX;
+?ifdef codesize
+		CX><AX;
+?else
+		CX=AX;
+?endif
+		do{
+			AX=CX/BX+BX/2;
+			$CMP AX,BX
+			$JE FINISHED
+			$CMP AX,DI
+			DI=BX;
+?ifdef codesize
+			BX><AX;
+?else
+			BX=AX;
+?endif
+		}while(NOTZEROFLAG);
+		IF(DI<AL){
+?ifdef codesize
+			AX><DI;
+?else
+			AX=DI;
+?endif
+		}
+FINISHED:
+	}
+}
+/* returns:  AX = square root
+             BX,CX,DX,DI = undefined
+*/
+
+:dword SQRT_386()  /* EAX = number to root */
+{
+	IF(EAX>1){
+		EBX=32768;  // initial guess
+		EDI=EBX;
+?ifdef codesize
+		ECX><EAX;
+?else
+		ECX=EAX;
+?endif
+		do{
+			EAX=ECX/EBX+EBX/2;
+			$CMP EAX,EBX
+			$JE FINISHED
+			$CMP EAX,EDI
+			EDI=EBX;
+?ifdef codesize
+			EBX><EAX;
+?else
+			EBX=EAX;
+?endif
+		}while(NOTZEROFLAG);
+		$CMP EAX,EDI
+		$JL FINISHED
+?ifdef codesize
+		EAX><EDI;
+?else
+		EAX=EDI;
+?endif
+FINISHED:
+	}
+}
+/* returns:  EAX = square root
+             EBX,ECX,EDX,EDI = undefined */
+
+:word DIVDWORD()	//1-€€:‘’€…… ‘‹‚ „…‹ƒ. 2-‹€„……
+			//3-‘’€…… ‘‹‚ „…‹’…‹. 4-‹€„……
+{
+	AX><BX;
+	BX><DX;
+	$PUSH BP
+	$PUSH SI
+	$PUSH DI
+	CX|=CX;
+	$JNZ ED
+	IF(DX==0)||(BX==0){
+		$DIV	BX
+		DX=0;
+	}
+	ELSE{
+ED:
+		BP=CX;
+		CX=32;
+		DI=0;
+		SI=0;
+		loop(CX){
+			$SHL	AX,1
+			$RCL	DX,1
+			$RCL	SI,1
+			$RCL	DI,1
+			$CMP	DI,BP
+			$JB	CCC1
+			$JA	CCC2
+			$CMP	SI,BX
+			$JB	CCC1
+CCC2:
+			$SUB	SI,BX
+			$SBB	DI,BP
+			AX++;
+CCC1:
+		}
+	}
+	$POP DI
+	$POP SI
+	$POP BP
+}
+
+?endif
+/* end of MATH.H-- */

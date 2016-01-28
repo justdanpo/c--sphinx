@@ -1,0 +1,180 @@
+/*
+    NAME:  PLASMA.C--
+    DESCRIPTION:  This program generates and colour cycles a plasma fractal
+                  in VGA mode 19.  80286+ and VGA required.
+                  If a command line parameter is given, an attempt will be
+                  made to save the screen the file name given as the first
+                  parameter.  The file will be in *.SCR format which can be
+                  used with TINYDRAW.
+    RUN FILE SIZE:  1465 bytes
+*/
+
+
+?parsecommandline TRUE
+
+?include "MATH.H--"
+?include "VIDEO.H--"
+?include "RANDOM.H--"
+?include "WRITE.H--"
+?include "VGA.H--"
+?include "FILE.H--"
+?include "DOS.H--"
+?include "KEYCODES.H--"
+
+?define  ROUGHNESS   2     // the "roughness" of image, try 1, 2, 3 or 4
+
+?define  MINCOLOR    1
+?define  MAXCOLOR  192
+
+?define PALSIZE MAXCOLOR+1*3
+byte palette[PALSIZE];
+
+
+
+void adjust (int xa,ya,x,y,xb,yb)
+int d,pixel,average;
+{
+IF( byte getpixel19(x,y) )
+    return;
+
+AX = ABS(xa-xb);
+BX = AX;
+AX = ABS(ya-yb);
+d = AX + BX;     
+
+AL = getpixel19(xa,ya);
+AH = 0;
+SI = AX;
+AL = getpixel19(xb,yb);
+AH = 0;
+average = AX + SI * 64 / 2;   // average = pixel(xa,ya)+pixel(xb,yb)/2
+
+AX = RAND() % 64 - 32;
+AX = AX * d * ROUGHNESS;
+pixel = AX + average / 64;  // v = random - 0.5 * d * ROUGHNESS + average;
+   
+IF( pixel < MINCOLOR )
+    pixel = MINCOLOR; 
+ELSE IF( pixel > MAXCOLOR )
+    pixel = MAXCOLOR; 
+putpixel19(x,y,pixel);  
+}
+
+
+void sub_divide (int x1,y1,x2,y2)
+int x,y;
+{
+IF( x2-x1 < 2 )
+    IF( y2-y1 < 2 )
+        return;
+
+x = x1 + x2 / 2;
+y = y1 + y2 / 2;
+
+adjust(x1,y1,x,y1,x2,y1);
+adjust(x2,y1,x2,y,x2,y2);
+adjust(x1,y2,x,y2,x2,y2);
+adjust(x1,y1,x1,y,x1,y2);
+
+IF( byte getpixel19(x,y) == 0 )
+    {
+    AL = getpixel19(x1,y1);
+    AH = 0;
+    SI = AX;
+    AL = getpixel19(x2,y1);
+    AH = 0;
+    SI += AX;
+    AL = getpixel19(x2,y2);
+    AH = 0;
+    SI += AX;
+    AL = getpixel19(x1,y2);
+    AH = 0;
+    AX = AX + SI / 4;
+    SI = AX;
+    putpixel19(x,y,SI);
+    }
+
+sub_divide(x1,y1,x,y);
+sub_divide(x,y1,x2,y);
+sub_divide(x,y,x2,y2);
+sub_divide(x1,y,x,y2);
+}
+
+
+void init_palette ()
+{
+palette[0] = 33;    //
+palette[1] = 10;    //  Set background colour
+palette[2] = 19;    //
+
+BX = 0;
+do {
+    DI = BX+BX+BX;
+
+    palette[DI+3] = BL;
+    palette[DI+3+1] = 63-BL;
+    palette[DI+3+2] = 0;
+
+    palette[DI+195] = 63-BL;
+    palette[DI+195+1] = 0;
+    palette[DI+195+2] = BL;
+
+    palette[DI+387] = 0;
+    palette[DI+387+1] = BL;
+    palette[DI+387+2] = 63-BL;
+
+    BX++;
+    } while( BX < 64 );
+
+rotate_palette();  // set the palette
+}
+
+
+main ()
+{
+IF( byte @ GETCPU() < 2 )    /* check if 80286 instructions available */
+    {WRITESTR("80286 or greater CPU required.");
+    EXIT(1);}
+SETVIDEOMODE( vid_320x200_256 );    /* set video mode */
+IF( @ GETVIDEOMODE() != vid_320x200_256 )  /* check if entered the mode */
+    {WRITESTR("Unable to enter 256 colour mode, VGA required.");
+    EXIT(1);}
+init_palette();
+@ RANDOMIZE();
+
+putpixel19(0,0,RAND()%192+1);
+putpixel19(319,0,RAND()%192+1);
+putpixel19(319,199,RAND()%192+1);
+putpixel19(0,199,RAND()%192+1);
+
+sub_divide(0,0,319,199);  // generate the image to cover the whole screen
+
+IF( @ PARAMCOUNT() >= 1 )
+    IF( writefile(@PARAMSTR(0),VGA_SEG,0,64000) != 64000 )
+        @ BEEP();
+
+do {
+    rotate_palette();
+    } while( KBHIT() == 0 );
+
+BIOSREADKEY();
+SETVIDEOMODE(vid_text80c);
+}
+
+
+void rotate_palette ()   // rotate the palette one
+byte hold1,hold2,hold3;
+{
+hold1 = palette[3];
+hold2 = palette[4];
+hold3 = palette[5];
+@ COPYNEAR(#palette[3],#palette[6],PALSIZE-6);
+palette[PALSIZE-3] = hold1;
+palette[PALSIZE-2] = hold2;
+palette[PALSIZE-1] = hold3;
+@ WAITVSYNC();
+@ SETVGADAC(0, ,PALSIZE, , ,#palette);
+}
+
+
+/* end of PLASMA.C-- */

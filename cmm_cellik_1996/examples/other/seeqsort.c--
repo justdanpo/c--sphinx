@@ -1,0 +1,79 @@
+/*
+   C-- demo program of the events in QUICK SORT
+*/
+
+?include "WRITE.H--"
+?include "RANDOM.H--"
+
+?define  MODULATOR      15     // range of values
+?define  ELEMENTSIZE     2     // size of elements in bytes
+?define  ELEMENTTYPE  word     // variable type of elements
+?define  ARRAYSIZE      29     // number of elements 
+?define  ENDPTR       ARRAYSIZE*ELEMENTSIZE
+
+ELEMENTTYPE array[ARRAYSIZE];
+
+
+void quicksort ( word left,right )
+word i,j,s;
+byte finished;
+ELEMENTTYPE p;
+{
+if( right > left )
+    {i = left;
+    j = right + ELEMENTSIZE;
+    BX = left;
+    p = DSWORD[BX];
+    finished = 0;
+    do {
+        do {
+            i += ELEMENTSIZE;
+            BX = i;
+           } while( DSWORD[BX] < p );
+        do {
+            j -= ELEMENTSIZE;
+            BX = j;
+           } while( DSWORD[BX] > p );
+        IF( j < i )
+            finished = 1;
+        ELSE{BX = i;
+             DI = j;
+             DSWORD[BX] >< DSWORD[DI];
+            }
+        } while( finished == 0 );
+    BX = left;
+    DI = j;
+    DSWORD[BX] >< DSWORD[DI];   /* swap */
+
+    SI = 0;
+    do {WRITEWORD(array[SI]);
+        WRITE(' ');
+        SI += ELEMENTSIZE;
+        } while( SI < ENDPTR );
+    WRITELN(0);
+
+    quicksort( left, j - ELEMENTSIZE );
+    quicksort( i, right );
+    }
+}
+
+
+main ()
+{
+WRITESTR("C-- VISUAL QUICK SORT DEMO\n");
+WRITESTR("Quick Sorting ");
+WRITEWORD(ARRAYSIZE);
+WRITESTR(" words...\n");
+@ RANDOMIZE();
+DI = 0;
+do {array[DI] = RAND() % MODULATOR;
+    WRITEWORD(array[DI]);
+    WRITE(' ');
+    DI += ELEMENTSIZE;
+   } while( DI < ENDPTR );
+WRITELN();
+
+quicksort(#array[0],#array[ENDPTR-ELEMENTSIZE]);
+}
+
+/* end of SEEQSORT.C-- */

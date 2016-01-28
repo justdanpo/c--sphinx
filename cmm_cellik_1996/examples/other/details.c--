@@ -1,0 +1,26 @@
+/*
+    NAME:  DETAILS.C--
+    DESCRIPTION:  This program demonstrates some of the compiler constants
+                  available.  The two used below are:
+                  __DATESTR__  which is a string containing the current
+                               date and time at compile time.
+                  __COMPILER__ which is a string containing the compiler's
+                               name and version number.
+                  Both of these are strings.
+*/
+
+?include "WRITE.H--"
+
+
+main ()
+{
+WRITELN();
+WRITESTR("Program compiled on:  ");
+WRITESTR(__DATESTR__);
+WRITELN();
+WRITESTR("Program compiled with:  ");
+WRITESTR(__COMPILER__);
+WRITELN();
+}
+
+/* end of DETAILS.C-- */

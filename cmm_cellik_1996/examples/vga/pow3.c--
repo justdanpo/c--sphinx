@@ -1,0 +1,138 @@
+/*
+    SPHINX C-- program of POW3
+*/
+
+? print "Building POW3.COM, the low-res 256 colours, boom program.\n"
+
+?include "KEYCODES.H--"
+?include "VIDEO.H--"
+?include "WRITE.H--"
+?include "RANDOM.H--"
+?include "DOS.H--"
+
+
+?define   DOTS         1000     /* maximum around 6666 or so */
+?define   MAXCHANGE       5
+?define   MINCHANGE       1
+
+?define   CHANGEMOD        MAXCHANGE *2 + 1
+?define   MODCHANGE        CHANGEMOD *2 + 1
+?define   LOCATIONCHANGE   210
+
+?define   STARTX        159
+?define   STARTY         99
+
+word x[DOTS],y[DOTS];
+int xchange[DOTS],ychange[DOTS];
+byte color[DOTS];
+
+word startx=STARTX, starty=STARTY;
+byte startcolor=15;
+byte quit=FALSE;
+
+
+main ()
+{
+@ RANDOMIZE();  /* seed the random number generator with clock tick count */
+
+@ SETVIDEOMODE( vid_320x200_256 );  /* attempt to enter video mode */
+IF( byte @ GETVIDEOMODE() <> vid_320x200_256 )  /* check current vid mode */
+    {WRITESTR("MCGA, VGA or better graphics card required.\n");
+    @ EXIT(-1);}
+
+ES = 0xA000;
+
+DI = 0;
+do {SI = DI+DI;
+    x[SI] = startx;
+    y[SI] = starty;
+    xchange[SI] = RAND() % CHANGEMOD - MAXCHANGE;
+    ychange[SI] = RAND() % CHANGEMOD - MAXCHANGE;
+
+    IF(xchange[SI] == 0)
+        IF(ychange[SI] == 0)
+            xchange[SI] = MAXCHANGE;
+
+    color[DI] = startcolor;
+
+    AX = y[SI]*320 + x[SI];
+    BX = AX;
+    ESBYTE[BX] ^= color[DI];
+
+    DI++;
+    } while(DI < DOTS);
+
+do {
+    IF(@ KBHIT())
+        IF(@ BIOSREADKEY() == k_esc)
+            quit = TRUE;
+
+    @ WAITVSYNC();
+    DI = 0;
+    do {
+        SI = DI+DI;
+
+        BX = 0;               /* let BX be a flag */
+        IF( x[SI] >= 320 )
+            BX = 1;
+        IF( y[SI] >= 200)
+            BX = 1;
+        if( BX == 0 )
+            {
+            AX = y[SI]*320 + x[SI];
+            BX = AX;
+            ESBYTE[BX] ^= color[DI];
+            x[SI] += xchange[SI];
+            y[SI] += ychange[SI];
+
+            BX = 0;               /* let BX be a flag */
+            IF( x[SI] >= 320 )
+                BX = 1;
+            IF( y[SI] >= 200)
+                BX = 1;
+            IF( BX == 0 )
+                {AX = y[SI]*320 + x[SI];
+                BX = AX;
+                ESBYTE[BX] ^= color[DI];
+                }
+            }
+        else{
+            AX = RAND() % LOCATIONCHANGE;
+            IF( AX == 0 )         
+                {startx = RAND() % 300 + 10;
+                starty = RAND() % 180 + 10;
+                startcolor = RAND();   /* allow any colour 0 to 255 */
+                }
+            x[SI] = startx;
+            y[SI] = starty;
+
+            do {
+                xchange[SI] = RAND() % MODCHANGE - MAXCHANGE;
+                ychange[SI] = RAND() % MODCHANGE - MAXCHANGE;
+                BL = 0;
+
+                AX = xchange[SI];
+                IF( AX < 0 )
+                    - AX;
+                IF( AX >= MINCHANGE )
+                    BL = 1;
+                AX = ychange[SI];
+                IF( AX < 0 )
+                    - AX;
+                IF( AX >= MINCHANGE )
+                    BL = 1;
+                } while (BL == 0);
+
+            color[DI] = startcolor;
+            AX = y[SI]*320 + x[SI];
+            BX = AX;
+            ESBYTE[BX] ^= color[DI];
+            }
+        DI ++;
+        } while( DI < DOTS );
+    } while( quit == FALSE);
+
+@ SETVIDEOMODE( vid_text80c );
+WRITESTR("SPHINX Programming 1992");
+}
+ÿÿÿÿ

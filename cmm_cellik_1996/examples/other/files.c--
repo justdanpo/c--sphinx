@@ -1,0 +1,29 @@
+/*
+    SPHINX C-- example program of file commands 
+*/
+
+?include "WRITE.H--"
+
+word filehandle;  /* file handle holder */
+
+?define BYTESTOREAD  5000    /* number of bytes to read from file */   
+byte read[BYTESTOREAD+1];    /* buffer to hold bytes read from file */
+
+
+main ()
+{
+filehandle = FOPEN(0, , ,"FILES.C--");   /* open file */
+IF(filehandle == 0)                    /* if file did not open */
+    WRITESTR("ERROR, file did not open.\n"); /* display error message */
+ELSE{WRITESTR("File OPENED O.K.\n");
+    WRITESTR("displaying file:\n"); 
+    AX = FREAD( ,filehandle,BYTESTOREAD,#read); /* read 5000 bytes from file */
+    BX = AX;
+    read[BX] = 0;          /* put a 0 terminator at the end of the bytes read */
+    FCLOSE( ,filehandle);  /* close the file */
+    WRITESTR(#read,0);  /* print read bytes to screen */
+    }
+@ GETCH();   /* Wait for a key to be pressed */
+}
+
+/* end of FILES.C-- */

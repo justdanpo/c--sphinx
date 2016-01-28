@@ -1,0 +1,40 @@
+/*
+    This little program demonstrates the 5x5 font available for VGA mode X.
+*/
+
+
+?include "VIDEO.H--"
+?include "KEYCODES.H--"
+
+?define LOGICALSCREENWIDTH    320
+?define LOGICALSCREENHEIGHT   240
+?define THECLEARCOLOR        0xFF
+
+?include "VGAX.H--"
+?include "VGAXFNT5.H--"
+
+
+void main ()
+word i;
+{
+set320x240mode(FALSE);
+CLEARSCREEN_X(0);
+
+i = ' ';
+do {
+    AX = i - ' ' * 5;
+    SI = AX;
+    overletter5x5_x(i%40*6,i/40*6,#font_5x5[SI],i);
+    i++;
+    } while( i <= 'z' );
+
+BIOSREADKEY();
+
+overstr5x5_x(100,100,"HELLO WORLD!!!",6);
+
+BIOSREADKEY();
+SETVIDEOMODE(vid_text80c);
+}
+
+
+/* end of XFONT5.C-- */

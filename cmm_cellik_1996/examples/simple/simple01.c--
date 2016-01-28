@@ -1,0 +1,25 @@
+/*
+    FILENAME:  SIMPLE01.C--
+
+    DESCRIPTION:  This is the first in a list of progressing example files
+                  to teach you how to use C--.
+                  This example file is the smallest C-- program, it simply
+                  starts and then exits.
+
+    CONCEPTS:  - Execution of a C-- program begins at the procedure main().
+               - The instructions contained in main() begin immediately
+                 following the { and end at the }.  Since there are no
+                 instructions within the two { } in this example, nothing
+                 happens and the program simply quits.
+               - Comments may be inserted into code starting with /* and
+                 ending with */.  Comments may be nested.
+
+    COM FILE SIZE:  30 bytes.
+*/
+
+
+main()            /* program starts here */
+{
+}                 /* program ends here */ 
+
+/* end of SIMPLE01.C-- */

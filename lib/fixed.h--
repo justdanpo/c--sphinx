@@ -1,0 +1,344 @@
+/*
+  Routinen zur Fixed-Point-Arithmetik
+  (C) 1995  Marko Kleine Berkenbusch
+
+  Format der FP-Zahlen : 32-Bit  (dword oder long)
+  Schema:   Bit:  0123456789ABCDEF 0123456789ABCDEF
+                  GGGGGGGGGGGGGGGG NNNNNNNNNNNNNNNN
+  G = Ganzzahlanteil
+  N = Dezimalbruch (Nachkommastellen)
+  Zahlenbereich:      -32768.9999 <= x <= 32767.9999
+                      (ungef„hr, da der Nachkommateil als Bruch
+                       von x/65535 dargestellt wird)
+  Fr die Ausgabe muá zus„tzlich die Datei "WRITE.H--" eingebunden werden.
+  386+ erforderlich (da 32-Bit Integerarithmetik verwendet wird)
+*/
+?ifndef _FIXED_
+?define _FIXED_  TRUE
+?warning FALSE
+
+?use80386
+?ifndef _WRITE_
+?include "write.h--"
+?endif
+
+?define Pi       0x3243C     // Pi = 3.14159
+?define Pix2     0x6487F     // 2*Pi = 6.28319
+?define Euler    0x2B7E0     // Eulersche Zahl e = 2.71828
+?define MaxFixed 0x7FFFFFFF  // gr”áte FP-Zahl
+?define MinFixed 0x80000000  // kleinste FP-Zahl
+?define fixed   long
+?define DSFIXED DSLONG
+?define FSFIXED FSLONG
+?define GSFIXED GSLONG
+
+:fixed FIXED() /* AX = umzuwandelnde Integerzahl */
+{
+	$SHL EAX,16
+} /* Ausgabe: EAX = FP - Zahl */
+
+:int TRUNC() /* EAX = umzuwandelnde FP-Zahl */
+{
+	$SAR EAX,16
+} /* Ausgabe: AX = Integerzahl */
+
+:int ROUND() /* EAX = umzuwandelnde FP-Zahl */
+{
+	EBX=EAX;
+	$SAR EAX,16
+	IF(BX>=32768)AX++;
+} /* Ausgabe: AX = Integerzahl */
+
+:fixed FNEG() /* EAX = zu negierende Zahl */
+{
+	$NEG EAX
+} /* Ausgabe: EAX = negierte Zahl */
+
+:fixed FABS() /* EAX = Zahl, deren Absolutwert bestimmt werden soll */
+{
+	$OR EAX,EAX
+	$JNS L1
+	$NEG EAX
+L1:
+} /* Ausgabe: EAX = umgewandelte Zahl */
+
+:void WriteFixed(long FP) /* FP: auszugebende Zahl */
+long z,z1;
+{
+	z1=SSINT[BP+6];
+	IF(long EAX>0){
+		WRITEINT();
+		z=z1*65536;
+		z=FP-z*10000>>16;
+	}
+	else IF(long EAX<0){
+		IF(long -FP<>0x10000)&&(z1+1==0)WRITE('-');
+		z=z1*65536;
+		z=FP-z*10000>>16;
+		z=10000-z;
+		IF(EAX==10000){
+			z=0;
+			WRITEINT(z1);
+		}
+		ELSE WRITEINT(z1+1);
+	}
+	ELSE{
+		z=FP*10000>>16;
+		WRITE('0');
+		IF(FP<0)z=10000-z;
+	}
+	WRITE('.');
+	IF(z<10)WRITE('0');
+	IF(z<100)WRITE('0');
+	IF(z<1000)WRITE('0');
+	WRITEINT(z);
+} /* Ausgabe: EAX, EBX, EDX, ... ? undefiniert */
+
+:fixed FADD() /* EAX = 1. Summand ;  EBX = 2. Summand */
+{
+	$ADD EAX,EBX
+} /* Ausgabe EAX = Summe */
+
+:fixed FSUB() /* EAX = EAX - EBX */
+{
+	$SUB EAX,EBX
+} /* Ausgabe EAX = Differenz */
+
+:fixed FMUL() /* EAX = 1. Faktor ;  EBX = 2. Faktor */
+{
+	$IMUL EBX
+	AX><DX;
+	$ROR EAX,16
+} /* Ausgabe EAX = Produkt ; EDX undefiniert */
+
+:fixed FDIV() /* EAX = Divisor ;  EBX = Dividend */
+{
+	$ROR EAX,16
+	EDX=0;
+	DX><AX;
+	$DIV EBX
+} /* Ausgabe EAX = Quotient */
+
+:fixed FIDIV()
+{
+	$ROR EAX,16
+	EDX=0;
+	DX><AX;
+	$MOVSX EDX,DX
+	$IDIV EBX
+}
+
+:dword strtofixed(word str)
+word i,f,d;
+byte frac;
+{
+	DI=str;
+	BX=0;
+	f=BX;
+	d=1;
+	frac=BL;
+	IF(DSBYTE[DI]=='-')DI++;
+	do{
+		IF(DSBYTE[DI]!='.'){
+			BL=DSBYTE[DI]-'0';
+			f=f*10+BX;
+			d=d*10;
+		}
+		ELSE{
+			frac=TRUE;
+			d=1;
+			i=f;
+			f=0;
+		}
+		DI++;
+	}while(DSBYTE[DI]<>0);
+	AX=f;
+	EAX=EAX<<16;
+	IF(frac==TRUE){
+		EAX=EAX/d&0xFFFF;
+		CX=i;
+		$SHL ECX,16;
+		EAX|=ECX;
+	}
+	DI=str;
+	IF(DSBYTE[DI]=='-')-EAX;
+}
+
+:dword FSQR() /* EAX = zu quadrierende Zahl */
+{
+	EBX=EAX;
+	$IMUL EBX
+	AX><DX;
+	$ROR EAX,16
+} /* Ausgabe EAX = Quadrat ; EDX, EBX undefiniert */
+
+:dword FSqrt(long FP) /* Eingabe: zu radizierende Zahl */
+long oben,unten,zerg,lzerg,hilf;
+{
+	oben=0xB50000;
+	EBX=0x10000;
+	unten=EBX;
+	zerg=EBX;
+	do{
+		lzerg=EBX;
+		zerg=FADD(dword oben,dword unten);
+		zerg=FDIV(dword zerg,dword 0x20000);
+		hilf=FSQR(dword zerg);
+		EBX=zerg;
+		IF(long EAX>FP)oben=EBX;
+		ELSE unten=EBX;
+	} while(lzerg<>EBX);
+	EAX><EBX;
+} /* Ausgabe: Quadratwurzel aus FP ;  Register undefiniert */
+
+:dword FExp(long FP) /* Eingabe: Exponent von exp(FP) */
+dword x,erg,lerg,h2;
+word h,h1;
+{
+	EAX=0x10000;
+	erg=EAX;
+	h=AX;
+	do{
+		lerg=EAX;
+		h++;
+		x=0x10000;
+		h1=h;
+		loop(h1){
+			x=FMUL(dword x,dword FP);
+			h2=FIXED(h-h1+1);
+			x=FIDIV(dword x,dword h2);
+		}
+		erg=FADD(dword erg,dword x);
+	}while(lerg<>EAX);
+} /* Ausgabe: exp(FP) ;  Register undefiniert */
+
+:dword FLn(long FP) /* Eingabe: Zahl, deren Logarithmus naturalis gesucht wird */
+dword x,lerg,erg,h1,h;
+word  h2;
+byte  negativ;
+{
+	erg=0;
+	h2=1;
+	IF(long FP>0x8000){
+		x=FDIV(dword 0x10000,dword FP);
+		x=0x10000-x;
+		h=EAX;
+		do{
+			lerg=erg;
+			h1=FIXED(h2);
+			erg=FIDIV(dword h,dword h1)+erg;
+			h=FMUL(dword x,dword h);
+			h2++;
+		}while(lerg<>erg);
+	}
+	ELSE{
+		x=FP-0x10000;
+		h=EAX;
+		negativ=1;
+		do{
+			lerg=erg;
+			h1=FIXED(h2);
+			IF(negativ==1)EAX=FIDIV(dword h,dword h1)+erg;
+			ELSE EAX=-FIDIV(dword h,dword h1)+erg;
+			erg=EAX;
+			h=FMUL(dword x,dword h);
+			h2++;
+			!negativ;
+		}while(lerg<>erg);
+	}
+	EAX=erg;
+} /* Ausgabe: Ln(FP) ; Register undefiniert */
+
+:dword FSin(long FP) /* Eingabe: Winkel (Bogenmaá), dessen Sinus gesucht ist */
+dword x,lerg,erg,h2;
+word h,h1;
+byte negativ;
+{
+	erg=0;
+	h=1;
+	negativ=1;
+	do{
+		x=0x10000;
+		h1=h;
+		lerg=erg;
+		loop(h1){
+			x=FMUL(dword x,dword FP);
+			h2=FIXED(h-h1+1);
+			x=FDIV(dword x,dword h2);
+		}
+		IF(negativ<>1)-EAX;
+		erg+=EAX;
+		h+=2;
+		!negativ;
+	}while(lerg<>erg);
+	EAX=erg;
+} /* Ausgabe: Sin(FP) ;  Register undefiniert */
+
+:dword FCos(long FP) /* Eingabe: Winkel (Bogenmaá), dessen Cosinus gesucht ist */
+dword x,lerg,erg,h2;
+word h,h1;
+byte negativ;
+{
+	erg=0x10000;
+	h=2;
+	negativ=1;
+	do{
+		x=0x10000;
+		h1=h;
+		lerg=erg;
+		loop(h1){
+			x=FMUL(dword x,dword FP);
+			h2=FIXED(h-h1+1);
+			x=FDIV(dword x,dword h2);
+		}
+		IF(negativ==1)-EAX;
+		erg+=EAX;
+		h+=2;
+		!negativ;
+	}while(lerg<>erg);
+	EAX=erg;
+} /* Ausgabe: Cos(FP) ;  Register undefiniert */
+
+:dword FATan(long FP) /* Eingabe: Tangens des gesuchten Winkels */
+dword x,lerg,erg,h2;
+word h,h1;
+byte negativ;
+{
+	erg=0;
+	h=1;
+	negativ=1;
+	do{
+		lerg=erg;
+		h1=h;
+		h2=FIXED(h);
+		x=FDIV(dword 0x10000,dword h2);
+		loop(h1)x=FMUL(dword x,dword FP);
+		IF(negativ!=1)-EAX;
+		erg+=EAX;
+		h+=2;
+		!negativ;
+	}while(lerg<>erg);
+	EAX=erg;
+} /* Ausgabe: ArcTan(FP) ; Register undefiniert */
+
+:dword FPOW() /* EBX = Basis ; CX = Exponent (ganzzahlig positiv) */
+{
+	EAX=0x10000;
+L1:
+	$IMUL EBX
+	AX><DX;
+	$ROR  EAX,16
+	$LOOP L1
+} /* Ausgabe EAX = Potenz */
+
+:dword FFAC() /* Eingabe: Zahl deren Fakult„t gesucht ist */
+{
+	AX=0;
+	@TRUNC(fixed EAX);
+	AX><CX;
+	AX=1;
+	loop(CX)AX=AX*CX;
+	@FIXED();
+}
+
+?endif

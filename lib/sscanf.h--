@@ -1,0 +1,251 @@
+/*-----------------03.02.99 23:06-------------------
+ Процедура sscanf - упрощеный аналог процедуры языка C sscanf.
+    Формат вызова:
+ sscanf(scanstr,string,item1,item2,...);
+          scanstr  - адрес сканируемой строки
+          string   - адрес строки с шаблоном
+          item1... - адреса операндов шаблона.
+
+    Формат строки шаблона:
+      "%f" где:
+                  f = тип представления переменных
+
+  f может принимать одно из следующих значений
+           d - знаковое слово в десятичном виде
+           i - знаковое слово в десятичном виде
+           x - слово в 16-ричном виде
+           h - байт в 16-ричном виде
+           u - беззнаковое слово в десятичном виде
+           c - символ
+           s - строка
+           ld- знаковое длинное слово в десятичном виде
+           li- знаковое длинное слово в десятичном виде
+           lx- длинное слово в 16-ричном виде
+           lu- беззнаковое длинное слово в десятичном виде
+                 (C) Copyright M.Sheker 1999.
+
+	--------------------------------------------------*/
+
+?ifndef _SSCANF_
+?define _SSCANF_ TRUE
+
+void cdecl sscanf(word buf,fstring,arg)
+{
+	ES=DS;
+	SI=fstring;
+	DI=buf;
+	BP+=8;
+	$cld
+	for(;;){
+		$lodsb
+		IF(AL==0)BREAK;
+		IF(AL=='%')FmtItem();
+		ELSE{
+			IF(AL==' '){
+				for(;;){
+					$scasb
+					IF(NOTZEROFLAG){
+						DI--;
+						do{
+							$lodsb
+						}while(AL==' ');
+						SI--;
+						BREAK;
+					}
+				}
+			}
+			ELSE{
+				$scasb
+				IF(NOTZEROFLAG)DI--;
+			}
+		}
+	}
+}
+
+void FmtItem()
+{
+	BX=SSWORD[BP];
+	BP+=2;
+	$lodsb
+	switch(byte AL&0x5f){
+		case 'D':
+		CASE 'I':
+			IF(DSBYTE[DI]!=0){
+				AH=0;
+				IF(DSBYTE[DI]=='-'){
+					DI++;
+					AH=1;
+				}
+				$push AX
+				ATOU();
+				$pop CX
+				IF(CH!=0)-AX;
+				DSWORD[BX]=AX;
+			}
+			return;
+		CASE 'C':
+			IF(DSBYTE[DI]!=0)DSBYTE[BX]=DSBYTE[DI];
+			return;
+		CASE 'X':
+			IF(DSBYTE[DI]!=0){
+				ATOH();
+				DSWORD[BX]=AX;
+			}
+			return;
+		CASE 'H':
+			IF(DSBYTE[DI]!=0){
+				ATOH();
+				DSBYTE[BX]=AL;
+			}
+			return;
+		CASE 'U':
+			IF(DSBYTE[DI]!=0){
+				ATOU();
+				DSWORD[BX]=AX;
+			}
+			return;
+		CASE 'S':
+			$push	SI
+			SI=DI;
+			DI=BX;
+			do{
+				$lodsb
+				$stosb
+			}while(AL!=0);
+			DI=SI;
+			$pop SI
+			return;
+		CASE 'L':
+			$lodsb
+			AL&=0x5f;
+			SWITCH(byte AL){
+				case 'D':
+				CASE 'I':
+					IF(DSBYTE[DI]!=0){
+						AH=0;
+						IF(DSBYTE[DI]=='-'){
+							DI++;
+							AH=1;
+						}
+						$push AX
+						ATOUL();
+						$pop CX
+						IF(CH!=0)-EAX;
+						DSDWORD[BX]=EAX;
+					}
+					return;
+				CASE 'X':
+					IF(DSBYTE[DI]!=0){
+						ECX=0;
+						for(;;){
+							AL=DSBYTE[DI];
+							DI++;
+							IF(AL>='a')AL&=0x5f;
+							AL^='0';
+							IF(AL>=10){
+								AL+=0x89;
+								IF(AL<0xfa)BREAK;
+								AL&=0xf;
+							}
+							ECX<<=1;
+							IF(CARRYFLAG)BREAK;
+							ECX<<=1;
+							IF(CARRYFLAG)BREAK;
+							ECX<<=1;
+							IF(CARRYFLAG)BREAK;
+							ECX<<=1;
+							IF(CARRYFLAG)BREAK;
+							CL|=AL;
+						}
+						EAX><ECX;
+						DSDWORD[BX]=EAX;
+					}
+					return;
+				CASE 'U':
+					IF(DSBYTE[DI]!=0){
+						ATOUL();
+						DSDWORD[BX]=EAX;
+					}
+					return;
+			}
+	}
+	BP-=2;
+}
+
+ATOU()
+{
+	CX=0;
+	for(;;){
+		AL=DSWORD[DI];
+		DI++;
+		AL^='0';
+		IF(AL>=10)BREAK;
+		CX<<=1;
+		IF(CARRYFLAG)BREAK;
+		DX=CX;
+		CX<<=1;
+		IF(CARRYFLAG)BREAK;
+		CX<<=1;
+		IF(CARRYFLAG)BREAK;
+		CX+=DX;
+		IF(CARRYFLAG)BREAK;
+		CL+=AL;
+		$adc CH,0
+		IF(CARRYFLAG)BREAK;
+	}
+	AX><CX;
+}
+
+ATOH()
+{
+	CX=0;
+	DX=0;
+	do{
+		AL=DSBYTE[DI];
+		DI++;
+		IF(AL>='a')AL&=0x5f;
+		AL^='0';
+		IF(AL>=10){
+			AL+=0x89;
+			IF(AL<0xfa)BREAK;
+			AL&=0xf;
+		}
+		CX<<=1;
+		IF(CARRYFLAG)BREAK;
+		CX<<=1;
+		IF(CARRYFLAG)BREAK;
+		CX<<=1;
+		IF(CARRYFLAG)BREAK;
+		CX<<=1;
+		IF(CARRYFLAG)BREAK;
+		CL|=AL;
+		DX++;
+	}while(DX<4);
+	AX><CX;
+}
+
+ATOUL()
+{
+	ECX=0;
+	EAX=0;
+	for(;;){
+		AL=DSBYTE[DI];
+		DI++;
+		AL^='0';
+		IF(AL>=10)BREAK;
+		ECX<<=1;
+		IF(CARRYFLAG)BREAK;
+		EDX=ECX;
+		ECX<<=1;
+		IF(CARRYFLAG)BREAK;
+		ECX<<=1;
+		IF(CARRYFLAG)BREAK;
+		ECX+=EDX;
+		IF(CARRYFLAG)BREAK;
+		ECX+=EAX;
+		IF(CARRYFLAG)BREAK;
+	}
+	EAX><ECX;
+}
+
+?endif

@@ -1,0 +1,423 @@
+?warning FALSE
+?define TEXT TRUE
+// быстрый вывод
+void printc_(int row,col,attr,ch)
+/* Разрушает регистры AX,CL,SI  */
+{
+	ES=_vinfo.videoseg;
+	SI=_vinfo.numcols*row+col*2;
+// только заполнить цветом (без изм. цвета симв.)
+	AX=ch;
+	CL=attr;
+	IF(AX==0){
+		SI++;
+		CL&=0xF0;
+		ESBYTE[SI]=ESBYTE[SI]&0x0F|CL;
+	}
+// тут уже только без изменения символа
+	ELSE{
+		IF(AX!=256)ESBYTE[SI]=AL; // с изменением символа
+		ESBYTE[SI+1]=CL;
+	}
+}
+
+void box_(int srow,scol,erow,ecol,boxtype,attr)
+//портит все регистры
+{
+/* calculate width and height */
+	DX=ecol-scol-1;
+/* display top and bottom horizontal borders */
+	DI=scol+1;
+	FOR(BX=0;BX<DX;BX++,DI++){
+		printc_(srow,DI,attr,_box_table[boxtype].ch[1]);
+		printc_(erow,DI,attr,_box_table[boxtype].ch[6]);
+	}
+/* display left and right vertical borders */
+	DX=erow-srow-1;
+	DI=srow+1;
+	FOR(BX=0;BX<DX;BX++,DI++){
+		printc_(DI,scol,attr,_box_table[boxtype].ch[3]);
+		printc_(DI,ecol,attr,_box_table[boxtype].ch[4]);
+	}
+/* display corners */
+	printc_(srow,scol,attr,_box_table[boxtype].ch[0]);
+	printc_(srow,ecol,attr,_box_table[boxtype].ch[2]);
+	printc_(erow,scol,attr,_box_table[boxtype].ch[5]);
+	printc_(erow,ecol,attr,_box_table[boxtype].ch[7]);
+}
+
+void fill_(int srow,scol,erow,ecol,ch,attr)
+//портит все регистры
+{
+	mshidecur (); // спрятать курсор мыши
+/* calculate video RAM address */
+	ES=_vinfo.videoseg;
+	SI=_vinfo.numcols*srow+scol*2;
+	DI=_vinfo.numcols-ecol+scol-1*2;
+	FOR(CX=srow;CX<=erow;CX++){
+		FOR(BX=scol;BX<=ecol;BX++){
+// только заполнить цветом (без изм. цвета симв.)
+			AX=ch;
+			DL=attr;
+			IF(AX==0){
+				DL&=0xf0;
+				ESBYTE[SI+1]=ESBYTE[SI+1]&0x0F|DL;
+			}
+// тут уже только без изменения символа
+			ELSE{
+				IF(AX!=256)ESBYTE[SI]=AX; // с изменением символа
+				ESBYTE[SI+1]=DL;
+			}
+			SI+=2;
+		}
+		SI+=DI;
+	}
+	msshowcur (); // показать курсор мыши
+}
+
+void BackWin()
+{
+	copyfar(wininfo,_winfo.total-1*sizeof(Window),DS,#Window,sizeof(Window));
+}
+
+void RestWin()
+{
+	copyfar(DS,#Window,wininfo,_winfo.total-1*sizeof(Window),sizeof(Window));
+}
+
+void wopen(int srow,scol,erow,ecol,btype,scheme;word openSpeed;int shadow)
+int wbuf;
+int border;
+int off_y,off_x;
+int wattr,battr;
+{
+	if(_winfo.total!=MAXNUMWIN){
+		IF(_winfo.total!=0){	//скопировать предыдущую информацию о окне
+			BackWin();
+		}
+/* see if window is to have a border */
+		IF(btype==brdNone)AX=0;
+		ELSE AX=1;
+		border=AX;
+/* check for valid coordinates */
+		if(erow-border>srow)||(ecol-border>scol){
+			battr=_scheme.schNormalText[scheme];
+			wattr=_scheme.schNormalText[scheme];
+			mshidecur();
+/* save affected area of screen */
+			wbuf=wsave(srow,scol,erow,ecol);
+/* increment total number of open windows */
+			_winfo.total++;
+			if(openSpeed!=0){ /* draw and fill text box on screen */
+				off_y=erow-srow/2-1;
+				off_x=ecol-scol/2-3;
+				while((off_y!=0)||(off_x!=0)){
+					fill_(srow+off_y+border,scol+off_x+border,erow-off_y-border,
+    		        ecol-off_x-border,' ',wattr);
+					IF(border)box_(srow+off_y,scol+off_x,erow-off_y,ecol-off_x,btype,battr);
+					off_y=MAX(off_y-3,0);
+					off_x=MAX(off_x-9,0);
+					WAIT(openSpeed);
+/* уменьшение задержки на 1.5 - чтоб как бы взрывалось */
+					openSpeed=openSpeed*2/3;
+				}
+			}
+			IF(border)box_(srow,scol,erow,ecol,btype,battr);
+			fill_(srow+border,scol+border,erow-border,ecol-border,' ',wattr);
+/* save window info in window record */
+			Window.wbuf    = wbuf;
+			Window.wsbuf   = 0;
+			Window.srow    = srow;
+			Window.scol    = scol;
+			Window.erow    = erow;
+			Window.ecol    = ecol;
+			Window.btype   = btype;
+			BL=border;
+			Window.border  = BL;
+			Window.row     = srow + BL;
+			Window.column  = scol + BL;
+			Window.scheme  = scheme;
+			Window.attr    = _scheme.schNormalText[scheme];
+			Window.lmargin = 0;
+			Window.shadow  = shadow;
+// тень приделать
+			IF(shadow)wshadow();
+/* initialize cursor location to window row 0 column 0 */
+			wgotoxy(0,0);
+			msshowcur();
+//скопировать информацию о окне в буфер окон
+			BackWin();
+		}
+	}
+}
+
+int wsave(int srow,scol,erow,ecol)
+int crow;
+int q,wbuf,soffs,width,oneline;
+{
+	mshidecur(); // спрятать курсор мыши
+/* allocate buffer to hold window's contents */
+	crow=erow-srow+1;
+	width=ecol-scol+1;
+	wbuf=Malloc(AX*crow+4*2);
+	IF(AX!=0){
+/* calculate info on window */
+		width*=2;
+		soffs=_vinfo.numcols*srow+scol*2;
+		oneline=_vinfo.numcols*2;
+/* write window's coordinates to allocated buffer */
+		ES=wbuf;
+		ESWORD[0]=srow;
+		ESWORD[2]=scol;
+		ESWORD[4]=erow;
+		ESWORD[6]=ecol;
+/* do for all rows in window */
+		FOR(q=8;srow<=erow;srow++){
+			copyfar(wbuf,q,_vinfo.videoseg,soffs,width);
+			soffs+=oneline;
+			q+=width;
+		}
+	}
+	msshowcur(); // показать курсор мыши
+	return(wbuf);
+}
+
+void wshadow()
+int wsbuf;
+int ccol,crow,incr,stop;
+byte chat1,chat2;
+int attr;
+{
+	attr=_scheme.schShadow[Window.scheme];
+/* check for active window || see if window already has a shadow*/
+	IF(_winfo.total==0)||(Window.wsbuf!=0)return;
+/* allocate buffer to hold shadow's contents */
+	wsbuf=Malloc(Window.erow-Window.srow*2+Window.ecol-Window.scol+1*2);
+	mshidecur(); // спрятать курсор мыши
+/* start at upper right corner of shadow and work down */
+	crow=Window.srow+1;
+	ccol=Window.ecol+1;
+	incr=_vinfo.numcols-1;
+/* draw shadow to right of window */
+	DI=0;
+	WHILE(crow<=Window.erow){
+/* read current screen characters/attributes */
+		ES=_vinfo.videoseg;
+		SI=_vinfo.numcols*crow+ccol*2;
+		AX=ESWORD[SI];
+		chat1=AL;
+		BX=ESWORD[SI+2];
+		chat2=BL;
+		SI+=incr;
+/* save in shadow's buffer */
+		ES=wsbuf;
+		$stosw
+		AX><BX;
+		$stosw
+/* write characters back to screen using shadow's attribute */
+		printc_(crow,ccol,attr,chat1);
+		printc_(crow,ccol+1,attr,chat2);
+		crow++;
+	}
+/* start at lower left corner of shadow and work right */
+	crow=Window.erow+1;
+	ccol=Window.scol+2;
+	stop=Window.ecol+2;
+/* draw bottom shadow */
+	WHILE(ccol<=stop) {
+/* read current screen character/attribute */
+		ES=_vinfo.videoseg;
+		SI=_vinfo.numcols*crow+ccol*2;
+		AX=ESWORD[SI];
+/* save in shadow's buffer */
+		ES=wsbuf;
+		$stosw
+/* write character back to screen using shadow's attribute */
+		printc_(crow,ccol,attr,AX);
+		ccol++;
+	}
+/* save info in window's record */
+	Window.wsbuf=wsbuf;
+	msshowcur(); // показать курсор мыши
+}
+
+void wgotoxy(int wrow,wcol)
+{
+/* check for active window && check for valid cursor coordinates*/
+	IF(_winfo.total!=0)&&(wchkcoord(wrow,wcol)==0){
+/* calculate effective cursor coordinates */
+		AL=Window.srow+wrow+Window.border;
+		Window.row=AL;
+		AX><BX;
+		AL=Window.scol+wcol+Window.border;
+		Window.column=AL;
+/* set cursor location */
+		GOTOXY();
+	}
+}
+
+int wchkcol(int wcol)
+{
+	IF(wcol<0)||(Window.ecol-Window.border-Window.scol-Window.border<wcol)AX=1;
+	ELSE AX=0;
+}
+
+int wchkcoord(int wrow,wcol)
+{
+	IF((wchkrow(wrow)!=0)||(wchkcol(wcol)!=0))AX=1;
+	ELSE AX=0;
+}
+
+int wchkrow(int wrow)
+{
+	IF((wrow<0)||(Window.erow-Window.border-Window.srow-Window.border<wrow))AX=1;
+	ELSE AX=0;
+}
+
+void wclose()
+{
+/* check for active window */
+	IF(_winfo.total!=0){
+		mshidecur();
+//	RelItems();	//удалить все объекты
+		IF(Window.shadow)wshadoff();
+/* restore contents of and FREE memory held by window */
+		wrestore(Window.wbuf);
+/* decrement total number of open windows */
+		_winfo.total--;
+/* FREE memory held by window's record and update linked list */
+		IF(NOTZEROFLAG){
+			RestWin();
+			GOTOXY(Window.column,Window.row);
+		}
+		msshowcur();
+	}
+}
+
+void wshadoff()
+int ccol,crow,stop;
+{
+/* check for active window */
+	if(_winfo.total!=0)&&(Window.wsbuf!=0){
+		mshidecur (); // спрятать курсор мыши
+		crow=Window.srow+1;
+		ccol=Window.ecol+1;
+/* delete shadow to right of window */
+		DI=0;
+		WHILE(crow<=Window.erow){
+			ES=Window.wsbuf;
+			BX=ESWORD[DI];
+			DI+=2;
+			printc_(crow,ccol,BH,BX);
+			ES=Window.wsbuf;
+			BX=ESWORD[DI];
+			DI+=2;
+			printc_(crow,ccol+1,BH,BX);
+			crow++;
+		}
+/* start at lower left corner of shadow and work right */
+		crow=Window.erow+1;
+		ccol=Window.scol+2;
+		stop=Window.ecol+2;
+/* delete bottom shadow */
+		WHILE(ccol<=stop) {
+			ES=Window.wsbuf;
+			BX=ESWORD[DI];
+			DI+=2;
+			printc_(crow,ccol,BH,BX);
+			ccol++;
+		}
+/* FREE memory held by shadow */
+		FREE(Window.wsbuf);
+/* update window's record */
+		Window.wsbuf=0;
+		msshowcur(); // показать курсор мыши
+	}
+}
+
+void wrestore(int wbuf)
+int crow;
+int q,scol,erow,bytes,doffs,oneline;
+{
+	mshidecur(); // спрятать курсор мыши
+/* get coordinates from window's buffer */
+	ES=wbuf;
+	crow=ESWORD[0];
+	scol=ESWORD[2];
+	erow=ESWORD[4];
+/* calculate info on window */
+	bytes=ESWORD[6]-scol+1*2;
+	doffs=_vinfo.numcols*crow+scol*2;
+	oneline=_vinfo.numcols*2;
+/* do for all rows in window */
+	FOR(q=8;crow<=erow;crow++){
+		copyfar(_vinfo.videoseg,doffs,wbuf,q,bytes);
+		doffs+=oneline;
+		q+=bytes;
+	}
+/* FREE window's buffer */
+	FREE(wbuf);
+	msshowcur(); // показать курсор мыши
+}
+
+void printc(int row,col,attr,ch)
+{
+	mshidecur(); // спрятать курсор мыши
+	printc_(row,col,attr,ch);
+	msshowcur(); // показать курсор мыши
+}
+
+/*--------------------------------------------------
+	 Прячет окно
+--------------------------------------------------*/
+:void whide()
+int p;
+{
+/* check for active window */
+	IF(_winfo.total!=0){
+/* save active window */
+		p=wsave(Window.srow,Window.scol,Window.erow,Window.ecol);
+		IF(AX!=0){
+/* check for/close window's shadow */
+			IF(Window.wsbuf!=0)wshadoff();
+/* restore contents of active window's buffer */
+			wrestore(Window.wbuf);
+			Window.wbuf=p;
+//скопировать параметры окна в буфер скрытых окон
+			copyfar(winhide,sizeof(Window)*_winfo.hidden,DS,#Window,sizeof(Window));
+			_winfo.hidden++;
+/* decrement total number of open windows */
+			_winfo.total--;
+/* FREE memory held by window's record and update linked list */
+			IF(NOTZEROFLAG){
+				RestWin();
+				GOTOXY(Window.column,Window.row);
+			}
+		}
+	}
+}
+
+/*------------------------------------------------
+	Востанавливает спрятаное окно
+--------------------------------------------------*/
+:void wunhide()
+int p;
+{
+/* check pointer to hidden window linked list ; must not be NULL */
+	IF(_winfo.total!=MAXNUMWIN)&&(_winfo.hidden!=0){
+		IF(_winfo.total!=0){	//скопировать предыдущую информацию о окне
+			BackWin();
+		}
+		copyfar(DS,#Window,winhide,_winfo.hidden-1*sizeof(Window),sizeof(Window));
+		p=wsave(Window.srow,Window.scol,Window.erow,Window.ecol);
+		IF(AX!=0){
+			wrestore(Window.wbuf);
+			Window.wbuf=p;
+			_winfo.total++;
+			_winfo.hidden--;
+			IF(Window.shadow)wshadow();
+			BackWin();
+			GOTOXY(Window.column,Window.row);
+		}
+	}
+}

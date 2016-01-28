@@ -1,0 +1,119 @@
+// ------------------------------------------------------------------- //
+//        CCTREE.H-- для Sphinx C-- (COMCTL32.DLL)                     //
+//        Основан на COMMCTRL.H из C++ Builder                         //
+//        Предложения и плевки отправляйте на hd_keeper@mail.ru        //
+// ------------------------------------------------------------------- //
+
+// Описание функций
+
+:dword TreeView_InsertItem( dword hwnd, lpis) {
+SendMessage( hwnd, TVM_INSERTITEM, 0, lpis); }
+
+:dword TreeView_DeleteItem( dword hwnd, hitem) {
+SendMessage( hwnd, TVM_DELETEITEM, 0, hitem); }
+
+:dword TreeView_DeleteAllItems( dword hwnd) {
+SendMessage( hwnd, TVM_DELETEITEM, 0, TVI_ROOT); }
+
+:dword TreeView_Expand( dword hwnd, hitem, code) {
+SendMessage( hwnd, TVM_EXPAND, code, hitem); }
+
+:dword TreeView_GetItemRect( dword hwnd, hitem, prc, code) {
+  EBX = prc;
+  DSDWORD[ EBX] = hitem;
+  SendMessage( hwnd, TVM_GETITEMRECT, code, prc);
+}
+
+:dword TreeView_GetCount( dword hwnd) {
+SendMessage( hwnd, TVM_GETCOUNT, 0, 0); }
+
+:dword TreeView_GetIndent( dword hwnd) {
+SendMessage( hwnd, TVM_GETINDENT, 0, 0); }
+
+:dword TreeView_SetIndent( dword hwnd, indent) {
+SendMessage( hwnd, TVM_SETINDENT, indent, 0); }
+
+:dword TreeView_GetImageList( dword hwnd, iImage) {
+SendMessage( hwnd, TVM_GETIMAGELIST, iImage, 0); }
+
+:dword TreeView_SetImageList( dword hwnd, himl, iImage) {
+SendMessage( hwnd, TVM_SETIMAGELIST, iImage, himl); }
+
+:dword TreeView_GetNextItem( dword hwnd, hitem, code) {
+SendMessage( hwnd, TVM_GETNEXTITEM, code, hitem); }
+
+:dword TreeView_GetChild( dword hwnd, hitem) {
+SendMessage( hwnd, TVM_GETNEXTITEM, TVGN_CHILD, hitem); }
+
+:dword TreeView_GetNextSibling( dword hwnd, hitem) {
+SendMessage( hwnd, TVM_GETNEXTITEM, TVGN_NEXT, hitem); }
+
+:dword TreeView_GetPrevSibling( dword hwnd, hitem) {
+SendMessage( hwnd, TVM_GETNEXTITEM, TVGN_PREVIOUS, hitem); }
+
+:dword TreeView_GetParent( dword hwnd, hitem) {
+SendMessage( hwnd, TVM_GETNEXTITEM, TVGN_PARENT, hitem); }
+
+:dword TreeView_GetFirstVisible( dword hwnd) {
+SendMessage( hwnd, TVM_GETNEXTITEM, TVGN_FIRSTVISIBLE, 0); }
+
+:dword TreeView_GetNextVisible( dword hwnd, hitem) {
+SendMessage( hwnd, TVM_GETNEXTITEM, TVGN_NEXTVISIBLE, hitem); }
+
+:dword TreeView_GetPrevVisible( dword hwnd, hitem) {
+SendMessage( hwnd, TVM_GETNEXTITEM, TVGN_PREVIOUSVISIBLE, hitem); }
+
+:dword TreeView_GetSelection( dword hwnd) {
+SendMessage( hwnd, TVM_GETNEXTITEM, TVGN_CARET, 0); }
+
+:dword TreeView_GetDropHilight( dword hwnd) {
+SendMessage( hwnd, TVM_GETNEXTITEM, TVGN_DROPHILITE, 0); }
+
+:dword TreeView_GetRoot( dword hwnd) {
+SendMessage( hwnd, TVM_GETNEXTITEM, TVGN_ROOT, 0); }
+
+:dword TreeView_Select( dword hwnd, hitem, code) {
+SendMessage( hwnd, TVM_SELECTITEM, code, hitem); }
+
+:dword TreeView_SelectItem( dword hwnd, hitem) {
+SendMessage( hwnd, TVM_SELECTITEM, TVGN_CARET, hitem); }
+
+:dword TreeView_SelectDropTarget( dword hwnd, hitem) {
+SendMessage( hwnd, TVM_SELECTITEM, TVGN_DROPHILITE, hitem); }
+
+:dword TreeView_SelectSetFirstVisible( dword hwnd, hitem) {
+SendMessage( hwnd, TVM_SELECTITEM, TVGN_FIRSTVISIBLE, hitem); }
+
+:dword TreeView_GetItem( dword hwnd, pitem) {
+SendMessage( hwnd, TVM_GETITEM, 0, pitem); }
+
+:dword TreeView_EditLabel( dword hwnd, hitem) {
+SendMessage( hwnd, TVM_EDITLABEL, 0, hitem); }
+
+:dword TreeView_GetEditControl( dword hwnd) {
+SendMessage( hwnd, TVM_GETEDITCONTROL, 0, 0); }
+
+:dword TreeView_GetVisibleCount( dword hwnd) {
+SendMessage( hwnd, TVM_GETVISIBLECOUNT, 0, 0); }
+
+:dword TreeView_HitTest( dword hwnd, lpht) {
+SendMessage( hwnd, TVM_HITTEST, 0, lpht); }
+
+:dword TreeView_CreateDragImage( dword hwnd, hitem) {
+SendMessage( hwnd, TVM_CREATEDRAGIMAGE, 0, hitem); }
+
+:dword TreeView_SortChildren( dword hwnd, hitem, recurse) {
+SendMessage( hwnd, TVM_SORTCHILDREN, recurse, hitem); }
+
+:dword TreeView_EnsureVisible( dword hwnd, hitem) {
+SendMessage( hwnd, TVM_ENSUREVISIBLE, 0, hitem); }
+
+:dword TreeView_SortChildrenCB( dword hwnd, psort, recurse) {
+SendMessage( hwnd, TVM_SORTCHILDRENCB, recurse, psort); }
+
+:dword TreeView_EndEditLabelNow( dword hwnd, fCancel) {
+SendMessage( hwnd, TVM_ENDEDITLABELNOW, fCancel, 0); }
+
+:dword TreeView_GetISearchString( dword hwndTV, lpsz) {
+SendMessage( hwndTV, TVM_GETISEARCHSTRING, 0, lpsz); }
+

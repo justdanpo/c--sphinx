@@ -1,0 +1,1561 @@
+
+    C--INFO.DOC >>> INFORMATION ON THE SPHINX C-- PROGRAMMING LANGUAGE
+
+    Copyright Peter Cellik (C) 1995.  All rights reserved.
+
+    Last Updated:  16 May 1995
+
+=============================================================================
+
+See ALLPROCS.DOC for a complete list of all stack procedures, REG procedures
+		 and macros in the C-- library.
+See STAKPROC.DOC for a more detailed description of all stack procedures.
+See REGPROC.DOC for a more detailed description of all REG procedures and
+		macros.
+See WBHELP.DOC for help on using the C-- Work Bench.
+See C--ASM.DOC for help on C-- inline assembly.
+
+=============================================================================
+
+TABLE OF CONTENTS
+^^^^^^^^^^^^^^^^^
+
+0     INTRODUCTION
+   
+0.1   C--, what can it do?
+0.2   C--, what is it like?
+
+1     THE C-- LANGUAGE
+   
+1.0   Section Introduction
+1.1   Identifiers
+	1.1.1  Identifier Format
+	1.1.2  Reserved Identifiers
+1.2   Constants
+	1.2.1  Numerical Constants
+	1.2.2  Character Constants
+	1.2.3  String Constants
+	1.2.4  Constant Expressions
+1.3   Data Types
+	1.3.1  Types of Variables
+	1.3.2  Declaration of Global Variables
+1.4   Expressions
+	1.4.1  Types of Expressions
+	1.4.2  EAX/AX/AL Expressions
+	1.4.3  Non-EAX/AX/AL Expressions
+	1.4.4  Conditional Expressions
+		1.4.4.1  Simple Conditional Expressions
+		1.4.4.2  Complex Conditional Expressions
+1.5   Declaring Procedures, Functions and Macros
+	1.5.1  Types of Procedures, Functions and Macros
+	1.5.2  Stack Procedures
+	1.5.3  REG Procedures
+	1.5.4  Dynamic Procedures
+	1.5.5  Return Values
+1.6   Using Procedures, Functions and Macros
+	1.6.1  Stack Procedures
+	1.6.2  REG Procedures
+	1.6.3  Macros
+1.7   Selection Statements
+1.8   Looping Statements
+	1.8.1  Types of Looping Statements
+	1.8.2  'do {} while' Loops
+	1.8.3  'loop' Loops
+1.9   Array Indexing
+	1.9.1  Relative Addressing
+	1.9.2  Absolute Addressing
+1.10  Jump Labels
+1.11  Other Syntax
+	1.11.1  Swap Operator
+	1.11.2  Neg Operator
+	1.11.3  NOT Operator
+	1.11.4  Special Conditional Expressions
+	1.11.5  Interrupt Procedures
+1.12  Compiler Directives
+1.13  Inline Assembly
+
+2     OUTPUT FILE FORMATS
+
+2.1  COM File Output
+2.2  EXE File Output
+2.3  Object File Output (*.OBJ)
+
+3     COM FILE SYMBIOSIS
+
+3.0   What is it?
+3.1   Hows it done
+3.2   How to do it
+3.3   Uses
+3.4   Abuses
+
+4     LOW LEVEL INFORMATION
+
+4.1   Format of C--'s Stack Frames
+   
+5     COMMAND LINE OPTIONS FOR THE C-- COMPILER
+
+6     CURRENT LIMITATIONS OF C--
+
+A     APPENDIX
+
+A.1   Registers That Must Be Preserved
+A.2   Table of C-- Symbols
+A.3   C-- Version Notes
+
+=============================================================================
+
+0  Introduction
+^^^^^^^^^^^^^^^   
+
+0.1  C--, what can it do?
+
+C-- was designed to build small and fast programs.  It is most suitable for 
+memory resident programs (TSRs), programs requiring interrupt handling or
+programs that have limited resources.
+
+C-- supports, among other things, inline assembly and recursion.  Also the
+internal C-- library of functions and macros, contains code support for 
+files, sound, graphics and access to extended memory by the use of the XMS
+standard 2.0.
+
+-----------------------------------------------------------------------------
+
+0.2  C--, what is it like?
+
+Nothing you have experienced before.  :-)
+Seriously, its sort of like C and kinda like assembly.
+
+=============================================================================
+
+1  THE C-- LANGUAGE
+^^^^^^^^^^^^^^^^^^^   
+
+1.0  SECTION INTRODUCTION
+
+After pondering for quite some time over what the best method to explain C--
+to a new user, I came to the conclusion of describing some of its syntax and
+usage as a contrast to C.  This does limit the explanation's usefulness to
+only C programmers, but since anyone who is anyone knows C, I don't see it a
+problem.  :-)
+
+-----------------------------------------------------------------------------
+
+1.1  IDENTIFIERS
+
+1.1.1  Identifier Format
+
+C-- identifiers must start with either an underscore (_) or an upper or lower
+lower case letter.  The then may be followed by any combination of
+underscores, upper or lower case letters or numerical digits (0 to 9).  The
+total length of an identifier may not exceed 32 characters.
+
+Some examples of valid C-- indentifiers are:
+
+_DOG
+CoW
+loony12
+HowdYBoys_AND_Girls
+WOW___
+x
+
+Some examples of invalid C-- indentifiers are:
+
+12bogus       /* cannot start an identifier with a numerical digit */
+wowisthisalongidentifieryupitsureisnotOK  /* identifier length exceeds 32 */
+y_es sir      /* spaces not allowed */
+the-end       /* hyphens not allowed */
+
+
+1.1.2  Reserved Identifiers
+
+The following is a list of C-- reserved identifiers which can not be used as
+general identifiers for they have already been defined or reserved for other
+language purposes:
+
+	byte    word    char    int     dword   long
+	fixed32s        fixed32u
+
+	if      loop    return  do      while   else    interrupt
+	void    enum    inline  CARRYFLAG       ELSE    EXTRACT
+	FALSE   FROM    IF      NOTCARRYFLAG    NOTOVERFLOW
+	OVERFLOW        TRUE    ZEROFLAG        NOTZEROFLAG
+	far
+
+	__CODEPTR__     __DATAPTR__     __POSTPTR__     __COMPILER__
+	__DATESTR__     __YEAR__        __MONTH__       __DAY__
+	__HOUR__        __MINUTE__      __SECOND__      __WEEKDAY__
+	__VER1__        __VER2__
+
+	ESBYTE  ESWORD  ESCHAR  ESINT   ESDWORD ESLONG
+	ESFIXED32S      ESFIXED32U
+	CSBYTE  CSWORD  CSCHAR  CSINT   CSDWORD CSLONG
+	CSFIXED32S      CSFIXED32U
+	SSBYTE  SSWORD  SSCHAR  SSINT   SSDWORD SSLONG
+	SSFIXED32S      SSFIXED32U
+	DSBYTE  DSWORD  DSCHAR  DSINT   DSDWORD DSLONG
+	DSFIXED32S      DSFIXED32U
+	FSBYTE  FSWORD  FSCHAR  FSINT   FSDWORD FSLONG
+	FSFIXED32S      FSFIXED32U
+	GSBYTE  GSWORD  GSCHAR  GSINT   GSDWORD GSLONG
+	GSFIXED32S      GSFIXED32U
+
+	AX  CX  DX  BX  SP  BP  SI  DI 
+	AL  CL  DL  BL  AH  CH  DH  BH 
+	ES  CS  SS  DS  FS  GS  HS  IS 
+	EAX ECX EDX EBX ESP EBP ESI EDI
+
+	CR0 CR1 CR2 CR3 CR4 CR5 CR6 CR7
+	DR0 DR1 DR2 DR3 DR4 DR5 DR6 DR7
+	TR0 TR1 TR2 TR3 TR4 TR5 TR6 TR7
+
+This list can be obtained from the C-- compiler at anytime by running it
+with the /KEYWORDS command line option.
+
+-----------------------------------------------------------------------------
+
+1.2  CONSTANTS
+
+1.2.1  Numerical Constants
+
+Expressing numerical constants in decimal (base 10) or hexadecimal (base 16) 
+are the same as in C.  To express a numerical constant in binary (base 2)
+notation, the sequence of 1's and 0's are preceded by 0b, with no spaces in
+between.  To express a numerical constant in octal (base 8) notation, the
+sequence of octal digits (0 to 7) are preceded by 0o with no spaces.
+
+Some examples:
+    0b11111111     // same as 255
+    0x00F          // same as 15
+    0o10           // same as 8
+
+
+1.2.2  Character Constants
+
+Single character constants are, like in C, enclosed in single quotes (').
+Also as in C, special characters are expressed by a back slash (\) followed
+by the key letter or letters.  Special characters supported are:
+    '\a'    /* same as in C */
+    '\b'    /* beep */
+    '\f'    /* form feed */
+    '\l'    /* line feed */
+    '\n'    /* carrage return */
+    '\r'    /* carrage return */
+    '\t'    /* tab */
+    '\x??'  /* ASCII character formed from the ?? which would be two
+	       hexadecimal digits for the character value */
+    '\???'  /* ASCII character formed from the ??? which would be three
+	       decimal digits for the character value */
+Any other character following a back slash is just accepted.  This allows
+the single quote to be included by '\'', for '' is the NULL character.
+
+Multiple character constants are also supported by C--.  Some examples of
+multiple character constants are:
+
+	'ab'
+	'the'
+	'this is large'
+
+There is no limit to the number of characters in a character constant, but
+only the last 4 characters are significant.  This is the maximum that can be
+stored in a 32 bit variable.  For example, 'this is large' would be
+equivalent to 'arge'.
+
+C-- treats all character constants as a numeric value of the ASCII value of
+the character.  For multiple character constants, the first character is the
+most significant, thus the value for 'ab' is 'a'*256+'b'.
+
+
+1.2.3  String Constants
+
+String constants, like in C, are inclosed in double quotes (").  Special
+characters are expressed within strings the same way as in character 
+constants.  All the special characters are the same as in character constants
+with the exception of \n which inserts both a carrage return and a line feed.
+
+The current maximum length of string constants is 1000 including the 0
+terminator, thus a maximum of 999 characters.
+
+
+1.2.4  Constant Expressions
+
+A constant expression is single numerical constant or a list of numerical
+constants linked together by operators which are evaluated at compile time to
+a single constant value.
+
+Like all expressions in C--, constant expressions are always evaluated from
+left to right, regardless of operations!  This is quite different that most
+other languages, and care must be used to remember that 2 + 3 * 2 = 10 and
+not 8.
+
+All numerical values in C-- are integer values.
+
+Some examples of constant expressions are:
+45 & 1 + 3         // equals 4
+14 - 1 / 2         // equals 6 (remember integer values)
+1 * 2 * 3 / 2 + 4  // equals 7
+
+-----------------------------------------------------------------------------
+
+1.3  DATA TYPES
+
+
+1.3.1  Types of Variables
+
+There eight memory variable types in C--, they are byte, word, dword, char,
+int, long, fixed32s and fixed32u.  The following table shows the size and
+range of each of the variable types:
+
+   NAME   | SIZE  |        VALUE RANGE          |        VALUE RANGE
+	  |(bytes)|         (decimal)           |           (hex)
+ ----------------------------------------------------------------------------
+  byte    |   1   |           0 to 255          |        0x00 to 0xFF 
+  word    |   2   |           0 to 65535        |      0x0000 to 0xFFFF
+  dword   |   4   |           0 to 4294967295   |  0x00000000 to 0xFFFFFFFF
+ fixed32u |   4   |           0 to 65535.999985 | 0x0000.0000 to 0xFFFF.FFFF
+  char    |   1   |        -128 to 127          |        0x80 to 0x7F
+  int     |   2   |      -32768 to 32767        |      0x8000 to 0x7FFF
+  long    |   4   | -2147483648 to 2147483647   |  0x80000000 to 0x7FFFFFFF
+ fixed32s |   4   |      -32768 to 32767.999985 | 0x8000.0000 to 0x7FFF.FFFF
+
+NOTE1: 32 bit (4 byte) integer instructions are used to implement dword,
+       long, fixed32s and fixed32u values, therefore support for these data
+       types is limited to 80386 and higher CPU's.
+NOTE2: fixed32s and fixed32u are not fully implemented, and will be available
+       future versions of C--.
+
+1.3.2  Declaration of Global Variables
+
+The syntax for declaring variables is as follows:
+
+variable-type identifier;
+
+Where variable-type is any one of char, byte, int, word, long or dword.
+Several identifers may be declared of the same type as follows:
+
+variable-type identifier1, identifier2, ... , identifierN;
+
+One dimensional arrays may be declared as follows:
+
+variable-type identifier[elements];
+
+Where elements is a constant expression for the amount of entries of that
+variable type to be in the array.
+
+Some examples of global declarations:
+
+byte i,j;       /* declare i and j to be of type byte */
+word see[10]    /* declare see to be an array of 10 word's */
+int  h,x[27]    /* declare h to be of type int and declare x to
+				   be an array of 27 int's */
+
+-----------------------------------------------------------------------------
+
+1.4  EXPRESSIONS
+
+1.4.1  Types of Expressions
+
+There are three types of expressions in C--, not counting constant
+expressions.  They are EAX/AX/AL expressions, non-EAX/AX/AL expressions and
+conditional expressions.  All C-- expressions are evaluated left to right,
+regardless of the operations involved.
+
+
+1.4.2  EAX/AX/AL Expressions
+
+EAX/AX/AL math is used for expressions which the result will be stored in a
+memory variable or the EAX, AX or AL register.  If the expression is going to
+be stored in a char or byte variable, AL math will be used.  If the
+expression is going to be stored in a int or word variable, AX math will be
+used.  If the expression is going to be stored in a long or dword variable,
+EAX math will be used.
+
+If there are no procedure calls in an EAX/AX/AL expression, only the
+values of AX (or EAX or AL), CX  (or ECX or CL) and DX (or EDX or DL) may be
+destroyed, all other register values will be preserved during and after the
+expression is evaluated.
+
+
+1.4.3  Non-EAX/AX/AL Expressions
+
+Non-EAX/AX/AL math is used for expressions which the result will be stored
+in a register other than EAX, AX or AL.  With non-EAX/AX/AL only the result
+register's value will change, all other register values will be preserved,
+the high byte of the byte registers may be destroyed, if a word value is
+used with an expression which will be stored in a byte register.  This does
+however restrict the operations and operands available with non-EAX/AX/AL
+math. No MACRO, REG procedure or STACK procedure calls may be made within a
+non-AX/AL/EAX expression.
+
+
+1.4.4  Conditional Expressions
+
+Conditional expressions are expressions which are used for generating a 'yes'
+or 'no' for 'if' statements and 'do {} while' loops.
+
+There are two types of conditional expressions, simple and complex.
+
+1.4.4.1  Simple Conditional Expressions
+
+Simple conditional expressions are a single token or expression that will be
+taken as a 'yes' if the calculated value is non-zero, or a 'no' if the
+calculated value is zero.
+
+1.4.4.2  Complex Conditional Expressions
+
+Complex conditional expressions are of the following form:
+
+	( leftside compare_op rightside )
+
+Where:
+	'leftside' is any AL/AX/EAX or constant expression.  The expression
+		type will be determined by the first token (register or
+		variable)default is 'word', if an other type is desired, the
+		keyword 'byte', 'char', 'int', 'long' or 'dword' can
+		preceed the expression to specify its type.
+	'compare_op' is any one of '==', '!=', '<>', '<', '>', '<=', or '>='.
+	'rightside' is any single register, variable or constant expression.
+
+Some examples of valid complex conditional expressions:
+
+	( x+y > z )
+	(int CX*DX <= 12*3 )
+	(byte first*second+hold == cnumber )
+
+Some examples of invalid complex conditional expressions:
+
+	( x+y >= x-y ) // rightside is not a single token or constant expr.
+	( z = y )      // '==' not '=' must be used
+
+-----------------------------------------------------------------------------
+
+1.5  DECLARING PROCEDURES, FUNCTIONS AND MACROS
+
+1.5.1  Types of Procedures, Functions and Macros
+
+There are two main types of procedures, stack and REG procedures.  Stack
+procedures pass parameters on the stack and REG procedures pass the
+parameters via registers.  Both stack and REG procedures can act as functions
+by returning values, via the return() command.  Only REG procedures declared
+as dynamic can be used as macros.
+
+
+1.5.2  Stack Procedures
+
+Stack procedures are defined by using an identifer that contains at least one
+lower case letter, thus they can be easily distingushed from REG procedures
+for REG procedure names may not contain any lower case letters.
+
+Parameters for stack procedures, if any, may be of any type (specified by
+'byte', 'char', 'word', 'int', 'dword' or 'long').  Parameters are passed
+using a Pascal-like calling convention, that is, the first parameter is
+pushed first and the second parameter is pushed second, and so on.  The
+Pascal-calling convention does not support variable number of parameters,
+so you have to be sure to pass the proper number of parameters to a stack
+procedure.
+
+The following example stack procedure returns the sum as a 'word' of all it
+parameters, which are of different types:
+
+	word add_them_all (int a,b,c; byte d,e; word x,y)
+	{
+	return( a+b+c+d+e+x+y );
+	}
+
+
+1.5.3  REG Procedures
+
+REG procedures are defined by using an identifer that does not contain any
+lower case letters.
+
+As mentioned, the parameters (if any) for a REG procedure are passed via
+registers.  REG procedures have a maximum of 6 parameters.  The registers
+used if the parameters are of type 'int' or 'word', in order, are AX, BX, CX,
+DX, DI, and SI.  The first four parameters can also be of the type 'char' or
+'byte', in this case AL, BL, CL and DL are used respectively.  Any of the six
+parameters can be of type 'long' or 'dword', in which case EAX, EBX, ECX,
+EDX, EDI, or ESI would be used.
+
+An example of a REG procedure named 'TOGETHER' that returns a 'word' value
+which is the first parameter multiplied to the second parameter, both
+parameters are 'word's:
+
+	word TOGETHER ()  /* AX = first param, BX = second param */
+	{
+	return( AX * BX );
+	}
+
+An example of a REG procedure named 'SHOW_NUM' that does not return any value
+but writes the first parameter (which is an 'int') followed by the second
+parameter (which is a 'byte') to the screen separated by a ':':
+
+	void SHOW_NUM ()  /* AX = first number, BL = second number */
+	{
+	? PUSH BX
+	WRITEINT(int AX);
+	WRITE(':');
+	? POP BX
+	WRITEWORD(BL);
+	}
+
+In order for a REG procedure to be used as a macro, it must be declared as a
+dynamic procedure.  Dynamic procedures are described in the following
+sub-section.
+
+
+1.5.4  Dynamic Procedures
+
+Dynamic procedures are procedures which are defined but only inserted into
+the program code if called.  Only REG procedures defined as dynamic
+procedures may be used as macros.
+
+Dynamic procedures are specified by a preceding ':'.
+
+Since dynamic procedures can be relocated anywhere in the code and possibly
+in more than one location, several restrictions are nessasary.  These
+restrictions are:
+
+	- Only macros may be used within the dynamic procedure.  Calls to REG
+	  or stack procedures are illegal.
+
+	- Constant strings cannot be defined within a dynamic procedure.  To
+	  use a constant string within a dynamic procedure, define the
+	  contant string as a global variable.
+
+	- Only local jump labels may be defined within a dynamic procedure.
+	  Global jump labels are illegal.
+
+	- Jumps to addresses outside the dynamic procedure are illegal.  No
+	  error message will be given, but the results, as you can imagine,
+	  are unpredictable.
+
+	- For dynamic REG procedures that are going to be used as macros, the
+	  'return()' command can not be used.  See the end of sub-section
+	  1.5.5 for more info.
+
+An example of a dynamic stack procedure:
+
+	: void setvideomode (byte mode)
+	{
+	AL = mode;
+	AH = 0;
+	$ INT 0x10
+	}
+
+An example of a dynamic REG procedure (and could be used as a macro):
+
+	: int ABS ()  /* AX = number to get absolute value of */
+	{
+	IF(int AX < 0 )
+	    -AX;
+	}
+
+
+1.5.5  Return Values
+
+Return values from functions are returned via registers, below is a table
+showing what register is used for each return type:
+
+	  return type  |  register returned in
+	----------------------------------------
+	     byte      |        AL
+	     word      |        AX
+	     dword     |        EAX
+	     char      |        AL
+	     int       |        AX
+	     long      |        EAX
+
+The easiest way to return a value from a function is to use the 'return()'
+command, but the appropriate register can also be assigned the required
+return value instead.  For example, the following two functions return the
+same value:
+
+	byte proc_one ()
+	{
+	return( 42 );
+	}
+
+	byte proc_two ()
+	{
+	AL = 42;
+	}
+
+Take note, for dynamic REG procedures that you wish to use as macros, the
+'return()' command cannot be used, for the 'return()' also executes a 'RET'
+command.  Thus for macros that are functions, the appropriate return value
+register must be assigned directly.
+
+-----------------------------------------------------------------------------
+
+1.6  USING PROCEDURES, FUNCTIONS AND MACROS
+
+1.6.1  Stack Procedures
+
+Stack procedures use the pascal calling style for parameters.  Stack
+procedures must therefore be called with the same number of parameters as
+declared for the procedure.  Stack procedure names must contain at least
+one lower case letter to signify that it is a stack procedure, not a REG
+procedure.
+
+The programmer must specify what the type is for each parameter.  If the
+programmer does not specify a type, 'word' will be assumed.
+
+	stack_procedure(x,y);
+
+is the same as:
+
+	stack_procedure(word x,word y);
+
+C-- does not remember what the type is for each parameter of a procedure,
+care must be used by the programmer to ensure that the types are the same.
+For example, if a procedure has three parameters, and the first parameter is
+a 'long' and last two are 'int', the programmer must call it in the following
+format:
+
+	stack_procedure(long x,int x,int x);
+
+If the programmer left out the 'long', only 6 bytes will be pushed onto the
+stack, not 8.  Unexpected things would then start to happen, so watch out.
+
+
+1.6.2  REG Procedures
+
+For REG procedures, the parameters are passed via registers.  The 16 bit
+register used for each position is as follows:
+
+	REG_PROCEDURE(AX,BX,CX,DX,DI,SI);
+
+If byte or char is used in a position, the 8 bit register that is used for
+the position is as follows (note that byte or char values cannot be used in
+the DI and SI positions):
+
+	REG_PROCEDURE(byte AL,byte BL,byte CL,byte DL);
+
+If dword or long is used in a positions, the 32 bit register that will be
+used for the position is as follows:
+
+	REG_PROCEDURE(long EAX,long EBX,long ECX,long EDX,long EDI,long ESI);
+
+
+1.6.3  Macros
+
+Macros are simply REG procedures whose code is inserted rather than called.
+An '@' symbol is placed before the REG procedure name to specify the code to
+be inserted rather than called.  In order for a REG procedure to be used as
+a macro, the REG procedure must be declared as a dynamic procedure or found
+in the internal library.
+
+All other characteristics of macros are identical to REG procedures.
+
+-----------------------------------------------------------------------------
+
+1.7  CONDITIONAL STATEMENTS
+
+Selection statements, better known as 'if' statements, are similar to those
+in C.  C-- has two selections statements.  'if' and 'IF'.  'if' does a near
+jump, and 'IF' does a short jump.  'IF' executes faster, and can save up to
+3 bytes in code size but can only jump over 127 bytes of code.
+
+Selection statements, like in C can be followed by either a single command,
+or a block of many commands enclosed within '{' and '}'.  C-- selection 
+statements are restricted to C-- conditional expressions (as described in
+section 1.4 Expressions).
+
+If more than 127 bytes of code follow an 'IF' statement, the compiler will
+issue the following error message:
+
+	IF jump distance too far, use if.
+
+This can be simply remeded by changing the offending 'IF' statement to 'if'.
+
+'else' and 'ELSE' statements are used just like the 'else' command in C,
+except that 'ELSE' has the same 127 byte jump restriction as 'IF' of 127
+bytes.  'else' generates 1 more byte of code than 'ELSE'.  
+
+'IF' and 'else', and 'if' and 'ELSE' may be mixed freely, such as the
+following example:
+
+	if( x == 2 )
+	    WRITESTR("Two");
+	ELSE{WRITESTR("not two.");
+	    printmorestuff();
+	    }
+
+If more than 127 bytes of code follow an 'ELSE' statement, the compiler will
+issue the following error message:
+
+	ELSE jump distance too far, use else.
+
+Simply change the 'ELSE' statement to 'else' to correct the error.
+
+-----------------------------------------------------------------------------
+
+1.8  LOOPING STATEMENTS
+
+1.8.1  Types of Looping Statements
+
+C-- has two types of looping statements.  They are 'do {} while' and 'loop'.
+
+
+1.8.2  'do {} while' Loops
+
+'do {} while' loops repeat a block of code while a certain conditional
+statement remains true.  The block of code will be executed at least once.
+An example of a 'do {} while' loop that loops five times follows:
+
+	count = 0;
+	do {
+	    count++;
+	    WRITEWORD(count);
+	    WRITELN();
+	    } while (count < 5);
+
+The conditional expression in the 'do {} while' statement must conform to the
+same rules as 'IF' and 'if' statements.
+
+
+1.8.3  'loop' Loops
+
+'loop' loops repeat a block of code while the specified variable or register
+is different than zero.  At the end of executing the block of code, the
+given variable or register is decremented by one, then tested if equal to
+zero.  If the variable is not equal to zero, the block of code will be 
+executed again, and the process repeated.  An example of a 'loop' loop using
+a variable count as the loop counter:
+
+	count = 5;
+	loop( count )
+	    {WRITEWORD(count);
+	    WRITELN();
+	    }
+
+Use of the register CX for small code block loops will yield the greatest
+code size efficiency for a 'loop', for the loop will be implemented by the
+use of the machine language 'LOOP' command.
+
+If the loop counter is zero before starting the 'loop' command, the loop
+will be executed the maximum number of times for the range of the variable.
+256 times for a 8 bit (byte or char) counter, 65536 for a 16 bit (word or
+int) counter, and 4294967296 for a 32 bit (dword or long) loop counter.  For
+example, the following loop will execute 256 times:
+
+	BH = 0;
+	loop( BH )
+	    {
+	    }
+
+If no loop counter is given, the loop will loop forever.  The following
+example will write *'s to the screen forever:
+
+	loop()
+	    WRITE('*');
+
+The programmer may, if he or she wishes to, use and/or change the value of
+the loop counter variable within the loop.  For example the following loop
+will only execute 3 times:
+
+	CX = 1000;
+	loop( CX )
+	    {
+	    IF( CX > 3 )
+		CX = 3;
+	    }
+
+-----------------------------------------------------------------------------
+
+1.9  ARRAY INDEXING
+
+1.9.1  Relative Addressing
+
+Elements in an array of ANY TYPE are indexed in byte units, regardless of the
+data type.  Indexes are restricted to the format of 8086 RM field, thus only
+the following index formats are available (where index is a 16 bit constant
+value or constant expression):
+
+	variable[index]
+	variable[index+BX+SI]
+	variable[index+BX+DI]
+	variable[index+BP+SI]
+	variable[index+BP+DI]
+	variable[index+SI]
+	variable[index+DI]
+	variable[index+BP]
+	variable[index+BX]
+
+Some examples:
+	To assign 1995 to the third word in an array of words called
+	'xlocations':
+		xlocations[4] = 1995;
+
+	To assign 0 to the second long in an array of longs called
+	'addresses':
+		addresses[4] = 0;
+
+	To use the variable 'count' as an index for assigning TRUE to an
+	array called 'fast':
+		BX = count;
+		fast[BX] = TRUE;
+
+
+1.9.2  Absolute Addressing
+
+Absolute addressing is also available.  The same restrictions on the indexes
+apply as with relative addressing.  The calculated index will be absolute
+from the segment register specified.  Any segment register can be used, DS,
+CS, SS and ES.  On a 80386+, FS and GS can also be used.
+
+The syntax is exactly the same to relative addressing, except that a segment
+and type specifier is used.  The specifiers available are:
+
+	      // addressing the Data Segment 
+	DSBYTE[offset]     // address a byte in the DS segment
+	DSWORD[offset]     // address a word in the DS segment
+	DSCHAR[offset]     // address a char in the DS segment
+	DSINT[offset]      // address a int in the DS segment
+	DSDWORD[offset]    // address a dword in the DS segment
+	DSLONG[offset]     // address a long in the DS segment
+
+	      // addressing the Code Segment 
+	CSBYTE[offset]     // address a byte in the CS segment
+	CSWORD[offset]     // address a word in the CS segment
+	CSCHAR[offset]     // address a char in the CS segment
+	CSINT[offset]      // address a int in the CS segment
+	CSDWORD[offset]    // address a dword in the CS segment
+	CSLONG[offset]     // address a long in the CS segment
+
+	      // addressing the Stack Segment 
+	SSBYTE[offset]     // address a byte in the SS segment
+	SSWORD[offset]     // address a word in the SS segment
+	SSCHAR[offset]     // address a char in the SS segment
+	SSINT[offset]      // address a int in the SS segment
+	SSDWORD[offset]    // address a dword in the SS segment
+	SSLONG[offset]     // address a long in the SS segment
+
+	      // addressing the Extra Segment 
+	ESBYTE[offset]     // address a byte in the ES segment
+	ESWORD[offset]     // address a word in the ES segment
+	ESCHAR[offset]     // address a char in the ES segment
+	ESINT[offset]      // address a int in the ES segment
+	ESDWORD[offset]    // address a dword in the ES segment
+	ESLONG[offset]     // address a long in the ES segment
+
+	      // addressing the Extra Segment 2 (80386+)
+	FSBYTE[offset]     // address a byte in the FS segment
+	FSWORD[offset]     // address a word in the FS segment
+	FSCHAR[offset]     // address a char in the FS segment
+	FSINT[offset]      // address a int in the FS segment
+	FSDWORD[offset]    // address a dword in the FS segment
+	FSLONG[offset]     // address a long in the FS segment
+
+	      // addressing the Extra Segment 3 (80386+)
+	GSBYTE[offset]     // address a byte in the GS segment
+	GSWORD[offset]     // address a word in the GS segment
+	GSCHAR[offset]     // address a char in the GS segment
+	GSINT[offset]      // address a int in the GS segment
+	GSDWORD[offset]    // address a dword in the GS segment
+	GSLONG[offset]     // address a long in the GS segment
+
+Some examples:
+	To load AL with the byte value at the address 0000:0417 hex:
+		ES = 0x0000;
+		AL = ESBYTE[0x417];
+
+	To move a word value from 2233:4455 hex to A000:0002 hex:
+		$PUSH DS
+		DS = 0x2233;
+		ES = 0xA000;
+		ESWORD[0x0002] = DSWORD[0x4455];
+		$POP DS
+
+	To store the int variable X + 2 at address FFFF:1234 hex:
+		ES = 0xFFFF;
+		ESINT[0x1234] = X + 2;
+
+	To store BX in the stack at offset 42:
+		SSWORD[42] = BX;
+
+-----------------------------------------------------------------------------
+
+1.10  JUMP LABELS
+
+Jump labels are used for labeling code locations for use with an inline
+assembly jump command.  There are two types of jump labels, global and local.
+Global labels, as the name suggests, are labels which are 'visible' from
+anywhere in the program.  Local labels are only 'visible' within their own
+procedure block and will be undefined outside the block.
+
+Labels are defined by a identifier followed by a colon.  If the identifier
+used contains one or more lower case letters, it is a global jump label,
+otherwise it is a local jump label.
+
+Global jump labels must not be used within dynamic procedures, only local
+labels may be used.  This is important to remember, for dynamic procedures
+are relocated at compile time, and for the case of a dynamic REG procedures
+which can actually be in more than one place in the code, by use of the macro
+command, thus would result in a label representing more than one address. 
+
+-----------------------------------------------------------------------------
+
+1.11  OTHER SYNTAX
+
+1.11.1  Swap Operator
+
+C--, I am proud to say, has an operator that I haven't yet found in any other
+language, the swap operator.  The swap operator swaps two values.  The symbol
+is '><'.  The variables on either side of the swap operator must be of the
+same size,  8 bit and 8 bit, 16 bit and 16 bit, or 32 bit and 32 bit.  Some
+examples follow:
+
+	AX >< BX;  // store the value of BX in AX and the value of AX in BX
+	CH >< BL;  // swap the values of CH and BL
+	dog >< cat;  /* swap the values of the variable dog and the variable
+			cat */
+	counter >< CX;  // swap the values of counter and CX
+
+If a swap is between two 8 bit memory variables, AL will be destroyed.  If a
+swap is between two 16 bit memory variables, AX will be destroyed.  If a swap
+is between 32 bit memory variables, EAX will be destroyed.  In all other
+cases, such as a memory variable and a register, all register values will be
+preserved.
+
+
+1.11.2  Neg Operator
+
+C-- supports a quick syntax of toggling the sign of a variable, the Neg
+operator.  By placing a '-' infront of a memory variable or register followed
+by a ';', the sign of the memory variable or register will be toggled.  Some
+examples follow:
+
+	-AX;     // same as 'AX = -AX;' but faster.
+	-tree;   // same as 'tree = -tree;' but faster.
+	-BH;     // toggle the sign of BH.
+
+
+1.11.3  NOT Operator
+
+C-- supports a quick syntax of doing a logical NOT toggling on a variable,
+the NOT operator.  By placing a '!' infront of a memory variable or register
+followed by a ';', the value of the memory variable or register will be
+changed to the logical NOT of its current value.  Some examples follow:
+
+	!AX;     // same as 'AX ^= 0xFFFF;' but faster.
+	!node;   // change the value of 'node' to its logical NOT.
+	!CL;     // same as 'CL ^= 0xFF' but faster.
+
+
+1.11.4  Special Conditional Expressions
+
+C-- supports six special conditional expressions:
+
+	CARRYFLAG
+	NOTCARRYFLAG
+	OVERFLOW
+	NOTOVERFLOW
+	ZEROFLAG
+	NOTZEROFLAG
+
+These can be used in place of any normal conditional expressions.  If for
+example you wish to execute a block of code only if the carry flag is set,
+then you would use the following code sequence:
+
+	IF( CARRYFLAG )
+	    {
+	    // do some stuff here
+	    }
+
+If you wish to continuously execute a block of code until the overflow flag
+is set, you would use something like the following section of code:
+
+	do {
+	    // do your thing in here
+	    } while( NOTOVERFLOW );
+
+
+1.11.5  Interrupt Procedures
+
+Interrupt procedures, procedures which are used as handles for interrupts,
+are defined in the following manner:
+
+	interrupt procedure_name ()
+	{
+	// put code here
+	}
+
+Interrupt procedures do not automatically preserve any registers, and no
+registers are modified before the interrupt gains control, therefore it is
+your responsibility to 'push' and 'pop' registers and load the DS register
+with the appropriate value as required.  An example of an interrupt handle
+that preserves all registers and loads DS follows:
+
+	interrupt safe_handle ()
+	{
+	$ PUSH DS
+	$ PUSH ES
+	$ PUSHA   // 80286+ processor required for this machine instruction
+	DS = CS;  // load DS with appropriate value for tiny memory model
+
+	/* do your thing here */
+
+	$ POPA   // 80286+ processor required for this machine instruction
+	$ POP ES
+	$ POP DS
+	}
+
+-----------------------------------------------------------------------------
+
+1.12  COMPILER DIRECTIVES
+
+C-- does not contain a preprocessor.  It does however give the user several
+funtions that are very similar to the functions of the C preprocessor.  
+These are given by compiler directives.  All compiler directives begin with
+a '?'.  Below is a list of supported compiler directives and their functions:
+
+? align                       /* insert byte into program code if currently
+				 at an odd address. */
+? aligner (aligner value)     /* set value of insert byte. */
+? alignword (TRUE or FALSE)   /* enable or disable even address alignment
+				 of words and ints, default is TRUE. */ 
+? assumeDSSS (TRUE or FALSE)  /* enable or disable assumption of DS == SS
+				 for local and parameter variable
+				 addressing, default is FALSE. */
+? beep               /* cause the compiler to beep upon reaching this line */
+? codesize                    /* optimize for code size not speed. */
+? ctrl_c (TRUE or FALSE )     /* enable or disable ctrl-C ignoring */
+? define (identifier) (token) /* define an identifier. */
+? DOSrequired (number)    /* set the minimum DOS version required:
+			     high byte major number, low byte minor number:
+				 0x0101 for DOS version 1.1
+				 0x0315 for DOS version 3.21
+				 0x0303 for DOS version 3.3
+				 0x0600 for DOS version 6.0
+				 0x0602 for DOS version 6.2
+				 etc. */
+? include ("filename")        /* include another source file. */
+? jumptomain (NONE, SHORT, NEAR or FALSE)
+	      /* set inital jump type to main(), default is NEAR */
+? maxerrors (number)    /* number of error to find before compiler aborts,
+			   default is 16 */
+? parsecommandline (TRUE or FALSE) /* include command line parsing code into
+				      program, default is FALSE */
+? pause                     /* pause compiling until user presses a key. */
+? print (number or string)  /* displays a string or number to the screen */
+? printhex (number)      /* displays a number in hexadecimal to the screen */
+? randombyte             /* insert a random byte into program code */
+? resize (TRUE or FALSE) /* resize program memory block upon start up to the
+			    minimum amount required, default is TRUE */
+? resizemessage (string) /* message to display before aborting if the
+			    resizing of the program memory block failed. */
+? speed                 /* optimize for speed (default) not code size */
+? stack (number)        /* specifies the size of the stack in bytes for the
+			   program */
+? startaddress (number) /* set initial code start address, default 0x100 */
+? use8086               /* restrict code generation to 8088/8086 (default) */
+? use8088               /* restrict code generation to 8088/8086 (default) */
+? use80186              /* enable 80186 code generation and optimizations */
+? use80286              /* enable 80286 code generation and optimizations */
+? use80386              /* enable 80386 code generation and optimizations */
+? use80486              /* enable 80486 code generation and optimizations */
+? use80586              /* enable 80586 code generation and optimizations */
+
+-----------------------------------------------------------------------------
+
+1.13  INLINE ASSEMBLY
+
+C-- inline assembly supports all of the 8088/8086 assembly codes, plus most
+of the 80286 and 80386 enhanced instructions.  All codes must start with the
+$ inline assembly specifier.  See the file 'C--ASM.DOC' for a complete list
+of all assembly op codes supported by C--.
+
+
+=============================================================================
+
+3  OUTPUT FILE FORMATS
+^^^^^^^^^^^^^^^^^^^^^^
+
+
+2.1  COM File Output
+
+COM files were initially the only output format of C--.  COM files are still
+the only output format of runable programs of C--, but OBJ output is now also
+available to allow interfacing of C-- with other languages.
+
+
+2.2  EXE File Output
+
+C-- does not currently output EXE run files.  It might in the future.  It may
+also support EXE files in the future via outputting an OBJ which you can then
+link using a linker not included with the C-- package.  Link use to come free
+with old versions of DOS (memories...).
+
+
+2.3  Object File Output (*.OBJ)
+
+Starting with version 0.195, C-- is now able to successfully output OBJ
+object files which are Microsoft Compatable.  At the current time C-- can
+only output OBJ files, it can not link them (that is, it can not read any
+input from OBJ files).
+
+C-- uses the pascal style of parameter passing for STACK procedures and 
+STACK functions.  Therefore, any procedures or functions exported via an OBJ
+object file must be accessed using a pascal calling style.  This is fine if
+you are linking with pascal, but for C you must declare the procedure or
+function as a 'pascal' (or '__pascal') procedure or function in order for the
+C compiler to properly set up the parameters when calling your C-- procedure
+or function.
+
+You guys that program in assembly and wish to link with C-- should be bright
+enough to have no difficultly calling C-- procedures and function linked in
+via an OBJ object file.
+
+When creating procedures and function for OBJ output, be sure to preserve the
+registers required for the target language.  References on the specific
+language or compiler should supply you with this information.  According to
+Microsoft documentation for C, you should preserve the values of BP, SP, SI,
+DI, SS and DS.  According to Borland documentation for Turbo Pascal, you
+should preserve the values of BP, SP, SS, and DS.  Expand your volcabulary
+and read up on this stuff in your compiler manuals.
+
+Global variable references currently don't work so hot in OBJ output files.
+The global data will be included in the OBJ file, and is available, but the
+global references used in you C-- procedures may generate an incorrect
+address.  I know why this happens, I sort of know the solution, I, I..., I
+will soon fix this problem.  For the time being, exporting of C-- procedures
+will work fine, so long as you do not reference any global data.
+
+The 'far' keyword has been added to allow you to declare procedure that do
+a far return (20 bit) as oposed to the default near return (16 bit).
+
+
+=============================================================================
+
+3  COM FILE SYMBIOSIS
+^^^^^^^^^^^^^^^^^^^^^
+
+3.0  WHAT IS IT?
+
+The C-- compiler has the option to append the program it is compiling to the
+end of an already created COM file.  This I call "COM File Symbiosis".  When
+the program is loaded, execution will start in the appended C-- code, and
+when execution passes the end of the main() procedure block, execution of the
+original program will begin.  If a procedure like EXIT() or ABORT() is
+called within the C-- program, the program will quit, and the original code
+from the COM file will not be executed.  This allows the program being
+appended on to the COM file to determine whether control will be passed onto
+the original code.
+
+
+3.1  HOWS IT DONE
+
+I will tell you later, its not really that complicated.
+
+
+3.2  HOW TO DO IT
+
+To do it, you need to use the /SYM command line option followed by the full
+name of the COM file to append to.  The original COM file will not be
+changed, only copied into the beginning of the outputted run COM file.  For
+example, to compile the program HELLO.C-- on to the end of a copy of
+C:\COMMAND.COM use the following command:
+
+	C-- /SYM C:\COMMAND.COM HELLO.C-- 
+
+An output file HELLO.COM will be created.
+
+
+3.3  USES
+
+You can probably think of lots of ways of using this function, such as:
+
+	- Adding password protection to certain special COM files.
+	- Reducing the memory available to the COM file at start up.
+	- Initializing a video mode for the COM file.
+
+
+3.4  ABUSES
+
+Anyone with a mischievous mind (most people do) can think of some not so nice
+ways of using this function.  The most obvious of which would be the creation
+of trojan horses.  I WOULD LIKE TO POINT OUT THAT THIS IS NOT A CONSTRUCTIVE
+USE OF C-- AND ANY DESTRUCTIVE USE OF COM FILE SYMBIOSIS IS PROHIBITED.  In
+other words, don't be a jerk.
+
+
+=============================================================================
+
+4  LOW LEVEL INFORMATION
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+4.1   Format of C--'s Stack Frames
+
+C-- STACK FRAME for near (default) stack procedures:
+	ADDRESS
+	  ...
+	BP+FFFE   second from last byte of local variables
+	BP+FFFF   last byte of local variables
+	BP+0000   Saved BP
+	BP+0002   RET address
+	BP+0004   last word of parameter variables
+	BP+0006   second from last word of parameter variables
+	  ...
+
+C-- STACK FRAME for far stack procedures:
+	ADDRESS
+	  ...
+	BP+FFFE   second from last byte of local variables
+	BP+FFFF   last byte of local variables
+	BP+0000   Saved BP
+	BP+0002   RETF address (high)
+	BP+0004   RETF address (low)
+	BP+0006   last word of parameter variables
+	BP+0008   second from last word of parameter variables
+	  ...
+
+   
+C-- STACK FRAME for interrupt procedures:
+	ADDRESS
+	  ...
+	BP+FFFE   second from last byte of local variables
+	BP+FFFF   last byte of local variables
+	BP+0000   Saved BP
+	BP+0002   Saved Flags
+	BP+0004   RETF address (high)
+	BP+0006   RETF address (low)
+	BP+0008   last word of parameter variables
+	BP+000A   second from last word of parameter variables
+	  ...
+
+
+=============================================================================
+
+5  COMMAND LINE OPTIONS FOR THE C-- COMPILER
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The command line calling format of the C-- compiler is:
+
+C-- [options] <SOURCE FILE NAME without extension>
+
+Where options are (short forms are enclosed in '()'):
+
+/8086           << restrict code generation to simple 8086, default (/0)
+/8088           << restrict code generation to simple 8086, default (/0)
+/80286          << enable 80286 code optimizations (/2)
+/80386          << enable 80386 code optimizations (/3)
+/80486          << enable 80486 code optimizations (/4)
+/80586          << enable 80586 (P5) code optimizations (/5)
+/80686          << enable 80686 (P6) code optimizations (/6)
+/-ALIGN         << disable even word address alignment (/-A)
+/+ALIGN         << enable even word address alignment, default (/+A)
+/-ASSUMEDSSS    << disable assumption of DS=SS optimization, default (/-D)
+/+ASSUMEDSSS    << enable assumption of DS=SS optimization (/+D)
+/-CTRLC         << do not insert CTRL<C> ignoring code, default (/-C)
+/+CTRLC         << insert CTRL<C> ignoring code (/+C)
+/EXE            << produce EXE run file, almost available (/E)
+/HELP           << get a little help, not much (/?)
+/KEYWORDS       << display list of C-- reserved words
+/MACRO <name>   << extract macro from internal library
+/-MAP           << do not generate map file, default (/-M)
+/+MAP           << generate map file. (/+M)
+/ME             << display my name and my address
+/-MAIN          << disable initial jump to main() (/J0)
+/+MAIN          << set initial jump to main() to be near, default (/J2)
+/OBJ            << produce OBJ output file
+/-RESIZE        << do not insert resize program memory block code (/-R)
+/+RESIZE        << insert resize program memory block code, default (/+R)
+/-PARSE         << do not insert parse command line code, default (/-P)
+/+PARSE         << insert parse command line code (/+P)
+/PROC <name>    << extract procedure from internal library
+/QUOTE          << display quote of the program (QOTP)
+/REGPROC <name> << extract REG-procedure from internal library
+/+RESIZE        << insert resize memory block code, default (/+R)
+/S=#####        << set stack size to ##### decimal value
+/SIZE           << optimize for code size (/OC)
+/SHORTMAIN      << initial jump to main() short (/J1)
+/SPEED          << optimize for speed (default) (/OS)
+/STACK          << activate compile time compiler stack check
+/SYM <file>     << COM file symbiosis
+/X              << disable SPHINX C-- header in output file
+
+Many of these command line options can be overridden by compiler directives
+in the source file.
+
+
+=============================================================================
+
+6  CURRENT LIMITATIONS OF C--
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- You may have found, in the documentation, parts that seem rather thin.
+  Every week or so, the documentation for C-- becomes a little more robust,
+  and hopefully more helpful.  Be on the look out for new versions of C--.
+
+- 32 bit data types require 386 or above processor.  I am not too bothered
+  with this limitation.  Most machines these days are 386+ and using the
+  386 instructions to do 32 bit operations is so much faster.  Hey if you've
+  got it, use it!
+
+- No floating point variables.  If the demand for floating point types of
+  variables is high, they may be included in future versions.  They were
+  omitted because of the large amount of support code required to handle
+  the mathematical operations.  One possibility maybe that floating point
+  support will be restricted to 8087+, and that software emulation will
+  not be done.
+
+- I have just started the implementation of a 32 bit fixed point variables,
+  giving 16 bits integer and 16 bits fractional parts.  Fixed point is fast,
+  and hey, who doesn't like speed.  Hopefully I will get them done soon.
+
+- Limited libraries.  Dynamic procedures were introduced with version 0.170.
+  This now allows all procedures to be defined within include files (*.h),
+  thus making them available for the programmer to improve and change to his
+  needs.  Currently, a number of procedures are still containned within the
+  interal library, in the future, most of these will moved to include files
+  and converted back to C-- code.
+  You may also notice that in VGA.H--, some procedures have been extracted
+  from the interal library but not yet converted back from binary data to
+  C-- code.  I'll get around to it, but they should still be useful as they
+  are.
+  There is now support for the Gravis Ultra Sound by use of the YEA_GUS.EXE
+  sound driver.  If anyone has a better way of programming the card, give me
+  a yell.  Support for other sound cards would also be nice.
+  Send me any code or ideas for procedures that you wish to be added, and I
+  will see what I can do.  If you do send code, it will definitely make it
+  easier on me, C++, C, C-- or ASM doesn't matter.  Also, if you find any
+  errors or possible optimizations to any of the existing procedures, send it
+  to me.
+
+- Code, Stack and declared Data limited to 64K total.  Well that's the
+  problem with COM files.  With the use of GETMEM() and FREEMEM(), large data
+  buffers can be allocated for use, which usually satisfies most program
+  requirements.  I might in the future I may complete the EXE file output
+  option.  If I do add EXE output, it would be a small memory model (64K
+  Code, 64K Data and Stack), to keep with the design philosophy of C--, which
+  is to make small and fast programs.
+
+- The tilda '~' is currently not used for anything in C--.  Can you think of
+  and essential use for it in C--?  If so, tell me.  I've had some strange
+  ones...
+
+- You tell me.  What have you found limiting about C--, and what do you feel
+  should be done about it.  C-- is new, and must grow.  I need your input.
+  Be bold, express you view.  I won't take offense, I just might not agree.
+
+============================================================================
+
+A  APPENDIX
+^^^^^^^^^^^
+
+A.1  REGISTERS THAT MUST BE PRESERVED
+
+Registers that should be preserved are BP, DI, SI, DS, SS, SP, CS and IP.
+
+BP is used for pointing to local and parameter variables on the stack, and
+thus must be preserved.
+
+DI and SI need not be preserved if the programmer is aware of the
+consequences.  DI and SI are often used for indexing arrays such as the
+statement:  dog = firehydrant(1,red) + legs[DI];.  If DI was not preserved in
+the procedure firehydrant, then the value moved into dog would probably not
+be the desired value, for the index for legs would have been changed.  As a
+matter of consistency, all procedures should supply addequate comments if DI
+and/or SI are not preserved.
+
+DS points to the data segment and all global variable operations requires its
+value.
+
+SS holds the segment of the stack and must be preserved.  SP points to the
+current position on the stack and must be preserved.
+
+CS holds the segment of the program code.  All instructions are fetched
+using CS and IP, therefore their values must be preserved.  IP, by the way is
+the Instruction Pointer, and CS and IP can not be directly modified on the
+8086, 8088, 80286, 80386, 80486, 80586 and probably not the 80686 either.
+
+FS and GS are the new extra segment registers introduced with the 80386.  Do
+what you want with these.
+
+-----------------------------------------------------------------------------
+
+A.2  TABLE OF C-- SYMBOLS
+
+SYMBOL | FUNCTION               | EXAMPLE
+------------------------------------------------------------------------
+  /*   | start comment block    | /* comment */
+  */   | end comment block      | /* comment */
+       |                        |
+  //   | comment to end of line | // comment
+       |                        |
+   =   | assignment             | AX = 12;
+   +   | addition               | AX = BX + 12;
+   -   | subtraction            | house = dog - church;
+   *   | multiplication         | x = y * z;
+   /   | division               | x1 = dog / legs;
+   &   | bitwise AND            | polution = stupid & pointless;
+   |   | bitwise inclusive OR   | yes = i | mabe;
+   ^   | bitwise exclusive OR   | snap = got ^ power;
+  <<   | bit shift left         | x = y << z;
+  >>   | bit shift right        | x = y >> z;
+       |                        |
+  +=   | addition               | fox += 12;   // fox = fox +12; 
+  -=   | subtraction            | cow -= BX;   // cow = cow - BX; 
+  &=   | bitwise AND            | p &= q;      // p = p & q; 
+  |=   | bitwise inclusive OR   | p |= z;      // p = p | z; 
+  ^=   | bitwise exclusive OR   | u ^= s;      // u = u ^ s; 
+  <<=  | bit shift left         | x <<= z;     // x = x << z 
+  >>=  | bit shift right        | x >>= z;     // x = x >> z
+       |                        |
+  ><   | swap                   | x >< y;  /* exchange values of x and y */
+       |                        |
+  ==   | equal to               | IF(AX == 12)
+   >   | greater than           | IF(junk > BOGUS)
+   <   | less than              | if( x < y )
+  >=   | greater or equal to    | if(AX >= 12)
+  <=   | less than or equal to  | IF(BL >= CH)
+  !=   | not equal to           | IF(girl != boy)
+  <>   | different than         | IF(cat <> dog)  /* same function as != */
+       |                        |
+   @   | insert code            | @ COLDBOOT();  /* insert COLDBOOT code */
+   :   | dynamic procedure      | : functionname () // declare functionname
+   $   | assembly operation     | $ PUSH AX      /* push AX onto stack */
+   #   | offset address of      | loc = #cow;    /* loc = address of cow */
+       |                        |
+   ~   |                        | This symbol is currently unused.
+
+-----------------------------------------------------------------------------
+
+A.3   C-- VERSION NOTES
+
+  Version #         Comments
+  ^^^^^^^^^         ^^^^^^^^
+ up to 0.187    - Lots of versions, and lots of stuff changed.
+
+    0.187a      - VGAX.H-- modified.
+		- VGA.H-- supplemented.
+		- VGAFILL.H-- added.
+
+    0.188       - Fixed two lame compare statement bugs.
+		- Spiffed up docs a bit more.
+		- KEYCODES.H-- modified and supplemented.
+		- VIDEO.H-- modified and supplemented.
+		- WRITEHEX(word_value) added to WRITE.H--.
+		- STARS.C-- added.
+		- DPMI.H-- and DPMI.C-- added.
+		- ZEROFLAG and NOTZEROFLAG conditional expressions added.
+
+    0.189       - Fixed local_var = seg_reg bug.
+		- Everyone should upgrade at least to this version!
+
+    0.189a      - Docs spiffed.
+		- STARS.C-- modified.
+		- DOS.H-- supplemented.
+		- COMPLETE.C-- added.
+		- DPMI.H-- and DPMI.C-- modified.
+		- DOSWRITESTR() added to DOS.H--.
+
+    0.190       - DOSWRITESTRING() deleted from internal library.
+		- DOS.H-- supplemented.
+		- DATETIME.C-- added.
+		- Docs spiffed.
+		- Colour Scheme 3 added for all you boring people who didn't
+		  like Colour Scheme 1.
+		- VIDEO.H-- supplemented.
+
+    0.190a      - FIXPATH.C-- ver 1.1 added (created by Jean-Marc
+		  Lasgouttes).
+		- Colour Scheme 3 in Work Bench modified just slightly.
+		- Num Pad bug in Work Bench fixed (now version Beta 0.120).
+		- Search bug found in Work Bench but not yet fixed.
+		- Bug found and fixed in TINYDRAW.C-- file selection.
+		- VCPI.H-- and VCPI.C-- added.
+		- ENCRYPT.C-- added.
+		- BOUNCE.C-- modified.
+
+    0.191       - Functions returning 32 bit values bug found and fixed.
+		- 'fixed32u' and 'fixed32s' now reserved and are keywords,
+		  they will be used to define 32bit fixed point (16bit.16bit)
+		  variables in the future.
+		- Docs spiffed up a little.
+		- Multiple characters in character constants added.  For
+		  example: 'ab'.
+
+    0.192       - All previous VESA support in VIDEO.H-- removed.
+		- A little more work done on 32bit fixed point stuff.
+		- VESA.H-- and VESA.C-- added.
+		- Offending line in POW4.C-- removed.
+
+    0.192a      - WAIT() added to SYSTEM.H--.
+		- SOUND BLASTER SUPPORT ADDED!!!  Thanks to Michael B. Martin
+		  for all the code.  The following files have been added:
+		  SB.H--, SBDMA.H--, SBDETECT.C--, SBGETVOL.C--,
+		  SBSETVOL.C--, SB_DMA.C-- and SB_DMA_.C--.
+		- All procedure list is now categorical.
+
+    0.192b      - FIXPATH.C-- ver 1.1 replaced with ver 1.2.
+		- TSR.H-- added.
+		- KEEP() moved from DOS.H-- to TSR.H--.
+		- PCX.H-- and PCX.C-- added.
+
+    0.192c      - Procedures added to VGAX.H--.
+
+    0.192d      - Example files now sorted into multiple directories.
+		- VGAXFNT5.H-- and XFONT5.C-- added.
+
+    0.193       - Fixed a lame long and dword bug (classic cut and paste
+		  bug).
+
+    0.194       - Started work on OBJ file output.
+		- Logitech Cyberman support added (cool toy).
+
+    0.195       - Tuned OBJ file output.
+		- Modified C-- Work Bench to include OBJ and EXE compiler
+		  output file option (even though EXE is not yet supported
+		  by C--).
+
+    0.196       - Gained greater mastery of OBJ file format.  Thanks to
+		  everyone who sent me info on OBJ and EXE file formats.
+		  Every piece of information helped, you can never have too
+		  many references!.  More work may still have to be done.
+
+    0.197       - far keyword added.
+		- added CLOCK.C-- written by Gerardo Maiorano.
+
+    0.198       - OBJ output tested and tuned with Turbo Pascal and Microsoft
+		  C.  OBJ's now work fine, but still do not support global
+		  data.  Will work on this soon.
+		- Docs spiffed.
+
+    0.198a      - Cool FIRE.C-- added.
+		- OBJ options added to Work Bench (now version 0.123).
+
+    0.198b      - Same as 0.198a, but a new name was needed to fix upload
+		  error to wuarchive.
+    
+    0.198c      - Work Bench now remembers its video mode (now version
+		  0.124).
+
+    0.199       - The following 80486 additions to inline assembly added:
+		  BSWAP, CMPXCHG, INVD, INVLPG, WBINVD and XADD.
+		- File search criteria in Work Bench changed from *.C-- to
+		  *.?-- (now version 0.125).
+		- Inline ASM help menu option added to Work Bench (now
+		  version 0.126).
+
+    0.200       - STRCAT() and strcat() bugs found by Johan in STRING.H--
+		  are fixed.
+		- If the first value in a stack or register parameter
+		  expression is a dword variable, long variable, 32 bit reg
+		  or fixed32 variable, the parameter expression will be
+		  assumed to be of that type so long as no override was
+		  given.  All other expressions will be assumed to be word
+		  type.
+
+    0.201       - $REP alias for $REPZ added.
+
+    0.202       - long and dword >< bug fixed.
+		- Compiler recompiled WITHOUT 286 code option.  :-)
+
+    0.203       - lower case letters added to 5x5 font in VGAFONT.H-- and
+		  VGAXFNT5.H--
+		- OBJ setting automatically sets jump to main() to none
+
+=============================================================================
+
+/* end of C--INFO.DOC */

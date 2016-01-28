@@ -1,0 +1,42 @@
+?ifndef _STREAM_
+?define _STREAM_ TRUE
+?warning FALSE
+
+?define EOF 0Xffff
+
+
+:void PUTC()
+//Вывести байт в файл
+//AL - выводимый байт BX - дескриптор файла
+byte BYTESTREAM;
+{
+	BYTESTREAM=AL;
+	CX=1;
+	AH=0X40;
+	DX=#BYTESTREAM;
+	$INT 0X21
+}
+
+:int GETC()
+//ввести байт из файла
+//вход: AX - дескриптор файла
+//выход: AX - считаный байт
+byte BYTESTREAM;
+{
+	BX><AX;
+	CX=1;
+	DX=#BYTESTREAM;
+	AH=0X3F;
+	$INT 0X21
+	IF(NOTCARRYFLAG){
+		IF(AX==1){
+			AL=BYTESTREAM;
+			AH=0;
+			$JMP SHORT ENP
+		}
+	}
+	AX=EOF;
+ENP:
+}
+
+?endif

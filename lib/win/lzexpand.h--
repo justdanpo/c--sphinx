@@ -1,0 +1,32 @@
+// ------------------------------------------------------------------- //
+//        LZEXPAND.H-- для Sphinx C-- (LZ32.DLL)                       //
+//        Основан на LZEXPAND.H из C++ Builder                         //
+//        Предложения и плевки отправляйте на hd_keeper@mail.ru        //
+// ------------------------------------------------------------------- //
+
+// Описание констант
+
+#define LZERROR_BADINHANDLE   -1
+#define LZERROR_BADOUTHANDLE  -2
+#define LZERROR_READ          -3
+#define LZERROR_WRITE         -4
+#define LZERROR_GLOBALLOC     -5
+#define LZERROR_GLOBLOCK      -6
+#define LZERROR_BADVALUE      -7
+#define LZERROR_UNKNOWNALG    -8
+
+// Импорт функций
+
+extern WINAPI "lz32.dll" {
+   GetExpandedNameA();
+   LZClose();
+   LZCopy();
+   LZInit();
+   LZOpenFileA();
+   LZRead();
+   LZSeek();
+}
+
+#define GetExpandedName GetExpandedNameA
+#define LZOpenFile LZOpenFileA
+

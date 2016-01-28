@@ -1,0 +1,33 @@
+/*
+    SPHINX C-- example program
+    Name:  OPEN.C--
+    Description:  This file demonstrates some of the C-- file commands.
+*/
+
+?include "FILE.H--"
+?include "WRITE.H--"
+
+word filehandle;     /* file handle holder */
+
+?define BYTESTOREAD 136
+byte buffer[BYTESTOREAD+1]; /* buffer to read part of file into */
+
+main ()
+{filehandle = open("OPEN.C--",F_READ);  /* open file for reading */
+IF(filehandle == 0)                    /* if file did not open */
+    WRITESTR("Unable to open file 'OPEN.C--'.\n"); /* display error message */
+ELSE{WRITESTR("File opened O.K.\n");
+    IF( read(filehandle,#buffer,BYTESTOREAD) != BYTESTOREAD )
+        WRITESTR("Error Reading from file.\n"); 
+    ELSE{WRITESTR("File read O.K., bytes read into buffer:\n");
+        buffer[BYTESTOREAD] = 0;  // put a string terminator at the end
+        WRITESTR(#buffer);
+        WRITELN();
+        }
+    IF( close(filehandle) == 0 )  /* close the file */
+        WRITESTR("File closed O.K.\n");
+    ELSE WRITESTR("Error closing file.\n");
+    }
+}
+
+/* end of OPEN.C-- */

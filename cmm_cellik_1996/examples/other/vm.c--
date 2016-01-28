@@ -1,0 +1,42 @@
+/*
+    VM.C--
+    A quick command line driven Video Mode Selector.
+    SPHINX Programming 1994
+*/
+
+?use8086                  // everyone can run it!
+?resize FALSE             // don't bother, for we won't be in memory long
+?parsecommandline  FALSE  // we'll do it ourselves
+
+?include "DOS.H--"
+?include "WRITE.H--"
+
+word vidmode = 0;
+
+void error_quit ()
+{WRITESTR("SPHINX Programming 1994 - Video Mode Setter - Ver 1.0\n");
+WRITESTR("Usage: vm <video mode (0..255)>\n");
+@ EXIT(1);
+}
+
+void main ()
+{
+BX = 0x81;
+IF( DSBYTE[BX] == ' ' )
+    do {BX++;
+        } while( DSBYTE[BX] == ' ' );
+IF( DSBYTE[BX] == 13 )
+    error_quit();    
+do {
+    IF( DSBYTE[BX] > '9' )
+        error_quit(); 
+    IF( DSBYTE[BX] < '0' )
+        error_quit(); 
+    vidmode = vidmode * 10 + DSBYTE[BX] - '0';
+    BX++;
+    } while( DSBYTE[BX] != 13 );
+AX = vidmode;
+$INT 0x10
+}
+
+/* end of VM.C-- */

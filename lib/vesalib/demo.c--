@@ -1,0 +1,603 @@
+?resize TRUE
+
+?include "DOS.H--"
+?include "FILE.H--"
+?include "WRITE.H--"
+?include "PCX.H--"
+?include "VGA.H--"
+?include "KEYCODES.H--"
+?include "MATH.H--"
+?include "RANDOM.H--"
+?include "SYSTEM.H--"
+?include "VIDEO.H--"
+
+#includepath "includes"
+?include "VESALIB.H--"
+
+?define PALSIZE 256*3
+byte palette[PALSIZE]; //palette buffer
+
+?define BUFSEGSIZE 4095	// 4095 paragraphs == 65520 bytes
+word bufseg,miniseg;
+word whichkey,keyflag;
+
+byte temp;
+word afonthand,bfonthand,cfonthand,dfonthand;
+
+byte welcome = "VESAlib-- demo  Press A-Q\000";
+byte atext = "A: put /get /xorpixelVESA\000";
+byte btext = "B: linedrawVESA\000";
+byte ctext = "C: xlineVESA, ylineVESA\000";
+byte dtext = "D: boxVESA\000";
+byte etext = "E: barVESA\000";
+byte ftext = "F: polylineVESA\000";
+byte gtext = "G: putimageVESA\000";
+byte htext = "H: xflipVESA, yflipVESA\000";
+byte itext = "I: imagescaleVESA\000";
+byte jtext = "J: charoutVESA\000";
+byte ktext = "K: textoutVESA\000";
+byte ltext = "L: circle, ellipseVESA\000";
+
+byte qtext = "Q: quit demo";
+
+byte demotext = "This is a demo!\000";
+main()
+{
+
+RANDOMIZE();
+
+bufseg=GETMEM(BUFSEGSIZE);
+IF(bufseg==0)
+	{WRITESTR("Unable to allocate memory.\n");
+	EXIT(0);
+	}
+
+miniseg=GETMEM(BUFSEGSIZE);
+IF(miniseg==0)
+	{WRITESTR("Unable to allocate memory.\n");
+	EXIT(0);
+	}
+IF(byte readPCX("BRAIN.PCX", miniseg, 0 ,BUFSEGSIZE*16,0, pcx_raw)!=pcx_e_ok)
+	{WRITESTR("Not valid PCX file.\n");
+	EXIT(0);
+	}
+
+IF(byte readPCX("PROPHET.PCX", bufseg, 0 ,BUFSEGSIZE*16,0, pcx_raw)!=pcx_e_ok)
+	{WRITESTR("Not valid PCX file.\n");
+	EXIT(0);
+	}
+
+IF(byte readPCXpalette("PROPHET.PCX", DS ,#palette)!=pcx_e_ok)
+	{WRITESTR("Error reading palette.\n");
+	EXIT(0);
+	}
+
+afonthand=loadfont("FONTS\\C1536_27.ppp");
+bfonthand=loadfont("FONTS\\FS768_15.ppp");
+cfonthand=loadfont("FONTS\\LU768_15.ppp");
+dfonthand=loadfont("FONTS\\TE768_13.ppp");
+
+CLEARSCREEN0();
+GOTOXY(0,0);
+WRITESTR("Welcome to VesaLib-- 1.0 demo.");
+WRITELN();
+WRITELN();
+WRITESTR("Select resolution:");
+WRITELN();
+WRITELN();
+WRITESTR("Press A for 640x480");
+WRITELN();
+WRITESTR("Press B for 800x600");
+WRITELN();
+WRITESTR("Press C for 1024x768");
+WRITELN();
+WRITELN();
+WRITESTR("Any other key to cancel");
+
+keyflag=0;
+whichkey=BIOSREADKEY();
+IF(whichkey==0x1e61){	temp=set640x480VESA(0);
+			IF(temp==0)keyflag=1;}
+IF(whichkey==0x3062){	temp=set800x600VESA(0);
+			IF(temp==0)keyflag=1;}
+IF(whichkey==0x2e63){	temp=set1024x768VESA(0);
+			IF(temp==0)keyflag=1;}
+IF(keyflag!=1)EXIT(0);
+
+SETVGAPALETTE( ,0 ,256 ,#palette);
+
+do{
+barVESA(0,0,screenwidth,screenheight,0);
+
+textoutVESA(afonthand,0,0,200,0,0,1,0,DS,#welcome);
+textoutVESA(afonthand,0,27,100,0,0,1,0,DS,#atext);
+textoutVESA(afonthand,0,54,100,0,0,1,0,DS,#btext);
+textoutVESA(afonthand,0,81,100,0,0,1,0,DS,#ctext);
+textoutVESA(afonthand,0,108,100,0,0,1,0,DS,#dtext);
+textoutVESA(afonthand,0,135,100,0,0,1,0,DS,#etext);
+textoutVESA(afonthand,0,162,100,0,0,1,0,DS,#ftext);
+textoutVESA(afonthand,0,189,100,0,0,1,0,DS,#gtext);
+textoutVESA(afonthand,0,216,100,0,0,1,0,DS,#htext);
+textoutVESA(afonthand,0,243,100,0,0,1,0,DS,#itext);
+textoutVESA(afonthand,0,270,100,0,0,1,0,DS,#jtext);
+textoutVESA(afonthand,0,297,100,0,0,1,0,DS,#ktext);
+textoutVESA(afonthand,0,324,100,0,0,1,0,DS,#ltext);
+textoutVESA(afonthand,0,351,100,0,0,1,0,DS,#qtext);
+
+whichkey=BIOSREADKEY();
+
+IF(whichkey==0x1e61)pixeldemo();
+IF(whichkey==0x3062)linedrwdemo();
+IF(whichkey==0x2e63)xylinedemo();
+IF(whichkey==0x2064)boxdemo();
+IF(whichkey==0x1265)bardemo();
+IF(whichkey==0x2166)polylinedemo();
+IF(whichkey==0x2267)putimagedemo();
+IF(whichkey==0x2368)flipdemo();
+IF(whichkey==0x1769)scaledemo();
+IF(whichkey==0x246a)chardemo();
+IF(whichkey==0x256b)textdemo();
+IF(whichkey==0x266c)circledemo();
+
+IF(whichkey==0x1071){SETVIDEOMODE(vid_text80c);EXIT(0);}
+
+}while(1==1);
+}
+
+void circledemo()
+word trash,tempa,circlestyle;
+word xcenter,ycenter,radius,yradius,size;
+byte color;
+{
+
+barVESA(0,0,screenwidth,screenheight,0);
+
+do{
+	IF(KBHIT()){trash=BIOSREADKEY();return();};
+
+	color=RAND();
+	color&=255;
+
+	tempa=screenwidth-200;
+	xcenter=RAND()%tempa;
+	xcenter+=100;
+
+	tempa=screenheight-200;
+	ycenter=RAND()%tempa;
+	ycenter+=100;
+
+	radius=RAND()%60;
+	radius+=5;
+
+	circlestyle=RAND()%5;
+
+	IF(circlestyle==0)circleVESA(xcenter,ycenter,radius,color);
+
+	IF(circlestyle==1)fillcircleVESA(xcenter,ycenter,radius,color);
+
+	IF(circlestyle==2){
+		size=RAND()%5;
+		size+=2;
+		fatcircleVESA(xcenter,ycenter,radius,size,color);}
+
+	IF(circlestyle==3){
+		yradius=RAND()%60;
+		yradius+=5;
+		ellipseVESA(xcenter,ycenter,radius,yradius,color);}
+
+	IF(circlestyle==4){
+		yradius=RAND()%60;
+		yradius+=5;
+		size=RAND()%5;
+		size+=2;
+		fatellipseVESA(xcenter,ycenter,radius,yradius,size,color);}
+
+}while(1==1);
+}
+
+void textdemo()
+word trash,charcol,backcol,xchar,ychar,randfont,text;
+word deltx,delty;
+
+{
+barVESA(0,0,screenwidth,screenheight,0);
+
+do{
+	IF(KBHIT()){trash=BIOSREADKEY();return();};
+	charcol=RAND();
+	charcol&=255;
+
+	backcol=RAND();
+	backcol&=255;
+
+	text=RAND()%96;
+
+	xchar=screenwidth/2;
+	ychar=screenheight/2;
+
+	CX=10;
+	loop(CX)WAITVSYNC();
+
+	barVESA(0,0,screenwidth,screenheight,0);
+
+	textoutVESA(afonthand,xchar,ychar,
+			charcol,backcol,0,1,0,DS,#demotext);
+	CX=10;
+	loop(CX)WAITVSYNC();
+
+	barVESA(0,0,screenwidth,screenheight,0);
+
+	textoutVESA(bfonthand,xchar,ychar,
+			charcol,backcol,0,1,1,DS,#demotext);
+	CX=10;
+	loop(CX)WAITVSYNC();
+
+	barVESA(0,0,screenwidth,screenheight,0);
+
+	textoutVESA(cfonthand,xchar,ychar,
+			charcol,backcol,0,0,1,DS,#demotext);
+	CX=10;
+	loop(CX)WAITVSYNC();
+
+	barVESA(0,0,screenwidth,screenheight,0);
+
+	textoutVESA(dfonthand,xchar,ychar,
+			charcol,backcol,0,-1,1,DS,#demotext);
+	CX=10;
+	loop(CX)WAITVSYNC();
+
+	barVESA(0,0,screenwidth,screenheight,0);
+
+	textoutVESA(afonthand,xchar,ychar,
+			charcol,backcol,0,-1,0,DS,#demotext);
+	CX=10;
+	loop(CX)WAITVSYNC();
+
+	barVESA(0,0,screenwidth,screenheight,0);
+
+	textoutVESA(bfonthand,xchar,ychar,
+			charcol,backcol,0,-1,-1,DS,#demotext);
+	CX=10;
+	loop(CX)WAITVSYNC();
+
+	barVESA(0,0,screenwidth,screenheight,0);
+
+	textoutVESA(cfonthand,xchar,ychar,
+			charcol,backcol,0,0,-1,DS,#demotext);
+	CX=10;
+	loop(CX)WAITVSYNC();
+
+	barVESA(0,0,screenwidth,screenheight,0);
+
+	textoutVESA(dfonthand,xchar,ychar,
+			charcol,backcol,0,1,-1,DS,#demotext);
+
+	}while(1==1);
+}
+
+void chardemo()
+word tempa,trash,charcol,backcol,xchar,ychar,randfont,text;
+{
+
+barVESA(0,0,screenwidth,screenheight,0);
+
+do{
+	IF(KBHIT()){trash=BIOSREADKEY();return();};
+
+	charcol=RAND();
+	charcol&=255;
+	backcol=RAND();
+	backcol&=255;
+
+	tempa=screenwidth-32;
+	xchar=RAND()%tempa;
+	tempa=screenheight-32;
+	ychar=RAND()%tempa;
+
+	randfont=RAND()%4;
+	text=RAND()%96;
+
+	IF(randfont==0)charoutVESA(afonthand,xchar,ychar,
+				charcol,backcol,0,text);
+	IF(randfont==1)charoutVESA(bfonthand,xchar,ychar,
+				charcol,backcol,0,text);
+	IF(randfont==2)charoutVESA(cfonthand,xchar,ychar,
+				charcol,backcol,0,text);
+	IF(randfont==3)charoutVESA(dfonthand,xchar,ychar,
+				charcol,backcol,0,text);
+
+	}while(1==1);
+}
+
+void scaledemo()
+
+word stopflag,trash;
+word topx,topy,botx,boty;
+word deltatopx,deltatopy,deltabotx,deltaboty;
+
+{
+barVESA(0,0,screenwidth,screenheight,0);
+
+do{
+	topx=screenwidth/2;
+	topy=screenheight/2;
+	botx=topx;
+	boty=topy;
+
+	deltatopx=RAND()%15;
+	deltatopy=RAND()%15;
+	deltabotx=RAND()%15;
+	deltaboty=RAND()%15;
+
+	deltatopx++;
+	deltatopy++;
+	deltabotx++;
+	deltaboty++;
+
+	stopflag=0;
+
+	do{
+		IF(KBHIT()){trash=BIOSREADKEY();return();};
+
+		imagescaleVESA(topx,topy,botx,boty,64,48,miniseg);
+
+		topx-=deltatopx;
+		IF(topx<=15)stopflag=1;
+
+		topy-=deltatopy;
+		IF(topy<=15)stopflag=1;
+
+		botx+=deltabotx;
+		IF(botx>=screenwidth)stopflag=1;
+
+		boty+=deltaboty;
+		IF(boty>=screenheight)stopflag=1;
+
+	}while(stopflag==0);
+}while(1==1);
+}
+
+void flipdemo()
+
+word tempa,trash;
+word imgx,imgy;
+
+{
+barVESA(0,0,screenwidth,screenheight,0);
+
+imgx=screenwidth/2-160;
+imgy=screenheight/2-100;
+
+do{
+	IF(KBHIT()){trash=BIOSREADKEY();return();};
+
+	xflipVESA(320,200,bufseg,0);
+	putimageVESA(imgx,imgy,320,200,bufseg,0,0);
+
+	CX=40;
+	loop(CX)WAITVSYNC();
+
+	yflipVESA(320,200,bufseg,0);
+	putimageVESA(imgx,imgy,320,200,bufseg,0,0);
+
+	CX=40;
+	loop(CX)WAITVSYNC();
+
+	}while(1==1);
+}
+
+void putimagedemo()
+
+word tempa,trash;
+word imgx,imgy;
+
+{
+barVESA(0,0,screenwidth,screenheight,0);
+
+do{
+	IF(KBHIT()){trash=BIOSREADKEY();return();};
+
+	tempa=screenwidth-320;
+	imgx=RAND()%tempa;
+
+	tempa=screenheight-200;
+	imgy=RAND()%tempa;
+
+	putimageVESA(imgx,imgy,320,200,bufseg,0,0);
+
+	}while(1==1);
+}
+
+void polylinedemo()
+
+word x[10],y[10],trash;
+byte color;
+
+{
+barVESA(0,0,screenwidth,screenheight,0);
+
+do{
+	IF(KBHIT()){trash=BIOSREADKEY();return();};
+
+	color=RAND();
+	color&=255;
+
+	x[0]=RAND()%screenwidth;
+	y[0]=RAND()%screenheight;
+	x[2]=RAND()%screenwidth;
+	y[2]=RAND()%screenheight;
+	x[4]=RAND()%screenwidth;
+	y[4]=RAND()%screenheight;
+	x[6]=RAND()%screenwidth;
+	y[6]=RAND()%screenheight;
+
+	barVESA(0,0,screenwidth,screenheight,0);
+
+	drawpolyVESA(4,#x,#y,color);
+
+	}while(1==1);
+}
+
+void bardemo()
+
+word tempa,trash;
+word barx,bary,barwidth,barheight;
+byte color;
+
+{
+barVESA(0,0,screenwidth,screenheight,0);
+
+do{
+	IF(KBHIT()){trash=BIOSREADKEY();return();};
+
+	color=RAND();
+	color&=255;
+
+	barwidth=RAND()%screenwidth;
+
+	tempa=screenwidth-barwidth;
+	barx=RAND()%tempa;
+
+	barheight=RAND()%screenheight;
+
+	tempa=screenheight-barheight;
+	bary=RAND()%tempa;
+
+	barVESA(barx,bary,barwidth,barheight,color);
+
+	}while(1==1);
+}
+
+void boxdemo()
+
+word tempa,trash;
+word boxx,boxy,boxwidth,boxheight;
+byte color;
+
+{
+barVESA(0,0,screenwidth,screenheight,0);
+
+do{
+	IF(KBHIT()){trash=BIOSREADKEY();return();};
+
+	color=RAND();
+	color&=255;
+
+	boxwidth=RAND()%screenwidth;
+
+	tempa=screenwidth-boxwidth;
+	boxx=RAND()%tempa;
+
+	boxheight=RAND()%screenheight;
+
+	tempa=screenheight-boxheight;
+	boxy=RAND()%tempa;
+	barVESA(0,0,screenwidth,screenheight,0);
+
+	boxVESA(boxx,boxy,boxwidth,boxheight,color);
+
+	}while(1==1);
+}
+
+void xylinedemo()
+
+word tempa,trash;
+word x,y,length;
+byte color;
+
+{
+barVESA(0,0,screenwidth,screenheight,0);
+
+do{
+	IF(KBHIT()){trash=BIOSREADKEY();return();};
+
+	color=RAND();
+	color&=255;
+
+	length=RAND()%screenwidth;
+
+	tempa=screenwidth-length;
+	x=RAND()%tempa;
+
+	y=RAND()%screenheight;
+
+	xlineVESA(x,y,length,color);
+
+	color=RAND();
+	color&=255;
+
+	length=RAND()%screenheight;
+
+	tempa=screenheight-length;
+	y=RAND()%tempa;
+
+	x=RAND()%screenwidth;
+
+	ylineVESA(x,y,length,color);
+
+	}while(1==1);
+}
+
+
+void linedrwdemo()
+
+word x,y,x1,y1,trash;
+byte color;
+
+{
+barVESA(0,0,screenwidth,screenheight,0);
+
+do{
+	IF(KBHIT()){trash=BIOSREADKEY();return();};
+
+	color=RAND();
+	color&=255;
+
+	x=RAND()%screenwidth;
+
+	y=RAND()%screenheight;
+
+	x1=RAND()%screenwidth;
+
+	y1=RAND()%screenheight;
+
+	linedrawVESA(x,y,x1,y1,color);
+
+	}while(1==1);
+}
+
+void pixeldemo()
+word trash,color,loopx,loopy;
+{
+
+do{
+barVESA(0,0,screenwidth,screenheight,0);
+
+loopy=0;
+do{
+	loopx=0;
+	do{
+		IF(KBHIT()){trash=BIOSREADKEY();return();};
+
+		color=RAND();
+		color&=255;
+		putpixelVESA(loopx,loopy,color);
+		loopx++;
+	}while(loopx<screenwidth);
+loopy+=7;
+}while(loopy<screenheight);
+
+loopy=0;
+do{
+	loopx=0;
+	do{
+		IF(KBHIT()){trash=BIOSREADKEY();return();};
+
+		color=getpixelVESA(loopx,loopy);
+		xorpixelVESA(loopx,loopy,color);
+		loopx++;
+	}while(loopx<screenwidth);
+loopy+=7;
+}while(loopy<screenheight);
+}while(1==1);
+}

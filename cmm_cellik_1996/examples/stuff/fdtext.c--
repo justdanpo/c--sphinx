@@ -1,0 +1,633 @@
+/*
+      The text mode type stuff of FUNDOS (FD.COM)
+      SPHINX Programming 1994
+      Last Modified:  12 May 1994
+*/
+
+
+void gototextscreen ()
+{hidemouse();
+pickupicons(0);        // erase all icons
+SETMOUSEHANDLE(CS,#mousehandle,0);  /* disable handle */
+SETINTVECT( ,TIMERINT,oldtimerhandle[2],oldtimerhandle[0]);
+SETTICKINTERVAL( ,0xFFFF);
+NOSOUND();
+SETINTVECT( ,KEYBOARD_INT,oldkeyboardhandle[2],oldkeyboardhandle[0]);
+@ SETVIDEOMODE( vid_text80c );
+LOAD8X8FONT();
+}
+
+
+void returnfromtextscreen ()
+{setupvideomode();
+ES = 0x0000;
+ESBYTE[0x417] &= 0xD8;     // turn off NUM LOCK and CTRL and SHIFT keys 
+GETINTVECT(#oldkeyboardhandle,KEYBOARD_INT);
+SETINTVECT( ,KEYBOARD_INT,CS,#keyboardhandle);
+fillscreen(backgroundcolor);
+IF( backgroundtype != b_solid )
+    doupdatebackground();
+displaycreditline();
+placeicons(0);         // display all icons
+SETTICKINTERVAL( ,0xFFFF/2);    // double timer interrupt frequency
+GETINTVECT(#oldtimerhandle,TIMERINT);
+SETINTVECT( ,TIMERINT,CS,#timerhandle);
+startupmouse();
+}
+
+
+void doaddscreen (byte addingicon)
+word count;
+{
+WRITESTR("\n         F U N  D O S   ADD/EDIT ICON SCREEN\n");
+WRITESTR("         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+WRITESTR("          (Press <ESC> to Abort at Anytime)\n");
+
+IF( addingicon )
+    {spawnfunction = 0;
+    spawnvidmode = 3;            // initial videomode 
+    spawnfreeupmem = TRUE;       // remove FD.COM from memory during run 
+    spawnretfundos = TRUE;       // return to fundos after
+    spawnhotkey = 0;             // quick key
+
+    DI = #spawnpushkeys;
+    CX = 16;
+    ES = DS;
+    AX = 0;
+    $ REPZ
+    $ STOSW    // word spawnpushkeys[16]={0};       // keys to push onto key-Q
+    spawnkeysindex = 0;
+
+    spawndir[0] = 0;
+    spawnprog[0] = 0;
+
+    spawnparam[0] = 0;   // first byte is index
+    spawnparam[1] = ' '; // spawn parameters 
+    spawnparam[2] = 13; // spawn parameters 
+
+    spawnicontype = icon_iii;  // icon type
+    spawniconfg = 7;           // text icon foreground colour
+    spawniconbg = 0;           // text icon background colour
+    spawnicon[0] = 0;
+    }
+
+WRITESTR("\n\nPROGRAM DIRECTORY\n");
+WRITESTR("This is the directory which you wish to be in when you start the program.\n");
+WRITESTR("A few examples are:\n");
+WRITESTR("       >C:\\\n");
+WRITESTR("       >A:\\SLOW\n");
+WRITESTR("       >D:\\GAMES\\STARCON\n");
+WRITESTR("\nPlease Enter The Program Directory Below:\n>");
+WRITESTR(#spawndir);
+IF( byte readstr(#spawndir,STRLEN(#spawndir),STRLENGTH-1,0,TRUE) != 0 )
+    return;
+
+WRITESTR("\n\nPROGRAM NAME\n");
+WRITESTR("This is the name of the program you wish to run.\n");
+WRITESTR("An absolute or relative path name may also be included.\n");
+WRITESTR("An environment variable may be used by preceeding the name with a '?'.\n");
+WRITESTR("A few examples are:\n");
+WRITESTR("       >STARCON.EXE\n");
+WRITESTR("       >WB.COM\n");
+WRITESTR("       >..\\GUSMOD.EXE\n");
+WRITESTR("       >E:\\ASM\\TD386.EXE\n");
+WRITESTR("       >ROCK.COM\n");
+WRITESTR("       >?COMSPEC\n");
+WRITESTR("       >WIN.BAT\n");
+WRITESTR("\nPlease Enter The Program Name Below:\n>");
+WRITESTR(#spawnprog);
+IF( byte readstr(#spawnprog,STRLEN(#spawnprog),STRLENGTH-1,0,TRUE) != 0 )
+    return;
+
+WRITESTR("\n\nPROGRAM COMMAND LINE PARAMETERS\n");
+WRITESTR("These are the parameters that are passed via the command line to the program\n");
+WRITESTR("you are going to run.\n");
+WRITESTR("If you wish no parameters passed to the program, just leave it blank.\n");
+WRITESTR("\nPlease Enter The Command Line Parameters Below:\n>");
+SI = 0;
+IF( spawnparam[1] <> 13 )
+    IF( spawnparam[2] <> 13 )
+        {SI = 2;
+        do {$ PUSH SI
+            WRITE(spawnparam[SI]);
+            $ POP SI
+            SI++;
+            } while( spawnparam[SI] != 13 );
+        SI -= 2;
+        }
+IF( byte readstr(#spawnparam[2],SI,STRLENGTH-3,13,FALSE) != 0 )
+    return;
+IF( spawnparam[2] == 13 )
+    {spawnparam[1] = 13;
+    spawnparam[0] = 0;
+    }
+ELSE{spawnparam[1] = ' ';
+    BX = 1;
+    do {BX++;
+        } while( spawnparam[BX] != 13 );
+    spawnparam[0] = BL-1;
+    }
+
+WRITESTR("\n\nICON TYPE\n");
+WRITESTR("There are two types of icons that can be used.  One type a graphics icon which\n");
+WRITESTR("found in *.III files.  The other is a text icon.  Graphic icons can be created\n");
+WRITESTR("by using TINYDRAW and saved to disk.  Text icons are just simple icons created\n");
+WRITESTR("by FUNDOS, all you have to do is specify the text and colour.\n");
+do {
+    WRITESTR("\nSelect Icon Type ([1] for Graphic Icon, [2] for Text Icon):\n>");
+    AX = BIOSEREADKEY();
+    IF( AX == k_esc )
+        return;
+    IF( AL != ascii_return )
+        IF( AL != '1' )
+            IF( AL != '2' )
+                AX = 0;
+    } while( AX == 0 );
+IF( AL == ascii_return )
+    {IF( spawnicontype == icon_iii )
+        AL = '1';
+    ELSE AL = '2';
+    }
+IF( AL == '1' )
+    {WRITESTR("GRAPHIC ICON\n");
+    spawnicontype = icon_iii;
+    WRITESTR("The following is a list of all the Graphic Icon Files available:\n");
+    IF( displayfilenames("*.III") == 0 )
+        WRITESTR("<NONE>\n");
+    WRITESTR("\nEnter the Filename of the Graphic Icon File You Wish To Use (*.III):\n>");
+    WRITESTR(#spawnicon);
+    do {
+        IF( byte readstr(#spawnicon,STRLEN(#spawnicon),8+1+3,0,TRUE) != 0 )
+            return;
+        } while( spawnicon[0] == 0 );
+    append_extension(#spawnicon,12,"III");
+    }
+else{WRITESTR("TEXT ICON\n");
+    spawnicontype = icon_text;
+    do {
+        WRITESTR("\n\nEnter Text for Text Icon (maximum 12 characters):\n>");
+        WRITESTR(#spawnicon);
+        IF( byte readstr(#spawnicon,STRLEN(#spawnicon),8+1+3,0,TRUE) != 0 )
+            return;
+        } while( spawnicon[0] == 0 );
+
+    WRITESTR("\n\nSelect Foreground colour for Text Icon:\n");
+    writecolorlist();
+    do {
+        AX = BIOSEREADKEY();
+        IF( AX == k_esc )
+            return;
+        IF( AL == ascii_return )
+            {IF( spawniconfg == FLASHREDCOLOR )
+                AL = 'Q';
+            ELSE IF( spawniconfg == FLASHBLUECOLOR )
+                AL = 'R';
+            ELSE IF( spawniconfg == FLASHWHITECOLOR )
+                AL = 'S';
+            ELSE IF( spawniconfg == FLASHCOLOR )
+                AL = 'T';
+            ELSE AL = spawniconfg+'A';
+            }
+        IF( AL >= 'a' )
+            IF( AL <= 'z' )
+                AL -= 'a'-'A';
+        IF( AL < 'A' )
+            AL = 0;
+        IF( AL > 'T' )
+            AL = 0;
+        } while( AL == 0 );
+    IF( AL == 'Q' )
+        {spawniconfg = FLASHREDCOLOR;
+        WRITE('Q');}
+    ELSE IF( AL == 'R' )
+        {spawniconfg = FLASHBLUECOLOR;
+        WRITE('R');}
+    ELSE IF( AL == 'S' )
+        {spawniconfg = FLASHWHITECOLOR;
+        WRITE('S');}
+    ELSE IF( AL == 'T' )
+        {spawniconfg = FLASHCOLOR;
+        WRITE('T');}
+    ELSE{spawniconfg = AL - 'A';
+        WRITE(spawniconfg+'A');}
+    WRITELN();
+
+    WRITESTR("\n\nSelect Background colour for Text Icon:\n");
+    writecolorlist();
+    do {
+        AX = BIOSEREADKEY();
+        IF( AX == k_esc )
+            return;
+
+        IF( AL == ascii_return )
+            {IF( spawniconbg == FLASHREDCOLOR )
+                AL = 'Q';
+            ELSE IF( spawniconbg == FLASHBLUECOLOR )
+                AL = 'R';
+            ELSE IF( spawniconbg == FLASHWHITECOLOR )
+                AL = 'S';
+            ELSE IF( spawniconbg == FLASHCOLOR )
+                AL = 'T';
+            ELSE AL = spawniconbg+'A';
+            }
+        IF( AL >= 'a' )
+            IF( AL <= 'z' )
+                AL -= 'a'-'A';
+        IF( AL < 'A' )
+            AL = 0;
+        IF( AL > 'T' )
+            AL = 0;
+        } while( AL == 0 );
+    IF( AL == 'Q' )
+        {spawniconbg = FLASHREDCOLOR;
+        WRITE('Q');}
+    ELSE IF( AL == 'R' )
+        {spawniconbg = FLASHBLUECOLOR;
+        WRITE('R');}
+    ELSE IF( AL == 'S' )
+        {spawniconbg = FLASHWHITECOLOR;
+        WRITE('S');}
+    ELSE IF( AL == 'T' )
+        {spawniconbg = FLASHCOLOR;
+        WRITE('T');}
+    ELSE{spawniconbg = AL - 'A';
+        WRITE(spawniconbg+'A');}
+    WRITELN();
+    }
+
+WRITESTR("\n\nKEYS TO PUSH ONTO KEY QUEUE\n");
+WRITESTR("These are the key strokes that will be pushed onto the keyboard queue before\n");
+WRITESTR("the program you are going to run is executed.\n");
+do {
+    WRITESTR("\nIf you wish no keys to be pushed, press '0', else select '1' to '9' keys to be\n");
+    WRITESTR("pushed.  Press <RETURN> to used the current setting and make no changes to\n");
+    WRITESTR("what and how many keys will be pushed.\n");
+    WRITESTR("\nPlease Enter The Number Of Keys To Be Pushed (currently ");
+    WRITEWORD(spawnkeysindex);
+    WRITESTR("):\n>");
+    AX = BIOSREADKEY();
+    IF( AX == k_esc )
+        return;
+    ELSE IF( AL == ascii_return )   // accept current settings
+        {WRITEWORD(spawnkeysindex);
+        AX = k_return;
+        }
+    ELSE IF( AL < '0' )   // invalid value, read another key
+        AX = k_esc;  
+    ELSE IF( AL > '9' )   // invalid value, read another key
+        AX = k_esc;   
+    ELSE{
+        spawnkeysindex = AL - '0';
+        WRITEWORD(spawnkeysindex);
+        IF( spawnkeysindex > 0 )
+            {WRITESTR("\nPlease Enter The Keys To Be Pushed:\n>");
+            count = 0;
+            do {
+                DI = count + DI;
+                spawnpushkeys[DI] = BIOSREADKEY();
+                IF( AL < 32 )
+                    WRITE(1);   // print happy faces
+                ELSE IF( AL > 126 )
+                    WRITE(2);   // print happy faces
+                ELSE WRITE(AL);   // print the character
+                count++;
+                } while( count < spawnkeysindex );
+            }
+        AX = k_return;
+        }
+    } while( AX != k_return );
+   
+WRITESTR("\n\nVery good, Press <ENTER> to update, or any other key to abort.");
+IF( byte BIOSEREADKEY() != ascii_return )
+    return;
+
+IF( addingicon == TRUE )
+    {mousemode = m_loading;
+    addiconfrombuf = TRUE;}
+ELSE{
+    DI = 0;
+    SI = 0;
+    do {AX = DI*6;
+        BX = AX;
+        IF( iconxyz[BX] == editiconnumber )
+            SI = 2;
+        ELSE{DI++;
+            IF( DI >= icons )
+                SI = 1;
+            }
+        } while( SI == 0 );
+    IF( SI == 1 )
+        {mousemode = m_normal;
+        SOUND(400);
+        CX = 60000;
+        loop(CX) 
+            {}
+        }
+    ELSE{deleteicon(DI,FALSE);
+        mousemode = m_loading;
+        addiconfrombuf = TRUE;
+        }
+    }
+}
+
+
+byte readstr (word strloc,index,maxlen;byte terminator,upcase)
+/* return 0 if <return> pressed, 1 if <ESC>. */ 
+byte letter;
+{
+DI = strloc;
+loop()
+    {
+    AX = BIOSEREADKEY();
+    letter = AL;
+    IF( AX == k_esc )
+        {BX = index+DI;
+        DSBYTE[BX] = terminator;
+        return(1);
+        }
+    ELSE IF( AL == ascii_return )
+        {BX = index+DI;
+        DSBYTE[BX] = terminator;
+        return(0);        
+        }
+    ELSE IF( AX == k_backspace )
+        {IF( index > 0 )
+            {WRITESTR("\008 \008");
+            index--;
+            }
+        }
+    ELSE IF( AL != 0 )
+        IF( AL != terminator )
+            {IF( index < maxlen )
+                {
+                IF( upcase )
+                    IF( letter >= 'a' )
+                        IF( letter <= 'z' )
+                            letter -= 'a'-'A';
+                BX = index+DI;
+                DSBYTE[BX] = letter;
+                index++;
+                WRITE(letter);
+                }
+            }
+    }
+}
+
+
+void writecolorlist ()
+{
+WRITESTR("   [A] - Black\n");
+WRITESTR("   [B] - Blue\n");
+WRITESTR("   [C] - Green\n");
+WRITESTR("   [D] - Cyan\n");
+WRITESTR("   [E] - Red\n");
+WRITESTR("   [F] - Magenta\n");
+WRITESTR("   [G] - Brown\n");
+WRITESTR("   [H] - Light Grey\n");
+WRITESTR("   [I] - Dark Grey\n");
+WRITESTR("   [J] - Light Blue\n");
+WRITESTR("   [K] - Light Green\n");
+WRITESTR("   [L] - Light Cyan\n");
+WRITESTR("   [M] - Light Red\n");
+WRITESTR("   [N] - Light Magenta\n");
+WRITESTR("   [O] - Yellow\n");
+WRITESTR("   [P] - White\n");
+WRITESTR("   [Q] - Flashing Red\n");
+WRITESTR("   [R] - Flashing Blue\n");
+WRITESTR("   [S] - Flashing White\n");
+WRITESTR("   [T] - Random Flashing\n");
+WRITESTR("\n   >");
+}
+
+
+void dosettingsscreen ()
+byte transpalname[8+1+3+1];
+{WRITESTR("\n         F U N  D O S   SYSTEM SETTINGS\n");
+WRITESTR("         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+
+WRITESTR("\nWALL PAPER FILE\n");
+WRITESTR("The following is a list of all the Wall Paper Files available:\n");
+IF( displayfilenames("*.640") == 0 )
+    WRITESTR("<NONE>\n");
+WRITESTR("\nPlease enter name of the wall paper file (*.640) you wish to use or leave the\n");
+WRITESTR("line blank to use no wall paper and thus have a solid background:\n>");
+WRITESTR(#screenfilename);
+readstr(#screenfilename,STRLEN(#screenfilename),8+1+3,0,TRUE);
+IF( screenfilename[0] != 0 )
+    {append_extension(#screenfilename,12,"640");
+    backgroundtype = b_load640;   // wall paper type
+    }
+ELSE backgroundtype = b_solid;
+
+
+WRITESTR("\n\n\nWALL PAPER PALETTE\n");
+WRITESTR("The following is a list of all the Palette Files available:\n");
+IF( displayfilenames("*.PAL") == 0 )
+    WRITESTR("<NONE>\n");
+WRITESTR("\nPlease enter name of the palette file (*.PAL) you wish to load or leave the\n");
+WRITESTR("line blank to use the current palette:\n>");
+transpalname[0] = 0;
+readstr(#transpalname,0,8+1+3,0,TRUE);
+IF( transpalname[0] != 0 )
+    {append_extension(#transpalname,12,"PAL");
+    TRANSFER_PALETTE(#transpalname);
+    }
+
+
+WRITESTR("\n\n\nPALETTE CYCLING SPEED\n");
+WRITESTR("Select one of the following options for palette cycling, or press <RETURN>\n");
+WRITESTR("to use the current setting (");
+IF( cyclespeed == 0 )
+    WRITESTR("No Cycling");
+ELSE{WRITESTR("Cycle Speed ");
+    WRITEWORD(cyclespeed);
+    }
+WRITESTR("):\n\n");
+WRITESTR("       [0] - No Palette Cycling (still picture)\n");
+WRITESTR("       [1] - 1 Cycle Speed (fastest)\n");
+WRITESTR("       [2] - 2 Cycle Speed\n");
+WRITESTR("       [3] - 3 Cycle Speed\n");
+WRITESTR("       [4] - 4 Cycle Speed\n");
+WRITESTR("       [5] - 5 Cycle Speed (slowest)\n");
+AX = BIOSREADKEY();
+IF( AL >= '0' )
+    IF( AL <= '5' )
+        cyclespeed = AL - '0';
+
+
+WRITESTR("\n\nSCREEN SAVER TYPE\n");
+WRITESTR("Select one of the following options for the screen saver, or press <RETURN>\n");
+WRITESTR("to use the current setting (");
+IF( blankeron == BLANKER_DIM )
+    WRITESTR("Dim");
+ELSE IF( blankeron == BLANKER_BLACK )
+    WRITESTR("Blank");
+ELSE IF( blankeron == BLANKER_RED )
+    WRITESTR("Red Only");
+ELSE IF( blankeron == BLANKER_GREEN )
+    WRITESTR("Green Only");
+ELSE IF( blankeron == BLANKER_BLUE )
+    WRITESTR("Blue Only");
+ELSE{blankeron = BLANKER_OFF;  // just incase its some weird value
+    WRITESTR("Off");
+    }
+WRITESTR("):\n\n");
+WRITESTR("       [0] - No Screen Saver\n");
+WRITESTR("       [1] - Dim the Screen\n");
+WRITESTR("       [2] - Blank the Screen\n");
+WRITESTR("       [3] - Strip colours to RED\n");
+WRITESTR("       [4] - Strip colours to GREEN\n");
+WRITESTR("       [5] - Strip colours to BLUE\n");
+AX = BIOSREADKEY();
+IF( AL == '1' )
+    blankeron =  BLANKER_DIM;       
+ELSE IF( AL == '2' )
+    blankeron =  BLANKER_BLACK;       
+ELSE IF( AL == '3' )
+    blankeron =  BLANKER_RED;       
+ELSE IF( AL == '4' )
+    blankeron =  BLANKER_GREEN;       
+ELSE IF( AL == '5' )
+    blankeron =  BLANKER_BLUE;       
+ELSE IF( AL == '0' )
+    blankeron =  BLANKER_OFF;       
+
+if( blankeron != BLANKER_OFF )
+    {WRITESTR("\n\nSCREEN SAVER TIME\n");
+    WRITESTR("Select one of the following amounts of idle time required to activate the\n");
+    WRITESTR("screen saver, or press <RETURN> to use the current setting (");
+    IF( blanktime == 0 )
+        WRITESTR("Saver Off");
+    ELSE IF( blanktime == 1092 )
+        WRITESTR("1 minute");
+    ELSE IF( blanktime < 1092 )
+        {WRITEWORD(blanktime / 18);
+        WRITESTR(" seconds");
+        }
+    ELSE{WRITEWORD(blanktime / 1092);
+        WRITESTR(" minutes");
+        }
+    WRITESTR("):\n\n");
+    WRITESTR("       [0] - Never Blank the Screen\n");
+    WRITESTR("       [1] - 5 seconds\n");
+    WRITESTR("       [2] - 15 seconds\n");
+    WRITESTR("       [3] - 1 minute\n");
+    WRITESTR("       [4] - 2 minutes\n");
+    WRITESTR("       [5] - 3 minutes\n");
+    WRITESTR("       [6] - 5 minutes\n");
+    WRITESTR("       [7] - 10 minutes\n");
+    WRITESTR("       [8] - 30 minutes\n");
+    AX = BIOSREADKEY();
+    IF( AL == '0' )
+        blanktime = 0;
+    ELSE IF( AL == '1' )
+        blanktime = 18*5;
+    ELSE IF( AL == '2' )
+        blanktime = 18*15;
+    ELSE IF( AL == '3' )
+        blanktime = 1092;
+    ELSE IF( AL == '4' )
+        blanktime = 1092*2;
+    ELSE IF( AL == '5' )
+        blanktime = 1092*3;
+    ELSE IF( AL == '6' )
+        blanktime = 1092*5;
+    ELSE IF( AL == '7' )
+        blanktime = 1092*10;
+    ELSE IF( AL == '8' )
+        blanktime = 1092*30;
+    }
+
+configchanged = TRUE;
+}
+
+
+void dohelpscreen ()
+{WRITESTR("                    F U N  D O S   HELP SCREEN\n");
+WRITESTR("                    ~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n");
+WRITESTR("                   <KEY>   ===   FUNCTION\n");
+WRITESTR("                   ~~~~~~~~~~~~~~~~~~~~~~\n");
+WRITESTR("                    <F1>   ===  Get Help (this screen)\n");
+WRITESTR("                    <F2>   ===  Save Current Palette\n");
+WRITESTR("                    <F4>   ===  Toggle Palette Looping\n");
+WRITESTR("                    <F5>   ===  Randomly Change One Palette Entry\n");
+WRITESTR("                    <F6>   ===  Toggle Palette Cycling Direction\n");
+WRITESTR("                    <F8>   ===  Set Background to Pulsating Colour\n");
+WRITESTR("                    <F9>   ===  Advance Background Colour\n");
+WRITESTR("                   <F10>   ===  Decrease Background Colour\n");
+WRITESTR("                   <F11>   ===  Set Background to Still Colour\n");
+WRITESTR("                   <F12>   ===  Set Background to Wall Paper Image\n\n");
+WRITESTR("              <CTRL><F1>   ===  Set Cycle Speed to Fastest\n");
+WRITESTR("              <CTRL><F2>   ===  You figure it out\n");
+WRITESTR("              <CTRL><F3>   ===  Set Cycle Speed to Medium\n");
+WRITESTR("              <CTRL><F4>   ===  You figure it out\n");
+WRITESTR("              <CTRL><F5>   ===  Set Cycle to Slowest\n");
+WRITESTR("              <CTRL><F6>   ===  Stop Cycling\n");
+WRITESTR("              <CTRL><F9>   ===  Set Screen Resolution to 320x200\n");
+WRITESTR("              <CTRL><F10>  ===  Set Screen Resolution to 320x240 (default)\n");
+WRITESTR("              <CTRL><F11>  ===  Turn OFF Return To Last Program (AUTOLOAD)\n");
+WRITESTR("              <CTRL><F12>  ===  Turn ON Return To Last Program (AUTOLOAD)\n\n");
+WRITESTR("            <CURSOR KEYS>  ===  Move Mouse Pointer (fast)\n");
+WRITESTR("      <CTRL><CURSOR KEYS>  ===  Move Mouse Pointer (slow)\n");
+WRITESTR("                  <SPACE>  ===  Simulate Left Mouse Button Pressed\n");
+WRITESTR("                  <ENTER>  ===  Simulate Right Mouse Button Pressed\n");
+IF( iconlock == LOCK_NONE )
+    WRITESTR("            <Scroll Lock>  ===  Lock All Icons (positions and settings)\n");
+ELSE WRITESTR("            <Scroll Lock>  ===  Unlock All Icons (positions and settings)\n");
+WRITESTR("           <Print Screen>  ===  Refresh Screen (press it if when returning to\n");
+WRITESTR("                                FUNDOS, the screen appears garbled)\n\n");
+WRITESTR("              <CTRL><ESC>  ===  Exit FUN DOS\n\n");
+
+WRITESTR("\n                   *** Press Any Key to Continue ***");
+BIOSEREADKEY();
+}
+
+
+word displayfilenames (word searchstr)
+word filesfound;
+word i;
+{
+filesfound = 0;
+IF( FINDFIRSTFILE( , ,0b11111,searchstr) == 0 )
+    {do {WRITESTR(0x80+0x1E);
+         filesfound++;
+         IF( filesfound % 4 == 0 )
+             WRITELN();
+         ELSE{AX = GETXY();    // AL = x coordinate
+             AH = 0;
+             DI = AX;
+             i = filesfound%4 * 20 - DI;
+             loop(i)
+                 WRITE(' ');
+             }
+        } while( FINDNEXTFILE() == 0 );
+    }
+IF( filesfound % 4 != 0 )
+     WRITELN();
+return(filesfound);
+}
+
+
+void append_extension (word straddr,maxlen,extaddr)
+{SI = FALSE;
+DI = straddr;
+BX = 0;
+do {
+    IF( DSBYTE[BX+DI] == '.' )
+        SI = TRUE;
+    BX++;
+    } while( DSBYTE[BX+DI] != 0 );
+IF( SI == FALSE )
+    {IF( BX+4 <= maxlen )
+        {SI = extaddr;
+        DSBYTE[BX+DI] = '.';
+        DSBYTE[BX+DI+1] = DSBYTE[SI];
+        DSBYTE[BX+DI+2] = DSBYTE[SI+1];
+        DSBYTE[BX+DI+3] = DSBYTE[SI+2];
+        DSBYTE[BX+DI+4] = 0;
+        }
+    }
+}
+
+
+/* end of FDTEXT.C-- */

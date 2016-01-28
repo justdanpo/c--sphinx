@@ -1,0 +1,411 @@
+/*-----------------28.01.99 00:01-------------------
+         Набор процедур для работы с многомерными массивами
+                 (C) Copyright M.Sheker 1999.
+o2mb(id,ind1,ind2;byte val)  - запись в 2-мерный байтовый масиив
+i2mb(id,ind1,ind2)           - чтение из 2-мерного байтового массива
+o2mw(id,ind1,ind2,val)       - зап. в 2-мерный словный массив
+i2mw(id,ind1,ind2)           - чт. из 2-мерного словного массива
+o2md(id,ind1,ind2;dword val) - зап. в 2-мерный 2-словн. массив
+i2md(id,ind1,ind2)           - чт. из 2-мерного 2-словн. массива
+o3mb(id,ind1,ind2,ind3;byte val)  - запись в 3-мерный байтовый масиив
+i3mb(id,ind1,ind2,ind3)           - чтение из 3-мерного байтового массива
+o3mw(id,ind1,ind2,ind3,val)       - зап. в 3-мерный словный массив
+i3mw(id,ind1,ind2,ind3)           - чт. из 3-мерного словного массива
+o3md(id,ind1,ind2,ind3;dword val) - зап. в 3-мерный 2-словн. массив
+i3md(id,ind1,ind2,ind3)           - чт. из 3-мерного 2-словн. массива
+o4mb(id,ind1,ind2,ind3,ind4;byte val)  - запись в 4-мерный байтовый масиив
+i4mb(id,ind1,ind2,ind3,ind4)           - чтение из 4-мерного байтового массива
+o4mw(id,ind1,ind2,ind3,ind4,val)       - зап. в 4-мерный словный массив
+i4mw(id,ind1,ind2,ind3,ind4)           - чт. из 4-мерного словного массива
+o4md(id,ind1,ind2,ind3,ind4;dword val) - зап. в 4-мерный 2-словн. массив
+i4md(id,ind1,ind2,ind3,ind4)           - чт. из 4-мерного 2-словн. массива
+o5mb(id,ind1,ind2,ind3,ind4,ind5;byte val)  - зап. в 5-мерный байтовый масиив
+i5mb(id,ind1,ind2,ind3,ind4,ind5)           - чт. из 5-мерн. байтового массива
+o5mw(id,ind1,ind2,ind3,ind4,ind5,val)       - зап. в 5-мерный словный массив
+i5mw(id,ind1,ind2,ind3,ind4,ind5)           - чт. из 5-мерн. словного массива
+o5md(id,ind1,ind2,ind3,ind4,ind5;dword val) - зап. в 5-мерн. 2-словн. массив
+i5md(id,ind1,ind2,ind3,ind4,ind5)           - чт. из 5-мерн. 2-словн. массива
+
+	--------------------------------------------------*/
+
+?ifndef _MASSIV_
+?define _MASSIV_ TRUE
+?use80386
+
+struct _M2E_
+//структура описания 2-мерного массива
+{
+	word size2;	//размер 2-го элемента
+	word ofsetm;	//адрес массива
+};
+
+struct _M3E_
+//структура описания 3-мерного массива
+{
+	word size2;	//размер 2-го элемента
+	word size3;	//размер 3-го элемента
+	word ofsetm;	//адрес массива
+};
+
+struct _M4E_
+//структура описания 4-мерного массива
+{
+	word size2;	//размер 2-го элемента
+	word size3;	//размер 3-го элемента
+	word size4;	//размер 4-го элемента
+	word ofsetm;	//адрес массива
+};
+
+struct _M5E_
+//структура описания 5-мерного массива
+{
+	word size2;	//размер 2-го элемента
+	word size3;	//размер 3-го элемента
+	word size4;	//размер 4-го элемента
+	word size5;	//размер 5-го элемента
+	word ofsetm;	//адрес массива
+};
+
+:void o2mb(word id,ind1,ind2;byte val)
+/* запись в 2-мерный байтовый массив
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ val - записываемая величина
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2+DSWORD[DI+2];
+	DSBYTE[SI]=val;
+}
+
+:byte i2mb(word id,ind1,ind2)
+/* чтение из 2-мерного байтового массива
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2+DSWORD[DI+2];
+	return DSBYTE[SI];
+}
+
+:void o2mw(word id,ind1,ind2,val)
+/* запись в 2-мерный словный массив
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ val - записываемая величина
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*2+DSWORD[DI+2];
+	DSWORD[SI]=val;
+}
+
+:word i2mw(word id,ind1,ind2)
+/* чтение из 2-мерного словного массива
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*2+DSWORD[DI+2];
+	return DSWORD[SI];
+}
+
+:void o2md(word id,ind1,ind2;dword val)
+/* запись в 2-мерный 2-словный массив
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ val - записываемая величина
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*4+DSWORD[DI+2];
+	DSDWORD[SI]=val;
+}
+
+:dword i2md(word id,ind1,ind2)
+/* чтение из 2-мерного 2-словного массива
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*4+DSWORD[DI+2];
+	return DSDWORD[SI];
+}
+
+:void o3mb(word id,ind1,ind2,ind3;byte val)
+/* запись в 3-мерный байтовый массив
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ ind3 - индекс третьего элемента
+ val - записываемая величина
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*DSWORD[DI+2]+ind3+DSWORD[DI+4];
+	DSBYTE[SI]=val;
+}
+
+:byte i3mb(word id,ind1,ind2,ind3)
+/* чтение из 3-мерного байтового массива
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ ind3 - индекс третьего элемента
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*DSWORD[DI+2]+ind3+DSWORD[DI+4];
+	return DSBYTE[SI];
+}
+
+:void o3mw(word id,ind1,ind2,ind3,val)
+/* запись в 3-мерный словный массив
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ ind3 - индекс третьего элемента
+ val - записываемая величина
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*DSWORD[DI+2]+ind3*2+DSWORD[DI+4];
+	DSWORD[SI]=val;
+}
+
+:word i3mw(word id,ind1,ind2,ind3)
+/* чтение из 3-мерного словного массива
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ ind3 - индекс третьего элемента
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*DSWORD[DI+2]+ind3*2+DSWORD[DI+4];
+	return DSWORD[SI];
+}
+
+:void o3md(word id,ind1,ind2,ind3;dword val)
+/* запись в 3-мерный 2-словный массив
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ ind3 - индекс третьего элемента
+ val - записываемая величина
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*DSWORD[DI+2]+ind3*4+DSWORD[DI+4];
+	DSDWORD[SI]=val;
+}
+
+:dword i3md(word id,ind1,ind2,ind3)
+/* чтение из 3-мерного 2-словного массива
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ ind3 - индекс третьего элемента
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*DSWORD[DI+2]+ind3*4+DSWORD[DI+4];
+	return DSDWORD[SI];
+}
+
+:void o4mb(word id,ind1,ind2,ind3,ind4;byte val)
+/* запись в 4-мерный байтовый массив
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ ind3 - индекс третьего элемента
+ ind4 - индекс четвертого элемента
+ val - записываемая величина
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*DSWORD[DI+2]+ind3*DSWORD[DI+4]+ind4+DSWORD[DI+6];
+	DSBYTE[SI]=val;
+}
+
+:byte i4mb(word id,ind1,ind2,ind3,ind4)
+/* чтение из 4-мерного байтового массива
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ ind3 - индекс третьего элемента
+ ind4 - индекс четвертого элемента
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*DSWORD[DI+2]+ind3*DSWORD[DI+4]+ind4+DSWORD[DI+6];
+	return DSBYTE[SI];
+}
+
+:void o4mw(word id,ind1,ind2,ind3,ind4,val)
+/* запись в 4-мерный словный массив
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ ind3 - индекс третьего элемента
+ ind4 - индекс четвертого элемента
+ val - записываемая величина
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*DSWORD[DI+2]+ind3*DSWORD[DI+4]+ind4*2+DSWORD[DI+6];
+	DSWORD[SI]=val;
+}
+
+:word i4mw(word id,ind1,ind2,ind3,ind4)
+/* чтение из 4-мерного словного массива
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ ind3 - индекс третьего элемента
+ ind4 - индекс четвертого элемента
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*DSWORD[DI+2]+ind3*DSWORD[DI+4]+ind4*2+DSWORD[DI+6];
+	return DSWORD[SI];
+}
+
+:void o4md(word id,ind1,ind2,ind3,ind4;dword val)
+/* запись в 4-мерный 2-словный массив
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ ind3 - индекс третьего элемента
+ ind4 - индекс четвертого элемента
+ val - записываемая величина
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*DSWORD[DI+2]+ind3*DSWORD[DI+4]+ind4*4+DSWORD[DI+6];
+	DSDWORD[SI]=val;
+}
+
+:dword i4md(word id,ind1,ind2,ind3,ind4)
+/* чтение из 4-мерного 2-словного массива
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ ind3 - индекс третьего элемента
+ ind4 - индекс четвертого элемента
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*DSWORD[DI+2]+ind3*DSWORD[DI+4]+ind4*4+DSWORD[DI+6];
+	return DSDWORD[SI];
+}
+
+:void o5mb(word id,ind1,ind2,ind3,ind4,ind5;byte val)
+/* запись в 5-мерный байтовый массив
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ ind3 - индекс третьего элемента
+ ind4 - индекс четвертого элемента
+ ind5 - индекс пятого элемента
+ val - записываемая величина
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*DSWORD[DI+2]+ind3*DSWORD[DI+4]+ind4*DSWORD[DI+6]
+			+ind5+DSWORD[DI+8];
+	DSBYTE[SI]=val;
+}
+
+:byte i5mb(word id,ind1,ind2,ind3,ind4,ind5)
+/* чтение из 5-мерного байтового массива
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ ind3 - индекс третьего элемента
+ ind4 - индекс четвертого элемента
+ ind5 - индекс пятого элемента
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*DSWORD[DI+2]+ind3*DSWORD[DI+4]+ind4*DSWORD[DI+6]
+			+ind5+DSWORD[DI+8];
+	return DSBYTE[SI];
+}
+
+:void o5mw(word id,ind1,ind2,ind3,ind4,ind5,val)
+/* запись в 5-мерный словный массив
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ ind3 - индекс третьего элемента
+ ind4 - индекс четвертого элемента
+ ind5 - индекс пятого элемента
+ val - записываемая величина
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*DSWORD[DI+2]+ind3*DSWORD[DI+4]+ind4*DSWORD[DI+6]
+			+ind5*2+DSWORD[DI+8];
+	DSWORD[SI]=val;
+}
+
+:word i5mw(word id,ind1,ind2,ind3,ind4,ind5)
+/* чтение из 5-мерного словного массива
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ ind3 - индекс третьего элемента
+ ind4 - индекс четвертого элемента
+ ind5 - индекс пятого элемента
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*DSWORD[DI+2]+ind3*DSWORD[DI+4]+ind4*DSWORD[DI+6]
+			+ind5*2+DSWORD[DI+8];
+	return DSWORD[SI];
+}
+
+:void o5md(word id,ind1,ind2,ind3,ind4,ind5;dword val)
+/* запись в 5-мерный 2-словный массив
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ ind3 - индекс третьего элемента
+ ind4 - индекс четвертого элемента
+ ind5 - индекс пятого элемента
+ val - записываемая величина
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*DSWORD[DI+2]+ind3*DSWORD[DI+4]+ind4*DSWORD[DI+6]
+			+ind5*4+DSWORD[DI+8];
+	DSDWORD[SI]=val;
+}
+
+:dword i5md(word id,ind1,ind2,ind3,ind4,ind5)
+/* чтение из 5-мерного 2-словного массива
+ id - адрес структуры описания массива
+ ind1 - индекс первого элемента
+ ind2 - индекс второго элемента
+ ind3 - индекс третьего элемента
+ ind4 - индекс четвертого элемента
+ ind5 - индекс пятого элемента
+ */
+{
+	DI=id;
+	SI=ind1*DSWORD[DI]+ind2*DSWORD[DI+2]+ind3*DSWORD[DI+4]+ind4*DSWORD[DI+6]
+			+ind5*4+DSWORD[DI+8];
+	return DSDWORD[SI];
+}
+
+?endif

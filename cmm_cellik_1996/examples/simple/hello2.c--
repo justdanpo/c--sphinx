@@ -1,0 +1,23 @@
+/*
+     SPHINX C-- hello world example program MARK II
+     This demonstrates how code size can be cut to the minimum by the use
+     of compiler options.  This program's run file size is 30 bytes less
+     than HELLO.C--, but will not minimize its allocated memory at run time.
+     Run file size: 41 bytes.
+*/
+
+? resize FALSE     // do not resize programs memory block
+
+? jumptomain NONE  // no need for a jump at the beginning of the code
+                   // to get to the main(), for there is no global data
+                   // to jump over.
+
+? include "WRITE.H--"
+
+main ()              /* execution always starts at main () */
+{
+WRITESTR("Hello World!\n");  /* write the string to the screen */
+}
+
+    
+/* end of HELLO2.C-- */

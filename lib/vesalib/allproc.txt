@@ -1,0 +1,617 @@
+
+LIST OF PROCEDURES IN VESALIBRARY 1.0
+-------------------------------------
+Last Updated:  18 July 1999
+
+H-- FILE:  POLYGON.H--
+CALLING FORMAT:  barVESA(x,y,xsize,ysize,color)
+
+		 x = x coordinate on screen where the bar begin
+		 y = y coordinate on screen where the bar begin
+		 xsize = the width of the bar
+		 ysize = the heigth of the bar
+		 color = color the bar
+RETURNS:  nothing
+FUNCTION:  draws a color filled rectangel at the screen.
+REQUIRED PROC:	setwritewinVESA() in VESALIB.H--
+--------------------------------------------------------------
+
+H-- FILE:  POLYGON.H--
+CALLING FORMAT:  boxVESA(x,y,width,heigth,color)
+
+		 x = x coordinate on screen where the box begin
+		 y = y coordinate on screen where the box begin
+		 xsize = the width of the box
+		 ysize = the heigth of the box
+		 color = color the box
+RETURNS: nothing
+FUNCTION:  draws a rectangel at the screen with color.
+REQUIRED PROC:	xlineVESA() in LINE.H--
+		ylineVESA() in LINE.H--
+--------------------------------------------------------------
+
+H-- FILE:  ELLIPSE.H--
+CALLING FORMAT:  brescircleVESA(x,y,radius,color)
+
+		 x = x coordinate of the circle center
+		 y = y coordinate on the circle center
+		 radius = the radius of circle
+		 color = color of the circle
+RETURNS: nothing
+FUNCTION:  draws an circle at the screen with color.
+REQUIRED PROC:	putpixelVESA() in PIXEL.H--
+--------------------------------------------------------------
+
+H-- FILE:  TEXT.H--
+CALLING FORMAT:  charoutVESA(fonthandle,x,y,charcol,bckgrndcol,transp,char)
+
+		 fonthandle = see loadfontVESA() in TEXT.H--
+		 x = x coordinate of the character
+		 y = y coordinate on the character
+		 charcol = color of the character
+		 bckgrndcol = backgroundcolor of the character
+		 transp = color0 transparant (transp!=0)
+		 char = character written to the screen
+RETURNS: nothing
+FUNCTION:  draws an character on the screen with color at x,y.
+REQUIRED PROC:	putimageVESA() in IMAGE.H--
+--------------------------------------------------------------
+
+H-- FILE:  ELLIPSE.H--
+CALLING FORMAT:  circleVESA(x,y,radius,color)
+
+		 x = x coordinate of the circle center
+		 y = y coordinate on the circle center
+		 radius = the radius of circle
+		 color = color of the circle
+RETURNS: nothing
+FUNCTION:  draws an circle at the screen with color.
+REQUIRED PROC:	putpixelVESA() in PIXEL.H--
+--------------------------------------------------------------
+
+H-- FILE:  POLYGON.H--
+CALLING FORMAT:  drawpolyVESA(number,xvar,yvar,color)
+
+		 number = number of points in array
+		 xvar = array of x coordinates
+		 yvar = array of y coordinates
+		 color = color of the polygon
+RETURNS: nothing
+FUNCTION:  draws an closed polygon at the screen with color.
+REQUIRED PROC:	linedrawVESA() in LINE.H--
+--------------------------------------------------------------
+
+H-- FILE:  ELLIPSE.H--
+CALLING FORMAT:  ellipseVESA(x,y,xradius,yradius,color)
+
+	 	 x = x coordinate of the ellipse center
+		 y = y coordinate on the ellipse center
+		 xradius = the horizontal radius
+		 yradius = the vertical radius
+		 color = color of the ellipse
+RETURNS: nothing
+FUNCTION:  draws an ellipse at the screen with color.
+REQUIRED PROC:	putpixelVESA() in PIXEL.H--
+--------------------------------------------------------------
+
+H-- FILE:  ELLIPSE.H--
+CALLING FORMAT:  fatcircleVESA(x,y,radius,size,color)
+
+	 	 x = x coordinate of the circle center
+		 y = y coordinate on the circle center
+		 radius = the radius of circle
+		 size = thickness of circle
+		 color = color of the circle
+RETURNS: nothing
+FUNCTION:  draws an thick circle at the screen with color.
+REQUIRED PROC:	fillcircleVESA() in ELLIPSE.H--
+--------------------------------------------------------------
+
+H-- FILE:  ELLIPSE.H--
+CALLING FORMAT:  fatellipseVESA(x,y,xradius,yradius,size,color)
+
+	 	 x = x coordinate of the ellipse center
+		 y = y coordinate on the ellipse center
+		 xradius = the horizontal radius
+		 yradius = the vertical radius
+		 size = thickness of ellipse
+		 color = color of the ellipse
+RETURNS: nothing
+FUNCTION:  draws an thick ellipse at the screen with color.
+REQUIRED PROC:	fillcircleVESA() in ELLIPSE.H--
+--------------------------------------------------------------
+
+H-- FILE:  ELLIPSE.H--
+CALLING FORMAT:  fillcircleVESA(x,y,radius,color)
+
+	 	 x = x coordinate of the fillcircle center
+		 y = y coordinate on the fillcircle center
+		 radius = the radius of fillcircle
+		 color = color of the fillcircle
+RETURNS: nothing
+FUNCTION:  draws an filled circle at the screen with color.
+REQUIRED PROC:	xlineVESA() in LINE.H--
+--------------------------------------------------------------
+
+H-- FILE:  TEXT.H--
+CALLING FORMAT:  getfontheight(fonthandle)
+
+		 fonthandle = pointer to a font
+RETURNS: font height in pixels
+FUNCTION:  get height in pixels from font.
+REQUIRED PROC:	none
+--------------------------------------------------------------
+
+H-- FILE:  TEXT.H--
+CALLING FORMAT:  getfontwidth(fonthandle)
+
+		 fonthandle = pointer to a font
+RETURNS: font width in pixels
+FUNCTION:  get width in pixels from font.
+REQUIRED PROC:	none
+--------------------------------------------------------------
+
+H-- FILE:  IMAGE.H--
+CALLING FORMAT:  getimageVESA(x,y,width,height,bufseg,bufoff)
+
+	 	 x = x coordinate upper left corner of image
+		 y = y coordinate upper left corner of image
+		 width = image width in pixels
+		 height = image height in pixels
+		 bufseg = memory segment where to store image
+		 bufoff = offset in segment
+RETURNS: nothing
+FUNCTION:  grabs an image from screen and store it in memory.
+REQUIRED PROC:	setreadwinVESA() in VESALIB.H--
+--------------------------------------------------------------
+
+H-- FILE:  PIXEL.H--
+CALLING FORMAT:  getpixelVESA(x,y)
+
+	 	 x = x coordinate on screen
+		 y = y coordinate on screen
+RETURNS: pixel color in byte
+FUNCTION:  gets the pixel color at screen.
+REQUIRED PROC:	setreadwinVESA() in VESALIB.H--
+--------------------------------------------------------------
+
+H-- FILE:  LINE.H--
+CALLING FORMAT:  hlineVESA(x1,x2,y,color)
+
+	 	 x1 = start of line
+		 x2 = end of line
+		 y = y coordinate of line
+		 color = color of line
+RETURNS: nothing
+FUNCTION:  draws an horizontal line in color.
+REQUIRED PROC:	setwritewinVESA() in VESALIB.H--
+--------------------------------------------------------------
+
+H-- FILE:  LINE.H--
+CALLING FORMAT:  hlineclipVESA(x1,x2,y,color)
+
+	 	 x1 = start of line
+		 x2 = end of line
+		 y = y coordinate of line
+		 color = color of line
+RETURNS: nothing
+FUNCTION:  draws an horizontal line at clipped screen in color.
+REQUIRED PROC:	setwritewinVESA() in VESALIB.H--
+--------------------------------------------------------------
+
+H-- FILE:  IMAGE.H--
+CALLING FORMAT: imagescaleVESA(x1,y1,x2,y2,wsource,hsource,bufseg,bufoff)
+
+	 	 x1 = x coordinate upper left corner of scaled image
+		 y1 = y coordinate upper left corner of scaled image
+	 	 x2 = x coordinate bottom right corner of scaled image
+		 y2 = y coordinate bottom right corner of scaled image
+
+		 wsource = source image width in pixels
+		 hsource = source image height in pixels
+		 bufseg = memory segment where source image is stored
+		 bufoff = offset in segment
+RETURNS: nothing
+FUNCTION:  scales an image and put it on screen.
+REQUIRED PROC:	setwritewinVESA() in VESALIB.H--
+--------------------------------------------------------------
+
+H-- FILE:  LINE.H--
+CALLING FORMAT:  linedrawVESA(x1,y1,x2,y2,color)
+
+	 	 x1 = x coordinate, start of line
+		 y1 = y coordinate, start of line
+	 	 x2 = x coordinate, end of line
+		 y2 = y coordinate, end of line
+
+		 color = color of line
+RETURNS: nothing
+FUNCTION:  draws a line on screen in color.
+REQUIRED PROC:	putpixelVESA() in PIXEL.H--
+--------------------------------------------------------------
+
+H-- FILE:  LINE.H--
+CALLING FORMAT:  linepatternVESA(x1,y1,x2,y2,color,pattern)
+
+	 	 x1 = x coordinate, start of line
+		 y1 = y coordinate, start of line
+	 	 x2 = x coordinate, end of line
+		 y2 = y coordinate, end of line
+
+		 color = color of line
+		 pattern = 16bit, for example 0b010101010101010
+RETURNS: nothing
+FUNCTION:  draws a pattern line on screen in color.
+REQUIRED PROC:	putpixelVESA() in PIXEL.H--
+--------------------------------------------------------------
+
+H-- FILE:  TEXT.H--
+CALLING FORMAT:  loadfont(filename)
+
+	 	 filename = pointer to filename of font
+RETURNS: word fonthandle
+FUNCTION:  loads a font in memory and returns the fonthandle.
+REQUIRED PROC:	 open() in FILE.H--
+		 readfar() in FILE.H--
+		 close() in FILE.H--
+		 WRITESTR() in WRITE.H--
+		 GETMEM() in c-- internals
+		 EXIT() in DOS.H--
+--------------------------------------------------------------
+
+H-- FILE:  PIXEL.H--
+CALLING FORMAT:  pixelclipVESA(x,y,color)
+
+	 	 x = x coordinate on screen
+		 y = y coordinate on screen
+		 color = color of pixel
+RETURNS: nothing
+FUNCTION:  sets an pixel to an clipped screen with color.
+REQUIRED PROC:	setwritewinVESA() in VESALIB.H--
+--------------------------------------------------------------
+
+H-- FILE:  IMAGE.H--
+CALLING FORMAT:  putimageVESA(x,y,width,height,bufseg,bufoff,transp)
+
+	 	 x = x coordinate upper left corner of image
+		 y = y coordinate upper left corner of image
+		 width = image width in pixels
+		 height = image height in pixels
+		 bufseg = memory segment where image is stored
+		 bufoff = offset in segment
+		 transp != 0 then color 0 is transparent
+RETURNS: nothing
+FUNCTION:  puts an image from memory to the screen at x and y.
+REQUIRED PROC:	setwritewinVESA() in VESALIB.H--
+--------------------------------------------------------------
+
+H-- FILE:  PIXEL.H--
+CALLING FORMAT:  putpixelVESA(x,y,color)
+
+	 	 x = x coordinate on screen
+		 y = y coordinate on screen
+		 color = color of pixel
+RETURNS: nothing
+FUNCTION:  sets an pixel to screen with color.
+REQUIRED PROC:	setwritewinVESA() in VESALIB.H--
+--------------------------------------------------------------
+
+H-- FILE:  VESALIB.H--
+CALLING FORMAT:  scrollVESA(x,y)
+
+	 	 x = x coordinate on visual screen
+		 y = y coordinate on visual screen
+RETURNS: nothing
+FUNCTION:  sets new coordinates for visual screen in videomemory.
+REQUIRED PROC:	none
+--------------------------------------------------------------
+
+H-- FILE:  VESALIB.H--
+CALLING FORMAT:  set1024x768VESA(clearmem)
+
+		 clearmem != 0 clears the videomemory
+Global variables:
+		 screenwidth=1024;
+		 screenheight=768;
+		 byte vesbuf[256]= vesa videomode info buffer
+
+RETURNS: 1 = set video mode failure
+	 2 = set 1024 pixel width failure
+	 3 = get vesa video mode info failure
+FUNCTION:  sets an VESA videomode to 1024x768 pixels with 256 colors.
+REQUIRED PROC:	none
+--------------------------------------------------------------
+
+H-- FILE:  VESALIB.H--
+CALLING FORMAT:  set640x480VESA(clearmem)
+
+		 clearmem != 0 clears the videomemory
+Global variables:
+		 screenwidth=640;
+		 screenheight=480;
+		 byte vesbuf[256]= vesa videomode info buffer
+
+RETURNS: 1 = set video mode failure
+	 2 = set 1024 pixel width failure
+	 3 = get vesa video mode info failure
+FUNCTION:  sets an VESA videomode to 640x480 pixels with 256 colors.
+REQUIRED PROC:	none
+--------------------------------------------------------------
+
+H-- FILE:  VESALIB.H--
+CALLING FORMAT:  set800x600VESA(clearmem)
+
+		 clearmem != 0 clears the videomemory
+Global variables:
+		 screenwidth=800;
+		 screenheight=600;
+		 byte vesbuf[256]= vesa videomode info buffer
+
+RETURNS: 1 = set video mode failure
+	 2 = set 1024 pixel width failure
+	 3 = get vesa video mode info failure
+FUNCTION:  sets an VESA videomode to 800x600 pixels with 256 colors.
+REQUIRED PROC:	none
+--------------------------------------------------------------
+
+H-- FILE:  VESALIB.H--
+CALLING FORMAT:  setreadwinVESA(whichwin)
+
+	 	 whichwin = set which segment of readwindow that is active
+RETURNS: nothing
+FUNCTION:  set a new active segment for the readwindow(A or B).
+REQUIRED PROC:	none
+--------------------------------------------------------------
+
+H-- FILE:  VESALIB.H--
+CALLING FORMAT:  setwritewinVESA(whichwin)
+
+	 	 whichwin = set which segment of writewindow that is active
+RETURNS: nothing
+FUNCTION:  set a new active segment for the writewindow(A or B).
+REQUIRED PROC:	none
+--------------------------------------------------------------
+
+H-- FILE:  TEXT.H--
+CALLING FORMAT:  textoutVESA(fonthandle,x,y,charcol,bckgrndcol,transp,
+				deltax,deltay,stringseg,stringpek)
+
+		 fonthandle = see loadfontVESA() in TEXT.H--
+		 x = x coordinate of the string
+		 y = y coordinate on the string
+		 charcol = color of the characters
+		 bckgrndcol = backgroundcolor of the characters
+		 transp = color0 transparant (transp!=0)
+		 deltax = displacement in x for each character
+		 deltay = displacement in y for each character
+		 stringseg = memory segment of string
+		 stringpek = offset in segment
+RETURNS: nothing
+FUNCTION:  draws an string on the screen with color at x,y.
+REQUIRED PROC:	putimageVESA() in IMAGE.H--
+--------------------------------------------------------------
+
+H-- FILE: POLYGON.H--
+CALLING FORMAT: trigonclipVESA(x1,y1,x2,y2,x3,y3,color)
+
+		x1 = x coordinate for first vertex
+		y1 = y coordinate for first vertex
+		x2 = x coordinate for second vertex
+		y2 = y coordinate for second vertex
+		x3 = x cootdinate for third vertex
+		y3 = y coordinate for third vertex
+		color = color of the filled trigon
+RETURNS: nothing
+FUNCTION: draws an filled polygon in color
+REQUIRED PROC: hlineclipVESA() in LINE.H--
+--------------------------------------------------------------
+
+H-- FILE:  IMAGE.H--
+CALLING FORMAT:  xflipVESA(width,height,bufseg,bufoff)
+
+		 width = image width in pixels
+		 height = image height in pixels
+		 bufseg = memory segment where image is stored
+		 bufoff = offset in segment
+RETURNS: nothing
+FUNCTION:  flips an image in memory horizontaly.
+REQUIRED PROC: none
+--------------------------------------------------------------
+
+H-- FILE:  LINE.H--
+CALLING FORMAT:  xlineVESA(x,y,length,color)
+
+	 	 x = x coordinate, start of horizontal line
+		 y = y coordinate, start of horizontal line
+	 	 length = number of pixels
+		 color = color of line
+RETURNS: nothing
+FUNCTION:  draws an horizontal line on screen in color.
+REQUIRED PROC:	setwritewinVESA() in VESALIB.H--
+--------------------------------------------------------------
+
+H-- FILE:  POLYGON.H--
+CALLING FORMAT:  xorbarVESA(x,y,xsize,ysize,color)
+
+		 x = x coordinate on screen where the xorbar begin
+		 y = y coordinate on screen where the xorbar begin
+		 xsize = the width of the xorbar
+		 ysize = the heigth of the xorbar
+		 color = color the xorbar
+RETURNS:  nothing
+FUNCTION:  draws a XOR rectangel at the screen.
+REQUIRED PROC:	setreadwinVESA() in VESALIB.H--
+		setwritewinVESA() in VESALIB.H--
+--------------------------------------------------------------
+
+H-- FILE:  POLYGON.H--
+CALLING FORMAT:  xorboxVESA(x,y,width,heigth,color)
+
+		 x = x coordinate on screen where the xorbox begin
+		 y = y coordinate on screen where the xorbox begin
+		 xsize = the width of the xorbox
+		 ysize = the heigth of the xorbox
+		 color = color the xorbox
+RETURNS: nothing
+FUNCTION:  draws a XOR rectangel at the screen with color.
+REQUIRED PROC:	xorxlineVESA() in LINE.H--
+		xorylineVESA() in LINE.H--
+--------------------------------------------------------------
+
+H-- FILE:  POLYGON.H--
+CALLING FORMAT:  xordrawpolyVESA(number,xvar,yvar,color)
+
+		 number = number of points in array
+		 xvar = array of x coordinates
+		 yvar = array of y coordinates
+		 color = color of the polygon
+RETURNS: nothing
+FUNCTION:  draws an closed XOR polygon at the screen with color.
+REQUIRED PROC:	xorlinedrawVESA() in LINE.H--
+--------------------------------------------------------------
+
+H-- FILE:  LINE.H--
+CALLING FORMAT:  xorhlineVESA(x1,x2,y,color)
+
+	 	 x1 = start of line
+		 x2 = end of line
+		 y = y coordinate of line
+		 color = color of line
+RETURNS: nothing
+FUNCTION:  draws an XOR horizontal line in color.
+REQUIRED PROC:	setreadwinVESA() in VESALIB.H--
+		setwritewinVESA() in VESALIB.H--
+--------------------------------------------------------------
+
+H-- FILE:  LINE.H--
+CALLING FORMAT:  xorhlineclipVESA(x1,x2,y,color)
+
+	 	 x1 = start of line
+		 x2 = end of line
+		 y = y coordinate of line
+		 color = color of line
+RETURNS: nothing
+FUNCTION:  draws an XOR horizontal line at clipped screen in color.
+REQUIRED PROC:	setreadwinVESA() in VESALIB.H--
+		setwritewinVESA() in VESALIB.H--
+--------------------------------------------------------------
+
+H-- FILE:  LINE.H--
+CALLING FORMAT:  xorlinedrawVESA(x1,y1,x2,y2,color)
+
+	 	 x1 = x coordinate, start of line
+		 y1 = y coordinate, start of line
+	 	 x2 = x coordinate, end of line
+		 y2 = y coordinate, end of line
+
+		 color = color of line
+RETURNS: nothing
+FUNCTION:  draws an XOR line on screen in color.
+REQUIRED PROC:	xorpixelVESA() in PIXEL.H--
+--------------------------------------------------------------
+
+H-- FILE:  LINE.H--
+CALLING FORMAT:  xorlinepatternVESA(x1,y1,x2,y2,color,pattern)
+
+	 	 x1 = x coordinate, start of line
+		 y1 = y coordinate, start of line
+	 	 x2 = x coordinate, end of line
+		 y2 = y coordinate, end of line
+
+		 color = color of line
+		 pattern = 16bit, for example 0b010101010101010
+RETURNS: nothing
+FUNCTION:  draws an XOR pattern line on screen in color.
+REQUIRED PROC:	xorpixelVESA() in PIXEL.H--
+--------------------------------------------------------------
+
+H-- FILE:  PIXEL.H--
+CALLING FORMAT:  xorpixelVESA(x,y,color)
+
+	 	 x = x coordinate on screen
+		 y = y coordinate on screen
+		 color = color of pixel
+RETURNS: nothing
+FUNCTION:  logical XOR on the pixel at screen.
+REQUIRED PROC:	setreadwinVESA() in VESALIB.H--
+		setwritewinVESA() in VESALIB.H--
+--------------------------------------------------------------
+
+H-- FILE:  PIXEL.H--
+CALLING FORMAT:  xorpixelclipVESA(x,y,color)
+
+	 	 x = x coordinate on screen
+		 y = y coordinate on screen
+		 color = color of pixel
+RETURNS: nothing
+FUNCTION:  logical XOR on the pixel at a clipped screen.
+REQUIRED PROC:	setreadwinVESA() in VESALIB.H--
+		setwritewinVESA() in VESALIB.H--
+--------------------------------------------------------------
+
+H-- FILE:  IMAGE.H--
+CALLING FORMAT:  xorputimageVESA(x,y,width,height,bufseg,bufoff,transp)
+
+	 	 x = x coordinate upper left corner of image
+		 y = y coordinate upper left corner of image
+		 width = image width in pixels
+		 height = image height in pixels
+		 bufseg = memory segment where image is stored
+		 bufoff = offset in segment
+		 transp != 0 then color 0 is transparent
+RETURNS: nothing
+FUNCTION:  puts an XOR image from memory to the screen at x and y.
+REQUIRED PROC:	setreadwinVESA() in VESALIB.H--
+		setwritewinVESA() in VESALIB.H--
+--------------------------------------------------------------
+
+H-- FILE:  LINE.H--
+CALLING FORMAT:  xorxlineVESA(x,y,length,color)
+
+	 	 x = x coordinate, start of horizontal line
+		 y = y coordinate, start of horizontal line
+	 	 length = number of pixels
+		 color = color of line
+RETURNS: nothing
+FUNCTION:  draws an XOR horizontal line on screen in color.
+REQUIRED PROC:	setreadwinVESA() in VESALIB.H--
+		setwritewinVESA() in VESALIB.H--
+--------------------------------------------------------------
+
+H-- FILE:  LINE.H--
+CALLING FORMAT:  xorylineVESA(x,y,length,color)
+
+	 	 x = x coordinate, start of vertical line
+		 y = y coordinate, start of vertical line
+	 	 length = number of pixels
+		 color = color of line
+RETURNS: nothing
+FUNCTION:  draws an XOR vertical line on screen in color.
+REQUIRED PROC:	setreadwinVESA() in VESALIB.H--
+		setwritewinVESA() in VESALIB.H--
+--------------------------------------------------------------
+
+H-- FILE:  IMAGE.H--
+CALLING FORMAT:  yflipVESA(width,height,bufseg,bufoff)
+
+		 width = image width in pixels
+		 height = image height in pixels
+		 bufseg = memory segment where image is stored
+		 bufoff = offset in segment
+RETURNS: nothing
+FUNCTION:  flips an image in memory verticaly.
+REQUIRED PROC: none
+--------------------------------------------------------------
+
+H-- FILE:  LINE.H--
+CALLING FORMAT:  ylineVESA(x,y,length,color)
+
+	 	 x = x coordinate, start of vertical line
+		 y = y coordinate, start of vertical line
+	 	 length = number of pixels
+		 color = color of line
+RETURNS: nothing
+FUNCTION:  draws an vertical line on screen in color.
+REQUIRED PROC:	setwritewinVESA() in VESALIB.H--
+
+// THE END

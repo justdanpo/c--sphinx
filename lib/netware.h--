@@ -1,0 +1,166 @@
+:word fastcall IntSwap()
+{
+	AL><AH;
+}
+
+:word fastcall LongSwap()
+{
+	AL><AH;
+	DL><DH;
+}
+
+struct CONNECT_INFO_
+{
+	word len;
+	word objectId[2];
+	word objectType;
+	char name[48];
+	byte year;	//0-99+1980
+	byte mon;
+	byte day;
+	byte hour;
+	byte min;
+	byte sec;
+	byte wekl;
+};
+
+struct CONNECT_ADR_
+{
+	word len;
+	word netwAdr[2];
+	word nodeAdr[3];
+	word socet;
+};
+
+struct ZAPROS
+{
+	word len;
+	byte type;
+	byte connect;
+};
+
+:byte GETCONNECT()	//ВОЗВРАЩАЕТ НОМЕР СОЕДИНЕНИЯ
+				//ВЫХОД:AL-НОМЕР СОЕДИНЕНИЯ CL-1 ЦИФРА ASCII
+				//CH-2 ЦИФРА ASCII
+{
+	AH=0XDC;
+	$INT 0X21
+}
+
+:byte GETCONNECTNAME()    //получить имя соединения
+				//ВХОД:AL - НОМЕР СОЕДИНЕНИЯ
+//						 BX - адрес буфера для имени
+/* СТРУКТУРА БУФЕРА ЗАПРОСА:
+	DW 2  - ДЛИНА
+	DB 16H - ТИП ЗАПРОСА
+	DB N_CONNECT - НОМЕР СОЕДИНЕНИЯ
+СТРУКТУРА БУФЕРА ОТВЕТА
+	DW 3EH - ДЛИНА (ДОЛЖНА ОБЯЗАТЕЛЬНО УКАЗАНА ДО ЗАПРОСА)
+	DD ? -OBJECT_ID
+	DW - OBJECT_TYPE
+	DB 48DUP(?)-ИМЯ ОБЪЕКТА
+	DB 7 DUP(?)-ВРЕМЯ ПОДКЛЮЧЕНИЯ:0-ГОД (0-99)+1980
+					1-МЕСЯЦ(1-12)
+					2-ДЕНЬ(1-31)
+					3-ЧАС(0-23)
+					4-МИНУТЫ(0-59)
+					5-СЕКУНДЫ(0-59)
+					6-ДЕНЬ НЕДЕЛИ(0-6) 0-ВОСКРЕСЕНЬЕ
+*/
+struct ZAPROS zap;
+struct CONNECT_INFO_ otv;
+{
+	$push BX
+	zap.connect=AL;
+	zap.len=2;
+	zap.type=0x16;
+	otv.len=sizeof(CONNECT_INFO_)-2;
+	ES=SS;
+	SI=#zap;
+	DI=#otv;
+	AH=0xE3;
+	$ int 0x21
+	$pop DI;
+	IF(AL==0){
+		SI=#otv.name;
+		do{
+			$lodsb
+			$stosb
+		}while(AL!=0);
+	}
+}
+
+       //ВОЗВРАЩАЕТ АДРЕС В СЕТИ
+				//ВХОД:AL - НОМЕР СОЕДИНЕНИЯ
+//             BX - адрес буфера для сетевого адреса
+/* СТРУКТУРА БУФЕРА ЗАПРОСА:
+	DW 2  - ДЛИНА
+    DB 13H - ТИП ЗАПРОСА
+	DB N_CONNECT - НОМЕР СОЕДИНЕНИЯ
+СТРУКТУРА БУФЕРА ОТВЕТА
+    DW 0CH - ДЛИНА (ДОЛЖНА ОБЯЗАТЕЛЬНО УКАЗАНА ДО ЗАПРОСА)
+    DD - АДРЕС СЕТИ
+    DB 6 DUP(?) - НОМЕР УЗЛА
+    DW - НОМЕР СОКЕТА
+*/
+:byte GETADDRESS()
+{
+ZAPROS zap;
+struct CONNECT_ADR_ otv;
+	$push BX
+	zap.connect=AL;
+	zap.len=2;
+	zap.type=0x13;
+	otv.len=sizeof(CONNECT_ADR_)-2;
+	ES=SS;
+	SI=#zap;
+	DI=#otv;
+	AH=0xE3;
+	$ int 0x21
+	$pop BX
+	IF(AL==0){
+		DSWORD[BX+2]=@LongSwap(otv.netwAdr,,,otv.netwAdr[2]);
+		DSWORD[BX]=DX;
+		BX+=4;
+		FOR(SI=0;SI<6;SI+=2){
+			DSWORD[BX+SI]=@IntSwap(otv.nodeAdr[SI]);
+		}
+		AL=0;
+	}
+}
+
+struct SERVER_INFO
+{
+	unsigned int len;	//размер буфера ответа обяз иниц - 128
+	char Name[48];	//имя сервера
+	unsigned char Version;	//версия сети
+	unsigned char SubVersion;	//подверсия
+	unsigned int MaxConnect;	//максимум поддерживаемых соед
+	unsigned int CurConnect;	//текущее число соед
+	unsigned int max_vol_support;
+	unsigned char revision_level;
+	unsigned char sft_level;
+	unsigned char tts_level;
+	unsigned int peak_con_used;	//было максимально соединений
+	unsigned char accountind_ver;
+	unsigned char vap_ver;
+	unsigned char queing_ver;
+	unsigned char printser_ver;
+	unsigned char virt_console_ver;
+	unsigned char secur_restr_ver;
+	unsigned char intern_bridg_support;
+	unsigned char reserv[60];
+};
+
+:byte fastcall GetServerInfo(DI)
+{
+ZAPROS zp;
+	zp.len=1;
+	zp.type=0x11;
+	ES=SS;
+	SI=#zp;
+	DSWORD[DI]=sizeof(SERVER_INFO)-2;
+	AH=0xE3;
+	$ int 0x21
+}
+

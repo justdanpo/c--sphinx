@@ -1,0 +1,555 @@
+?warning FALSE
+?define G_MOUSE TRUE
+//символы,которае будет использовать курсор мыши
+?define C1Code 0xDE // '▐'
+?define C2Code 0xDD // '▌'
+?define C3Code 0xD8 // '╫'
+?define C4Code 0xDC // '╪'
+
+?ifndef SMOLLFONT
+?define NUMLINEFONT 16
+byte ORMask={0B00000000,
+             0B00000000,
+             0B01000000,
+             0B01100000,
+             0B01110000,
+             0B01111000,
+             0B01111100,
+             0B01111110,
+             0B01111111,
+             0B01111100,
+             0B01001100,
+             0B00001110,
+             0B00000110,
+             0B00000110,
+             0B00000000,
+             0B00000000};//mask to be ORed with character maps
+
+byte ANDMask={			// mask to be ANDed with character maps
+              0B00111111,
+              0B00011111,
+              0B00001111,
+              0B00000111,
+              0B00000011,
+              0B00000001,
+              0B00000000,
+              0B00000000,
+              0B00000000,
+              0B00000001,
+              0B00100001,
+              0B11110000,
+              0B11110000,
+              0B11110000,
+              0B11111111,  //two lines will still unchanged for
+              0B11111111}; //EGA 8x14 modes compatibility
+
+?else
+?define NUMLINEFONT 8
+byte ORMask={
+             0B01100000,
+             0B01110000,
+             0B01111000,
+             0B01111100,
+             0B01111110,
+             0B01111000,
+             0B01011000,
+             0B00001100};
+
+byte ANDMask={
+              0B00001111,
+              0B00000111,
+              0B00000011,
+              0B00000001,
+              0B00000000,
+              0B00000011,
+              0B00000011,
+              0B11100001};
+?endif
+
+byte Active=FALSE; //is our handler activated
+byte MouseVisible=FALSE; //is mouse cursor visible
+byte OldChars[4];  //saved characters under mask
+byte CS1[NUMLINEFONT];       //C1 character map
+byte CS3[NUMLINEFONT];       //C3 character map
+byte CS2[NUMLINEFONT];       //C2 character map
+byte CS4[NUMLINEFONT];       //C4 character map
+
+word OldHandler[2];// old mouse handler
+word OldEvents;    //old event mask
+word OldPos;       //where they were
+word CurX=0;       //current X coord
+word CurY=0;       //current Y coord
+word XMin=0;       //mouse window x min limit
+word YMin=0;       //mouse window y min limit
+word XSize=639;    //mouse window x max limit
+word YSize=394;    //display height in pixels (VGA initialized)
+word YMax=394;     //mouse window y max limit
+word SaveBuffer[NUMLINEFONT*2];//maps of internal characters saved here
+word MSData={0X0402,	 //CPU writes to map 2
+             0X0704,
+             0X0005,
+             0X0406,	 // map starts at A000:0000 (64K)
+             0X0204}; // CPU reads from map 2
+
+word MCData={
+	0X0302,		// CPU writes to maps 0 and 1 (0011 mask)
+	0X0304,		// odd-even addressing
+	0X1005,		// enable odd-even addressing
+	0X0E06,		// map starts at B800:0000
+	0X0004};	// CPU reads from map 0
+
+dword Save33=0;
+
+void far gMouseHandler()
+{
+	$PUSH DS
+	$PUSH AX
+	DS=CSWORD[#SEGDS];
+	$POP AX
+	$TEST	AX,1			// we handle only movements
+	IF(NOTZEROFLAG){
+		$PUSHA
+		$PUSH	ES
+		AL=MouseVisible; //save mouse state on stack
+		$PUSH	AX
+		gHideMouse(); //hide mouse if visible
+		GetNewPos();  //calculate new pointer position
+		$POP AX
+		IF(byte AL!=FALSE)gShowMouse(); //show mouse in new position
+//		IF(MouseVisible)gShowMouse(); //show mouse in new position
+		$POP ES
+		$POPA
+	}
+	$PUSH	AX
+	$push BX
+	AX=CurY; //convert Y coordinate to represent
+	BX=NUMLINEFONT;
+	$CWD		 //vertical position in universal pixels
+	$DIV BX //that is this position divided by 8
+	$SHL AX,3
+	CX=CurX; //character matrix size by X is always
+	DX=AX;   //8, it need not be adjusted
+	AX=-8;
+	CX&=AX;
+	DX&=AX;
+	$POP BX
+	$POP AX
+	AX&=OldEvents; //leave only events they want
+	IF(NOTZEROFLAG){//are there any events left?
+		$PUSH	AX			//check if OldHandler points somewhere
+		AX=OldHandler;
+		AX|=OldHandler[2];
+		$POP AX
+		IF(NOTZEROFLAG)$CALL FAR OldHandler	//chain to old handler
+	}
+	$POP DS
+}
+
+void gInitMouse()
+// initializes mouse handler internal variables
+{
+	AX=0X1A00;
+	$INT 0X10  //check if this is EGA/VGA and we're in
+	IF(AL==0x1A){
+		AX=0X3533; //check interrupt vector
+		$INT 0X21
+		AX=ES;
+		BX|=AX;
+		IF(NOTZEROFLAG){
+			AX=0X21; //SOFTWARE RESET
+			$INT 0X33
+			AX++;
+			IF(ZEROFLAG){	//есть мышь
+				LoadChars(C1Code,C2Code,C3Code,C4Code); //saving original character maps
+				SI=#CS1;
+				DI=#SaveBuffer;
+				CX=NUMLINEFONT*2;
+				$cld
+				$rep
+				$movsw
+				Active=TRUE; //we can operate
+				DX=#gMouseHandler;
+				ES=CS;
+				CX=0X7F;
+				AX=0X14; //exchange event handlers
+				$INT 0X33
+				OldHandler=DX;
+				OldHandler[2]=ES;
+				OldEvents=CX;
+			}
+		}
+	}
+}
+
+void gShowMouse()
+// shows mouse pointer
+{
+	IF(Active==TRUE){
+		IF(MouseVisible==FALSE){	//is mouse already on screen?
+			$PUSHA
+			$PUSH ES
+			computeOffset(); //compute offset in video buffer to
+			OldPos=SI;       //mouse pointer position
+			ES=0XB800;
+			OldChars=ESBYTE[SI];	//запомнить символы под мышкой
+			OldChars[1]=ESBYTE[SI+2];
+			OldChars[2]=ESBYTE[SI+160];
+			OldChars[3]=ESBYTE[SI+162];
+			$PUSH	ES
+			$PUSH SI
+			UpdateChars(); //apply a mask on current chars
+			$POP SI
+			$POP ES
+			ESBYTE[SI]=C1Code; //and put new chars on screen
+			ESBYTE[SI+160]=C3Code;
+			IF(CurX<632){
+				ESBYTE[SI+2]=C2Code;
+				ESBYTE[SI+162]=C4Code;
+			}
+			MouseVisible=TRUE;
+			$POP ES
+			$POPA
+		}
+	}
+}
+
+void gHideMouse()
+// hides mouse cursor
+{
+	IF(Active!=FALSE){
+		IF(MouseVisible!=FALSE){
+			$PUSH	AX
+			$PUSH ES
+			$PUSH DI
+			DI=OldPos;
+			ES=0XB800;
+			ESBYTE[DI]=OldChars;
+			ESBYTE[DI+2]=OldChars[1];
+			ESBYTE[DI+160]=OldChars[2];
+			ESBYTE[DI+162]=OldChars[3];
+			MouseVisible=FALSE;
+			$POP DI
+			$POP ES
+			$POP AX
+		}
+	}
+}
+
+void gDoneMouse()
+// resets mouse handler
+{
+	IF(Active==1){
+		$PUSH AX
+		$PUSH CX
+		$PUSH SI
+		$PUSH DI
+		$PUSH ES
+		gHideMouse(); //hide mouse pointer
+		ES=SS;
+		SI=#SaveBuffer; //restore character maps
+		DI=#CS1;
+		CX=NUMLINEFONT*2;
+		$cld
+		$rep
+		$movsw
+		SaveChars(C1Code,C2Code,C3Code,C4Code);
+		AX=0XC; //set event handler back to
+		CX=OldEvents; //original
+		DX=OldHandler;
+		ES=OldHandler[2];
+		$INT 0X33
+		$pop ES
+		$POP DI
+		$POP SI
+		$POP CX
+		$POP AX
+	}
+}
+
+void CGMODE()
+// program the video adapter so that we can get access to its character
+// generator maps for reading/writing.
+{
+	$PUSH CX
+	$PUSH DS
+	DS=CSWORD[#SEGDS];
+	CX=2;
+	DX=0X3C4;
+	$cld
+	$cli
+	loop(CX){
+		$lodsw
+		$out DX,AX
+	}
+	DL=0XCE;
+	CL=3;
+	loop(CX){
+		$lodsw
+		$out DX,AX
+	}
+	$STI
+	$POP DS
+	$pop CX
+}
+
+void LoadChars(word Code1,Code2,Code3,Code4)
+// load four character maps into C1,C2,C3 and C4
+{
+	ES=SS;
+	LOADCHAR(,Code1,,,#CS1);
+	LOADCHAR(,Code2,,,#CS2);
+	LOADCHAR(,Code3,,,#CS3);
+	LOADCHAR(,Code4,,,#CS4);
+}
+
+void SaveChars(word Code1,Code2,Code3,Code4)
+// copy C1,C2,C3 and C4 into video RAM
+{
+	SAVECHAR(,Code1,,,,#CS1);
+	SAVECHAR(,Code2,,,,#CS2);
+	SAVECHAR(,Code3,,,,#CS3);
+	SAVECHAR(,Code4,,,,#CS4);
+}
+
+void LOADCHAR()
+// es:di -> buffer to fill
+// bx    =  character code
+{
+	$PUSH DS
+	$SHL BX,5	//code*32
+	SI=BX;
+	DS=0XA000;
+	MoveChar(); //move CharSize bytes from ds:si -> es:di
+	$POP DS
+}
+
+void SAVECHAR()
+// ds:si -> buffer to put into video RAM
+// bx    =  character code
+{
+	$SHL BX,5 //code*32
+	DI=BX;
+	ES=0XA000;
+	MoveChar();
+}
+
+void MoveChar()
+// ds:si -> source
+// es:di -> dest
+{
+	CX=NUMLINEFONT;
+	$shr CX,1
+	$cld
+	$PUSH SI
+	CGMODE(,,,,,#MSData); //set read/write mode from chargen'r
+	$POP SI
+	$rep
+	$movsw
+	CGMODE(,,,,,#MCData); //reset normal operation mode
+}
+
+void UpdateChars()
+{
+	computeOffset();
+	ES=0XB800;
+	AH=0;
+	LoadChars(ESBYTE[SI],ESBYTE[SI+2],ESBYTE[SI+160],ESBYTE[SI+162]);
+	CX=CurX&7;
+	BX=CurY;
+	AX=NUMLINEFONT;
+	AX--;
+	BX&=AX;
+	SI=0;
+LLL1:
+	IF(BX!=NUMLINEFONT){
+		AH=CS1[BX];
+		AL=CS2[BX];
+		DH=ANDMask[SI];
+		DL=0XFF;
+		$ROR DX,CL
+		AX&=DX;
+		DH=ORMask[SI];
+		DL=0;
+		$SHR DX,CL
+		AX|=DX;
+		CS1[BX]=AH;
+		CS2[BX]=AL;
+		BX++;
+		SI++;
+		$CMP SI,NUMLINEFONT
+		$JB	LLL1
+		GOTO LLL3;
+	}
+	BX=0;
+	do{
+		AH=CS3[BX];
+		AL=CS4[BX];
+		DH=ANDMask[SI];
+		DL=0XFF;
+		$ROR DX,CL
+		AX&=DX;
+		DH=ORMask[SI];
+		DL=0;
+		$SHR DX,CL
+		AX|=DX;
+		CS3[BX]=AH;
+		CS4[BX]=AL;
+		BX++;
+		SI++;
+	}while(SI<NUMLINEFONT);
+LLL3:
+	SaveChars(C1Code,C2Code,C3Code,C4Code);
+}
+
+void computeOffset()
+// returns SI = offset in character buffer of character at (CurX,CurY)
+{
+	SI=CurX;
+	SI>>=2;
+	AX=CurY;
+	$CWD
+	BX=NUMLINEFONT;
+	$DIV BX
+	BL=160;
+	$MUL BL
+	SI+=AX;
+	SI&=0XFFFE; //we need character, not attibute
+}
+
+void GetNewPos()
+{
+	AX=0XB; //query last mouse motion
+	$INT 0X33
+	CurY+=DX; //just treat mickey counts as pixel counts
+	AX=CurX;
+	AX+=CX; //we don't convert mickeys to pixels, we
+	IF(MINUSFLAG)AX=0;// check screen boundaries
+	ELSE IF(AX>638)AX=638;
+	CurX=AX;
+	AX=CurY;
+	IF(int AX<0)AX=0;
+	ELSE IF(AX>YSize)AX=YSize;
+	CurY=AX;
+}
+
+interrupt i33h()
+{
+	$PUSH DS
+	DS=CSWORD[#SEGDS];
+	$PUSH	AX
+	AH=0XF;
+	$INT 0X10
+	$CMP AL,3		// video mode 3?
+	$POP AX
+	if(ZEROFLAG){
+		if(Active!=FALSE){
+			switch(AX){
+				case 1:	//show mouse pointer
+					gShowMouse();
+					$POP DS
+					$IRET
+				case 2:	//hide mouse pointer
+					gHideMouse();
+					$POP DS
+					$IRET
+				case 3: //get mouse position and button count
+					$PUSHF
+					$CALL FAR	DSDWORD[#Save33]
+					$PUSH	AX		// replace CX,DX with our virtual
+					AX=CurY; //coordinates
+					$CWD
+					CX=NUMLINEFONT;
+					$DIV CX
+					$SHL AX,3;
+					CX=CurX;
+				 	DX><AX;
+					AX=0XFFF8;
+					CX&=AX;
+					DX&=AX;
+					$POP	AX
+					$POP DS
+					$IRET
+				case 4: //move mouse pointer
+					CurX=CX;
+					$PUSH	DX
+					$SHR DX,3
+					$IMUL DX,NUMLINEFONT
+					CurY=DX;
+					$POP	DX
+					$POP DS
+					$IRET
+				case 7:	//set horizontal range
+					XMin=CX;
+					XSize=DX;
+					$POP DS
+					$IRET
+				case 8:	//set vertical range
+					$SHR CX,3;
+					$IMUL CX,NUMLINEFONT
+					YMin=CX;
+					$SHR DX,3
+					$IMUL DX,NUMLINEFONT
+					IF(int DX<YMax)YSize=DX;
+					$POP DS
+					$IRET
+				case 0xc:	//set new handler
+					OldEvents=CX;
+					OldHandler=DX;
+					OldHandler[2]=ES;
+					$POP DS
+					$IRET
+				case 0x14:	//exchange handlers
+					$PUSH	AX
+					CX><OldEvents;
+					OldHandler><DX;
+					OldHandler[2]><ES;
+					$POP AX
+					$POP DS
+					$IRET
+			}
+		}
+	}
+	$PUSHF
+	$CALL FAR DSDWORD[#Save33]
+	$POP DS
+}
+
+void Intercept33()
+{
+	IF(Active==1){
+		SI=0X33*4;
+		$push SI
+		$PUSH	DS
+		DS=0;
+		$POP ES
+		DI=#Save33;
+		$CLD
+		$MOVSD
+		$PUSH ES
+		$PUSH DS
+		$POP ES
+		$POP DS
+		$pop DI
+		AX=#i33h;
+		$CLI
+		$STOSW
+		AX=CS;
+		$STOSW
+		$STI
+	}
+}
+
+void Untercept33()
+{
+	AX=Save33;
+	AX|=Save33[2];
+	IF(NOTZEROFLAG){
+		ES=0;
+		DI=0X33*4;
+		SI=#Save33;
+		$CLD
+		$CLI
+		$MOVSD
+		$STI
+	}
+}

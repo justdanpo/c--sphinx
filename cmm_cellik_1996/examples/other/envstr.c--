@@ -1,0 +1,21 @@
+/*
+    ENVSTR.C-- 
+*/
+
+?include "DOS.H--"    // get procedure definition for ENVSTR
+?include "WRITE.H--"  // get procedure definition for WRITE and WRITESTR
+
+
+main ()
+{
+WRITESTR("Environment variable COMSPEC is currently:\n");
+WRITE('"');
+ENVSTR("COMSPEC");  /* string returned in ES:DI */
+$ PUSH DS           /* save DS */
+DS = ES;            /* set DS to ES */
+WRITESTR(DI);       /* use offset in DI to print the string */
+$ POP DS            /* restore DS */
+WRITE('"');
+}
+
+/* end of ENVSTR.C-- */

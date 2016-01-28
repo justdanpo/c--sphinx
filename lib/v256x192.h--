@@ -1,0 +1,316 @@
+: void SETVMODE()
+{
+
+// Установим 13h видео режим
+    AX=19;
+    $INT 0x10
+    // теперь программируем CRTC
+    DX=0x3D4;             //регистр адреса
+    AL=0x11;              // конец вертикального обратного хода луча
+    $OUT DX,AL
+    DX++;
+    $IN AL,DX
+    AL&=0x7F;
+    $OUT DX,AL           // разрешим запись в регистры 00h - 07h
+    DX--;
+?ifdef cpu >= 2
+    $call NEXT
+    $DW 0x5F00,0x3F01,0x4202,0x8003,0x4C04,0x9805,0x2013,0x7F12,0x9810,
+        0x9515,0x9F16;
+NEXT:
+    $pop SI
+		$push DS
+		DS=CS;
+    CX=11;
+    $rep
+    $outsw
+		$pop DS
+?else
+    AX=0x5F00;           // число символьных позиций в стороке развертки - 1
+    $OUT DX,AX           // 60h=96 // 96*8=768
+    AX=0x3F01;           // конец горизонтального разрешения вывода
+    $OUT DX,AX
+    AX=0x4202;           // начало горизонтальрого гашения
+    $OUT DX,AX
+    AX=0x8003;           // конец горизонталтного гашения
+    $OUT DX,AX
+    AX=0x4C04;           // начало горизонтального обратного хода
+    $OUT DX,AX
+    AX=0x9805;           // конец горизонтального обратного хода
+    $OUT DX,AX
+    AX=0x2013;           // смещение (логическая ширина текстовой строки)
+    $OUT DX,AX
+    AX=0x7F12;           // конец вертикального разрешения вывода
+    $OUT DX,AX
+    AX=0x9810;           // начало вертикального обратного хода
+    $OUT DX,AX
+    AX=0x9515;           // начало вертикального гашения
+    $OUT DX,AX
+    AX=0x9F16;           // конец вертикального гашения
+    $OUT DX,AX*/
+?endif
+}
+
+: void plot(byte x,y,c)
+{
+ ES=0xA000;
+ BL=x;
+ BH=y;
+ ESBYTE[BX]=c;
+}
+
+: void _plot(byte x,y,c)
+{
+// ES=0xA000;
+ BL=x;
+ BH=y;
+ AL=c;
+ ESBYTE[BX]=c;
+}
+
+: void PLOT()
+//AL - color
+//BL - x-pos
+//CL - y-pos
+{
+ $push 0xA000;
+ $pop ES
+ BH=CL;
+ ESBYTE[BX]=AL;
+}
+
+: void _PLOT()
+//AL - color
+//BL - x-pos
+//CL - y-pos
+{
+ BH=CL;
+ ESBYTE[BX]=AL;
+}
+
+: void putresized(byte x,y;word newxsize,newysize,imageloc)
+word xsize,ysize;
+{
+ES = 0xA000;
+BX = imageloc;
+xsize = DSWORD[BX];
+ysize = DSWORD[BX+2];
+imageloc += 4;
+AH=y; AL=x;
+SI = AX;
+y = 0;
+do {
+    CX = 1;
+    DI = SI;
+    do {
+        CX--;
+        AX = CX*xsize;
+        $ DIV newxsize
+        BX = AX;
+        AX = y*ysize;
+        $ DIV newysize
+        AX = AX*xsize + BX + imageloc;
+        BX = AX;
+        ESBYTE[DI] = DSBYTE[BX];
+        DI++;
+        CX++;
+        CX++;
+        } while( CX < newxsize );
+    SI += 256;
+    y++;
+    } while( y < newysize );
+}
+
+: void _putresized(byte x,y;word newxsize,newysize,imageloc)
+word xsize,ysize;
+{
+BX = imageloc;
+xsize = DSWORD[BX];
+ysize = DSWORD[BX+2];
+imageloc += 4;
+AH=y; AL=x;
+SI = AX;
+y = 0;
+do {
+    CX = 1;
+    DI = SI;
+    do {
+        CX--;
+        AX = CX*xsize;
+        $ DIV newxsize
+        BX = AX;
+        AX = y*ysize;
+        $ DIV newysize
+        AX = AX*xsize + BX + imageloc;
+        BX = AX;
+        ESBYTE[DI] = DSBYTE[BX];
+        DI++;
+        CX++;
+        CX++;
+        } while( CX < newxsize );
+    SI += 256;
+    y++;
+    } while( y < newysize );
+}
+
+: void pal(byte a,b,c,d)
+{DX=0x3c8;
+AL=a;
+$OUT DX,AL
+DX++;
+AL=b;
+$OUT DX,AL
+AL=c;
+$OUT DX,AL
+AL=d;
+$OUT DX,AL
+}
+
+: void xorimage (byte x,y;word imageloc)
+word xs,ys;
+{
+ES = 0xA000;
+SI=imageloc;
+xs=DSWORD[SI]; ys=DSWORD[SI+2]; SI+=4;
+BH=y;
+loop(ys)
+  {CX=xs;
+   BL=x;
+   loop(CX)
+        {$LODSB;
+         $DB 0x26,0x30,7;
+         BL++;
+        }
+   BH++;
+  }
+}
+
+: void putimage (byte x,y;word imageloc)
+word xs,ys;
+{
+ES = 0xA000;
+SI=imageloc;
+xs=DSWORD[SI]; ys=DSWORD[SI+2]; SI+=4;
+BH=y;
+loop(ys)
+  {CX=xs;
+   BL=x;
+   loop(CX)
+        {$LODSB;
+         $DB 0x26,0x88,7;
+         BL++;
+        }
+   BH++;
+  }
+}
+
+: void addimage (byte x,y;word imageloc)
+word xs,ys;
+{
+ES = 0xA000;
+SI=imageloc;
+xs=DSWORD[SI]; ys=DSWORD[SI+2]; SI+=4;
+BH=y;
+loop(ys)
+  {CX=xs;
+   BL=x;
+   loop(CX)
+        {$LODSB;
+         $DB 0x26,0,7;
+         BL++;
+        }
+   BH++;
+  }
+}
+
+: void subimage (byte x,y;word imageloc)
+word xs,ys;
+{
+ES = 0xA000;
+SI=imageloc;
+xs=DSWORD[SI]; ys=DSWORD[SI+2]; SI+=4;
+BH=y;
+loop(ys)
+  {CX=xs;
+   BL=x;
+   loop(CX)
+        {$LODSB;
+         $DB 0x26,0x28,7;
+         BL++;
+        }
+   BH++;
+  }
+}
+
+: void _xorimage (byte x,y;word imageloc)
+word xs,ys;
+{
+SI=imageloc;
+xs=DSWORD[SI]; ys=DSWORD[SI+2]; SI+=4;
+BH=y;
+loop(ys)
+  {CX=xs;
+   BL=x;
+   loop(CX)
+        {$LODSB;
+         $DB 0x26,0x30,7;
+         BL++;
+        }
+   BH++;
+  }
+}
+
+: void _putimage (byte x,y;word imageloc)
+word xs,ys;
+{
+SI=imageloc;
+xs=DSWORD[SI]; ys=DSWORD[SI+2]; SI+=4;
+BH=y;
+loop(ys)
+  {CX=xs;
+   BL=x;
+   loop(CX)
+        {$LODSB;
+         $DB 0x26,0x88,7;
+         BL++;
+        }
+   BH++;
+  }
+}
+
+: void _subimage (byte x,y;word imageloc)
+word xs,ys;
+{
+SI=imageloc;
+xs=DSWORD[SI]; ys=DSWORD[SI+2]; SI+=4;
+BH=y;
+loop(ys)
+  {CX=xs;
+   BL=x;
+   loop(CX)
+        {$LODSB;
+         $DB 0x26,0x28,7;
+         BL++;
+        }
+   BH++;
+  }
+}
+
+
+: void _addimage (byte x,y;word imageloc)
+word xs,ys;
+{
+SI=imageloc;
+xs=DSWORD[SI]; ys=DSWORD[SI+2]; SI+=4;
+BH=y;
+loop(ys)
+  {CX=xs;
+   BL=x;
+   loop(CX)
+        {$LODSB;
+         $DB 0x26,0,7;
+         BL++;
+        }
+   BH++;
+  }
+}

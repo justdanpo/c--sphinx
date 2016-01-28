@@ -1,0 +1,182 @@
+// ------------------------------------------------------------------- //
+//        CCLIST.H-- для Sphinx C-- (COMCTL32.DLL)                     //
+//        Основан на COMMCTRL.H из C++ Builder                         //
+//        Предложения и плевки отправляйте на hd_keeper@mail.ru        //
+// ------------------------------------------------------------------- //
+
+
+// Описание функций
+
+:dword ListView_GetBkColor( dword hwnd) {
+SendMessage( hwnd, LVM_GETBKCOLOR, 0, 0); }
+
+:dword ListView_SetBkColor( dword hwnd, clrBk) {
+SendMessage( hwnd, LVM_SETBKCOLOR, 0, clrBk); }
+
+:dword ListView_GetImageList( dword hwnd, iImageList) {
+SendMessage( hwnd, LVM_GETIMAGELIST, iImageList, 0); }
+
+:dword ListView_SetImageList( dword hwnd, himl, iImageList) {
+SendMessage( hwnd, LVM_SETIMAGELIST, iImageList, himl); }
+
+:dword ListView_GetItemCount( dword hwnd) {
+SendMessage( hwnd, LVM_GETITEMCOUNT, 0, 0); }
+
+:dword ListView_GetItem( dword hwnd, pitem) {
+SendMessage( hwnd, LVM_GETITEM, 0, pitem); }
+
+:dword ListView_SetItem( dword hwnd, pitem) {
+SendMessage( hwnd, LVM_SETITEM, 0, pitem); }
+
+:dword ListView_InsertItem( dword hwnd, pitem) {
+SendMessage( hwnd, LVM_INSERTITEM, 0, pitem); }
+
+:dword ListView_DeleteItem( dword hwnd, i) {
+SendMessage( hwnd, LVM_DELETEITEM, i, 0); }
+
+:dword ListView_DeleteAllItems( dword hwnd) {
+SendMessage( hwnd, LVM_DELETEALLITEMS, 0, 0); }
+
+:dword ListView_GetCallbackMask( dword hwnd) {
+SendMessage( hwnd, LVM_GETCALLBACKMASK, 0, 0); }
+
+:dword ListView_SetCallbackMask( dword hwnd, mask) {
+SendMessage( hwnd, LVM_SETCALLBACKMASK, mask, 0); }
+
+:dword ListView_GetNextItem( dword hwnd, i, flags) {
+SendMessage( hwnd, LVM_GETNEXTITEM, i, @MAKELPARAM( flags, 0)); }
+
+:dword ListView_FindItem( dword hwnd, iStart, plvfi) {
+SendMessage( hwnd, LVM_FINDITEM, iStart, plvfi); }
+
+:dword ListView_GetItemRect( dword hwnd, i, prc, code) {
+  EBX = prc;
+  DSDWORD[ EBX] = code;
+  SendMessage( hwnd, LVM_GETITEMRECT, i, prc);
+}
+
+:dword ListView_SetItemPosition( dword hwndLV, i, x, y) {
+SendMessage( hwndLV, LVM_SETITEMPOSITION, i, @MAKELPARAM( x, y)); }
+
+:dword ListView_GetItemPosition( dword hwndLV, i, ppt) {
+SendMessage( hwndLV, LVM_GETITEMPOSITION, i, ppt); }
+
+:dword ListView_GetStringWidth( dword hwndLV, psz) {
+SendMessage( hwndLV, LVM_GETSTRINGWIDTH, 0, psz); }
+
+:dword ListView_HitTest( dword hwndLV, pinfo) {
+SendMessage( hwndLV, LVM_HITTEST, 0, pinfo); }
+
+:dword ListView_EnsureVisible( dword hwndLV, i, fPartialOK) {
+SendMessage( hwndLV, LVM_ENSUREVISIBLE, i, @MAKELPARAM( fPartialOK, 0)); }
+
+:dword ListView_Scroll( dword hwndLV, dx, dy) {
+SendMessage( hwndLV, LVM_SCROLL, dx, dy); }
+
+:dword ListView_RedrawItems( dword hwndLV, iFirst, iLast) {
+SendMessage( hwndLV, LVM_REDRAWITEMS, iFirst, iLast); }
+
+:dword ListView_Arrange( dword hwndLV, code) {
+SendMessage( hwndLV, LVM_ARRANGE, code, 0); }
+
+:dword ListView_EditLabel( dword hwndLV, i) {
+SendMessage( hwndLV, LVM_EDITLABEL, i, 0); }
+
+:dword ListView_GetEditControl( dword hwndLV) {
+SendMessage( hwndLV, LVM_GETEDITCONTROL, 0, 0); }
+
+:dword ListView_GetColumn( dword hwnd, iCol, pcol) {
+SendMessage( hwnd, LVM_GETCOLUMN, iCol, pcol); }
+
+:dword ListView_SetColumn( dword hwnd, iCol, pcol) {
+SendMessage( hwnd, LVM_SETCOLUMN, iCol, pcol); }
+
+:dword ListView_InsertColumn( dword hwnd, iCol, pcol) {
+SendMessage( hwnd, LVM_INSERTCOLUMN, iCol, pcol); }
+
+:dword ListView_DeleteColumn( dword hwnd, iCol) {
+SendMessage( hwnd, LVM_DELETECOLUMN, iCol, 0); }
+
+:dword ListView_GetColumnWidth( dword hwnd, iCol) {
+SendMessage( hwnd, LVM_GETCOLUMNWIDTH, iCol, 0); }
+
+:dword ListView_SetColumnWidth( dword hwnd, iCol, cx) {
+SendMessage( hwnd, LVM_SETCOLUMNWIDTH, iCol, @MAKELPARAM( cx, 0)); }
+
+:dword ListView_CreateDragImage( dword hwnd, i, lpptUpLeft) {
+SendMessage( hwnd, LVM_CREATEDRAGIMAGE, i, lpptUpLeft); }
+
+:dword ListView_GetViewRect( dword hwnd, prc) {
+SendMessage( hwnd, LVM_GETVIEWRECT, 0, prc); }
+
+:dword ListView_GetTextColor( dword hwnd) {
+SendMessage( hwnd, LVM_GETTEXTCOLOR, 0, 0); }
+
+:dword ListView_SetTextColor( dword hwnd, clrText) {
+SendMessage( hwnd, LVM_SETTEXTCOLOR, 0, clrText); }
+
+:dword ListView_GetTextBkColor( dword hwnd) {
+SendMessage( hwnd, LVM_GETTEXTBKCOLOR, 0, 0); }
+
+:dword ListView_SetTextBkColor( dword hwnd, clrTextBk) {
+SendMessage( hwnd, LVM_SETTEXTBKCOLOR, 0, clrTextBk); }
+
+:dword ListView_GetTopIndex( dword hwndLV) {
+SendMessage( hwndLV, LVM_GETTOPINDEX, 0, 0); }
+
+:dword ListView_GetCountPerPage( dword hwndLV) {
+SendMessage( hwndLV, LVM_GETCOUNTPERPAGE, 0, 0); }
+
+:dword ListView_GetOrigin( dword hwndLV, ppt) {
+SendMessage( hwndLV, LVM_GETORIGIN, 0, ppt); }
+
+:dword ListView_Update( dword hwndLV, i) {
+SendMessage( hwndLV, LVM_UPDATE, i, 0); }
+
+:dword ListView_SetItemState( dword hwndLV, i, data, mask)
+  struct LV_ITEM lvi;
+{
+  lvi.stateMask = mask;
+  lvi.state = data;
+  SendMessage( hwndLV, LVM_SETITEMSTATE, i, #lvi);
+}
+
+:dword ListView_GetItemState( dword hwndLV, i, mask) {
+SendMessage( hwndLV, LVM_GETITEMSTATE, i, mask); }
+
+:dword ListView_GetItemText( dword hwndLV, i, iSubItem, pszText, cchTextMax)
+  struct LV_ITEM lvi;
+{
+  lvi.iSubItem = iSubItem;
+  lvi.cchTextMax = cchTextMax;
+  lvi.pszText = pszText;
+  SendMessage( hwndLV, LVM_GETITEMTEXT, i, #lvi);
+}
+
+:dword ListView_SetItemText( dword hwndLV, i, iSubItem, pszText)
+  struct LV_ITEM lvi;
+{
+  lvi.iSubItem = iSubItem;
+  lvi.pszText = pszText;
+  SendMessage( hwndLV, LVM_SETITEMTEXT, i, #lvi);
+}
+
+:dword ListView_SetItemCount( dword hwndLV, cItems) {
+SendMessage( hwndLV, LVM_SETITEMCOUNT, cItems, 0); }
+
+:dword ListView_SortItems( dword hwndLV, pfnCompare, lPrm) {
+SendMessage( hwndLV, LVM_SORTITEMS, lPrm, pfnCompare); }
+
+:dword ListView_SetItemPosition32( dword hwndLV, i, x, y) {
+SendMessage( hwndLV, LVM_SETITEMPOSITION32, i, #x); }
+
+:dword ListView_GetSelectedCount( dword hwndLV) {
+SendMessage( hwndLV, LVM_GETSELECTEDCOUNT, 0, 0); }
+
+:dword ListView_GetItemSpacing( dword hwndLV, fSmall) {
+SendMessage( hwndLV, LVM_GETITEMSPACING, fSmall, 0); }
+
+:dword ListView_GetISearchString( dword hwndLV, lpsz) {
+SendMessage( hwndLV, LVM_GETISEARCHSTRING, 0, lpsz); }
+
+

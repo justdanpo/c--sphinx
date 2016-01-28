@@ -1,0 +1,37 @@
+/*
+    SPHINX Programming (C) 1993.
+    NAME:  DPMI.H--
+    DESCRIPTION:  This file contains a procedure for detecting whether or not
+                  the DOS Protected Mode Interface is installed on the host
+                  machine.
+    LAST MODIFIED:  26 Dec 1993
+    PROCEDURES DEFINED IN THIS FILE:
+        : word CHECK_DPMI()
+*/
+
+
+: word CHECK_DPMI ()
+/*
+Returns:
+  If DPMI is available:
+       AX = 0
+       BX = Flags
+             Bit 0 = 1 if 32-bit programs are supported
+       CL = Processor type
+             02h = 80286
+             03h = 80386
+             04h = 80486
+       DH = DPMI major version number
+       DL = DPMI minor version number
+       SI = Number  of  paragraphs  required  for  DPMI  host
+            private data (may be 0)
+       ES:DI = Address of procedure to call to enter protected
+               mode
+  else AX != 0
+*/
+{
+AX = 0x1687;
+$ INT 0x2F
+}
+
+/* end of DPMI.H-- */

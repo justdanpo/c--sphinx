@@ -1,0 +1,374 @@
+/*
+void FULL_SCR400()          -—™€…’ € ‚ …†… 320•400
+void FULL_SCR480()          -—™€…’ € ‚ …†… 360•480
+byte READPIXEL400()         -—’€…’ ‘…‹ ‘ €€ ‚ …†… 320•400
+byte READPIXEL480()         -—’€…’ ‘…‹ ‘ €€ ‚ …†… 360•480
+void SET320X400MODE()       -“‘’€€‹‚€…’ ƒ€”—…‘‰ …† 320•400
+void SET360X480MODE()       -“‘’€€‹‚€…’ ƒ€”—…‘‰ …† 360•480
+void split(word split_line) -€‡„…‹…’ € € 2 —€‘’
+void WRITEPIXEL400()        -‡€‘›‚€…’ ‘…‹ € € ‚ …† 320•400
+void WRITEPIXEL480()        -‡€‘›‚€…’ ‘…‹ € € ‚ …† 360•480
+*/
+?ifndef _VGANS_
+?define _VGANS_ TRUE
+?warning FALSE
+
+?define SC_INDEX    0x3c4   // Sequence Controller Index
+?define CRTC_INDEX  0x3d4   // CRT Controller Index
+?define MISC_OUTPUT 0x3c2   // Miscellaneous Output register
+?define VGA_SEGMENT 0xa000
+?define CPWER       2      //…ƒ‘’ €‡…… ‡€‘ –‚…’‚ƒ ‘‹
+?define MMR         4      //…ƒ‘’  ‘’“’“› €’
+?define GC_INDEX    0X3CE
+?define RPSR        4
+?define MDR         5
+?define MIR         6
+?define MSLR        9
+?define SAR_h       0XC
+?define ULR         0X14
+?define MCR         0X17
+?define SCREEN_HEIGHT 400
+?define SCREEN_WIDTH  320
+?define SCREEN_HEIGHT_H 480
+?define SCREEN_WIDTH_H  360
+
+:void SET320X400MODE()
+{
+	$PUSH DI
+	AX=0X13;
+	$INT 16
+	DX=SC_INDEX;
+	AL=MMR;
+	$OUT DX,AL
+	DX+=1;
+	$IN AL,DX
+	AL&=0XF7;
+	AL|=4;
+	$OUT DX,AL
+	DX=GC_INDEX;
+	AL=MDR;
+	$OUT DX,AL
+	DX+=1;
+	$IN AL,DX
+	AL&=0XEF;
+	$OUT DX,AL
+	DX-=1;
+	AL=MIR;
+	$OUT DX,AL
+	DX+=1;
+	$IN AL,DX
+	AL&=0XFD;
+	$OUT DX,AL
+	DX=SC_INDEX;
+	AL=CPWER;
+	$OUT DX,AL
+	DX+=1;
+	AL=0XF;
+	$OUT DX,AL
+	ES=VGA_SEGMENT;
+	DI=0;
+	AX=0;
+	CX=0X8000;
+	$REPZ
+	$STOSB
+	DX=CRTC_INDEX;
+	AL=MSLR;
+	$OUT DX,AL
+	DX+=1;
+	$IN AL,DX
+	AL&=0X60;
+	$OUT DX,AL
+	DX-=1;
+	AL=ULR;
+	$OUT DX,AL
+	DX+=1;
+	$IN AL,DX
+	AL&=0XBF;
+	$OUT DX,AL
+	DX-=1;
+	AL=MCR;
+	$OUT DX,AL
+	DX+=1;
+	$IN AL,DX
+	AL|=0X40;
+	$OUT DX,AL
+	$POP DI
+}
+
+:void WRITEPIXEL400()
+/*
+CX - x-•ª®®ΰ¤¨­ β (0-319)
+DX - y-Yª®®ΰ¤¨­ β (0-399)
+BL - color- ζΆ¥β ―¨ªα¥« (0-255)
+*/
+{
+	$PUSH DI
+	ES=VGA_SEGMENT;
+	AX=SCREEN_WIDTH/4*DX;
+	$PUSH CX
+	CX >>=1;
+	CX >>=1;
+	AX+=CX;
+?ifdef codesize
+	DI><AX;
+?else
+	DI=AX;
+?endif
+	$POP CX
+	CL&=3;
+	AH=1;
+	AH<<=CL;
+	DX=SC_INDEX;
+	AL=CPWER;
+	$OUT DX,AX
+	ESBYTE[DI]=BL;
+	$POP DI
+}
+
+:byte READPIXEL400 ()
+//CX - x ª®®ΰ¤¨­ β 
+//DX - y ª®®ΰ¤¨­ β 
+{
+	$PUSH SI
+	ES=VGA_SEGMENT;
+	AX=SCREEN_WIDTH/4*DX;
+	$PUSH CX
+	CX >>=1;
+	CX >>=1;
+	AX+=CX;
+?ifdef codesize
+	SI><AX;
+?else
+	SI=AX;
+?endif
+	$POP CX
+	CL&=3;
+	AH=CL;
+	DX=GC_INDEX;
+	AL=RPSR;
+	$OUT DX,AX
+	AL=ESBYTE[SI];
+	$POP SI
+}
+
+:void FULL_SCR400 ()
+//BL - ζΆ¥β ®η¨αβª¨
+{
+	$PUSH DI
+	DX=SC_INDEX;
+	AL=CPWER;
+	$OUT DX,AL
+	DX++;
+	AL=0XF;
+	$OUT DX,AL
+	ES=VGA_SEGMENT;
+	DI=0;
+?ifdef codesize
+	AX><BX;
+?else
+	AX=BX;
+?endif
+	CX=32000;
+	$REPZ
+	$STOSB
+	$POP DI
+}
+
+:void SET360X480MODE()
+{
+	AX=0X12;
+	$INT	16
+	AX=0X13;
+	$INT	16
+	DX=SC_INDEX;
+	AX=0X604;
+	$OUT DX,AX
+	AX=0X100;
+	$OUT DX,AX
+	DX=MISC_OUTPUT;
+	AL=0XE7;
+	$OUT DX,AL
+	DX=SC_INDEX;
+	AX=0X300;
+	$OUT DX,AX
+	DX=GC_INDEX;
+	AL=MDR;
+	$OUT DX,AL
+	DX++;
+	$IN AL,DX
+	AL&=0XEF;
+	$OUT DX,AL
+	DX--;
+	AL=MIR;
+	$OUT DX,AL
+	DX++;
+	$IN AL,DX
+	AL&=0XFD;
+	$OUT DX,AL
+	DX=0X3D4;
+	AL=0X11;
+	$OUT DX,AL
+	DX++;
+	$IN AL,DX
+	AL&=0X7F;
+	$OUT DX,AL
+	DX--;
+?ifdef cpu>=2
+	$CALL NEXT
+	$DW 0x6b00,0X5901,0X5A02,0X8E03,0X5E04,0X8A05,0XD06,0X3E07,0X4009,0XEA10,
+	    0XAC11,0XDF12,0X2D13,0X14,0XE715,0X616,0XE317;
+NEXT:
+	$pop SI
+	$push DS
+	DS=CS;
+	CX=17;
+	$rep
+	$outsw
+	$pop DS
+?else
+	AX=0X6B00;
+	$OUT DX,AX
+	AX=0X5901;
+	$OUT DX,AX
+	AX=0X5A02;
+	$OUT DX,AX
+	AX=0X8E03;
+	$OUT DX,AX
+	AX=0X5E04;
+	$OUT DX,AX
+	AX=0X8A05;
+	$OUT DX,AX
+	AX=0XD06;
+	$OUT DX,AX
+	AX=0X3E07;
+	$OUT DX,AX
+	AX=0X4009;
+	$OUT DX,AX
+	AX=0XEA10;
+	$OUT DX,AX
+	AX=0XAC11;
+	$OUT DX,AX
+	AX=0XDF12;
+	$OUT DX,AX
+	AX=0X2D13;
+	$OUT DX,AX
+	AX=0X14;
+	$OUT DX,AX
+	AX=0XE715;
+	$OUT DX,AX
+	AX=0X616;
+	$OUT DX,AX
+	AX=0XE317;
+	$OUT DX,AX
+?endif
+}
+
+:void WRITEPIXEL480 ()
+/*
+CX - x-•ª®®ΰ¤¨­ β (0-319)
+DX - y-Yª®®ΰ¤¨­ β (0-399)
+BL - color- ζΆ¥β ―¨ªα¥« (0-255)
+*/
+{
+	$PUSH DI
+	ES=VGA_SEGMENT;
+	AX=SCREEN_WIDTH_H/4*DX;
+	$PUSH CX
+	CX >>=1;
+	CX >>=1;
+	AX+=CX;
+?ifdef codesize
+	DI><AX;
+?else
+	DI=AX;
+?endif
+	$POP CX
+	CL&=3;
+	AH=1;
+	AH<<=CL;
+	DX=SC_INDEX;
+	AL=CPWER;
+	$OUT DX,AX
+	ESBYTE[DI]=BL;
+	$POP DI
+}
+
+:byte READPIXEL480 ()
+//CX - x ª®®ΰ¤¨­ β 
+//DX - y ª®®ΰ¤¨­ β 
+{
+	$PUSH DI
+	ES=VGA_SEGMENT;
+	AX=SCREEN_WIDTH_H/4*DX;
+	$PUSH CX
+	CX >>=1;
+	CX >>=1;
+	AX+=CX;
+?ifdef codesize
+	SI><AX;
+?else
+	SI=AX;
+?endif
+	$POP CX
+	CL&=3;
+	AH=CL;
+	DX=GC_INDEX;
+	AL=RPSR;
+	$OUT DX,AX
+	AL=ESBYTE[SI];
+	$POP DI
+}
+
+:void FULL_SCR480 ()
+//BL - ζΆ¥β ®η¨αβª¨
+{
+	$PUSH DI
+	DX=SC_INDEX;
+	AL=CPWER;
+	$OUT DX,AL
+	DX++;
+	AL=0XF;
+	$OUT DX,AL
+	ES=VGA_SEGMENT;
+	DI=0;
+?ifdef codesize
+	AX><BX;
+?else
+	AX=BX;
+?endif
+	CX=43200;
+	$REPZ
+	$STOSB
+	$POP DI
+}
+
+:void split(word split_line)
+{
+	DX=0X3D4;
+	AL=0X18;
+	$OUT DX,AL
+	DX++;
+	AX=split_line;
+	$OUT DX,AL
+	DX--;
+	AL=7;
+	$OUT DX,AL
+	DX++;
+	$IN	AL,DX
+	BX=split_line;
+	CL=4;
+	BH<<=CL;
+	BH&=0X10;
+	AL&=0XEF;
+	AL|=BH;
+	$OUT DX,AL
+	DX--;
+	AL=9;
+	$OUT DX,AL
+	DX++;
+	$IN AL,DX;
+	AL&=0XBF;
+	$OUT DX,AL
+}
+
+?endif

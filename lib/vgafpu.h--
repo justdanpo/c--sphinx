@@ -1,0 +1,133 @@
+/*-------------------- Вывод геометрических фигур ---------------------------
+:void ellipse19_87(int x,y,xsize,ysize; byte colour)
+:void ellipse19_87f(int x,y,xsize,ysize; byte colour)
+----------------------------------------------------------------------------*/
+?ifndef _VGAFPU_
+?define _VGAFPU_ TRUE
+?warning FALSE
+
+:void ellipse19_87(int x,y,xsize,ysize; byte colour)
+//эллипс в реж 320x200 через FPU
+float rad;
+int i,j,sin,cos;
+{
+	ES=0xA000;
+	AX=xsize;
+	IF(AX<ysize)AX=ysize;	//опр дискретность точек
+	AX=AX*7;                  //общее число выводимых точек
+	i=AX;
+	asm{
+		fldpi
+		fadd ST,ST(0)
+		fild i
+	}
+?ifdef codesize
+	DI><AX;
+?else
+	DI=AX;
+?endif
+	asm{
+		fdivr ST,ST(1)
+		fstp rad              //дискретность в радианах
+		fwait
+	}
+	BL=colour;
+	j=0;
+	do{
+		asm{
+			fild j
+			fmul rad
+			fsincos
+		}
+		j++;
+		asm{
+			fild xsize
+			fmulp ST(1)
+			fistp cos
+			fild ysize
+			fmulp ST(1)
+			fistp sin
+			fwait
+		}
+?ifdef codesize
+		AX=y-sin*320+x+cos;
+		SI><AX;
+?else
+		AX=y-sin;
+		SI=AX;
+		AX=AX<<2+SI<<6+x+cos;
+		SI=AX;
+?endif
+		ESBYTE[SI]=BL;
+	}while(j<DI);
+}
+
+:void ellipse19_87f(int x,y,xsize,ysize; byte colour)
+//эллипс в реж 320x200 через FPU
+//более быстрый
+float rad;
+int i,j,sin,cos;
+{
+	ES=0xA000;
+	AX=xsize;
+	IF(AX<ysize)AX=ysize;	//опр дискретность точек
+	asm fldpi
+	AX=AX*7;                  //общее число выводимых точек
+	asm fadd ST,ST(0)
+	i=AX;
+	asm{
+		fild i
+		fdivr ST,ST(1)
+	}
+	i>>=2;
+?ifdef codesize
+	AX=y*320+x;
+	DI><AX;
+?else
+	AX=y;
+	DI=AX;
+	AX=AX<<2+DI<<6+x;
+	DI=AX;
+?endif
+	asm fstp rad              //дискретность в радианах
+	BL=colour;
+	asm fwait
+	j=0;
+	do{
+		asm{
+			fild j
+			fmul rad
+			fsincos
+		}
+		j++;
+		asm{
+			fild xsize
+			fmulp ST(1)
+			fabs
+			fistp cos
+			fild ysize
+			fmulp ST(1)
+			fabs
+			fistp sin
+			fwait
+		}
+?ifdef codesize
+		AX=sin*320;
+?else
+		AX=sin;
+		DX=AX;
+		AX=AX<<2+DX<<6;
+?endif
+		DX=cos;
+		SI=DI-AX+DX;
+		ESBYTE[SI]=BL;
+		SI=DI-AX-DX;
+		ESBYTE[SI]=BL;
+		SI=DI+AX-DX;
+		ESBYTE[SI]=BL;
+		SI=DI+AX+DX;
+		ESBYTE[SI]=BL;
+	}while(j<i);
+}
+
+?endif

@@ -1,0 +1,76 @@
+/*
+   C-- demo of QUICK SORT
+*/
+
+?include "WRITE.H--"
+?include "RANDOM.H--"
+
+?define  ELEMENTSIZE            2    /* size of each element in bytes */
+?define  ELEMENTTYPE         word    /* type of each element */
+?define  ADDRESSTYPE       DSWORD    /* pointer type */
+?define  ARRAYSIZE          10000    /* number of elements in array */
+?define  ENDPTR  ARRAYSIZE*ELEMENTSIZE  // index past last element in array
+ 
+ELEMENTTYPE array[ARRAYSIZE];        /* declaration of array */
+
+
+void quicksort ( word left,right )
+word i,j;
+byte finished;
+ELEMENTTYPE p;
+{
+if( right > left )
+    {i = left;
+    j = right + ELEMENTSIZE;
+    BX = left;
+    p = ADDRESSTYPE[BX];
+    finished = 0;
+    do {BX = i;
+        do {
+            BX += ELEMENTSIZE;
+            } while( ADDRESSTYPE[BX] < p );
+        i = BX;
+        BX = j;
+        do {
+            BX -= ELEMENTSIZE;
+            } while( ADDRESSTYPE[BX] > p );
+        j = BX;
+        IF( BX < i )
+            finished = 1;
+        ELSE{DI = i;
+            DSWORD[BX] >< DSWORD[DI];
+            }
+        } while( finished == 0 );
+    BX = left;
+    DI = j;
+    ADDRESSTYPE[BX] >< ADDRESSTYPE[DI];   /* swap */
+
+    quicksort( left, j - ELEMENTSIZE );
+    quicksort( i, right );
+    }
+}
+
+
+main ()
+{
+WRITESTR("C--   Q U I C K   S O R T   D E M O\n");
+WRITESTR("Quick Sort of ");
+WRITEWORD(ARRAYSIZE);
+WRITESTR(" words.\n");
+WRITESTR("Filling array with random values...\n");
+@ RANDOMIZE();
+DI = 0;
+do {array[DI] = RAND();
+    DI += ELEMENTSIZE;
+   } while( DI < ENDPTR );
+WRITESTR("Sorting array...\n");
+quicksort( #array[0], #array[ENDPTR-ELEMENTSIZE] );
+WRITESTR("Displaying sorted array...\n");
+SI = 0;
+do {WRITEWORD(array[SI]);
+    WRITE(' ');
+    SI += ELEMENTSIZE;
+    } while( SI < ENDPTR );
+}
+
+/* end of QSORT.C-- */

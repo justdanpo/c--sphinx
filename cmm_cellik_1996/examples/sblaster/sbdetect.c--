@@ -1,0 +1,55 @@
+/*
+   NAME:  SBDETECT.C--
+   Copyright (C) 1994  Michael B. Martin
+
+   Demo program to detect the presence of a Sound Blaster family card.
+   Does not know about the new 16-bit cards, so I have no idea what will
+   happen with one of them.
+
+   30 Mar 1994:  Small Modifications by SPHINX.
+*/
+
+?include "WRITE.H--"
+?include "DOS.H--"
+?include "SYSTEM.H--"
+
+?include "SB.H--"
+?include "SBDMA.H--"
+
+
+void main ()            /* program starts here */
+{
+
+IF(SB_DETECT() != 0)
+    {
+    WRITESTR("Could not find Sound Blaster card!\n");
+    EXIT(1);
+    }
+
+WRITESTR("Found Sound Blaster ");
+IF(SbType == SBPro)
+    WRITESTR("Pro ");
+WRITESTR("at address ");
+WRITEHEX(SbIOaddr);
+WRITESTR("h, IRQ ");
+WRITEWORD(SbIRQ);
+WRITESTR(", DMA channel ");
+WRITEWORD(SbDMAchan);
+WRITESTR(".\n");
+
+WRITESTR("DSP version: ");
+GET_DSP_VER();
+$ PUSH AX
+$ XCHG AH,AL
+$ XOR AH,AH
+WRITEWORD(AX);
+WRITESTR(".");
+$ POP AX
+$ XOR AH,AH
+WRITEWORD(AX);
+WRITELN();
+
+EXIT(0);
+}
+
+/* end of SBDETECT.C-- */

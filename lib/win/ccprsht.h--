@@ -1,0 +1,62 @@
+// ------------------------------------------------------------------- //
+//        CCPRSHT.H-- для Sphinx C-- (COMCTL32.DLL)                    //
+//        Основан на PRSHT.H из C++ Builder                            //
+//        Предложения и плевки отправляйте на hd_keeper@mail.ru        //
+// ------------------------------------------------------------------- //
+
+// Описание функций
+
+:dword PropSheet_SetCurSel( dword hDlg, hpage, index) {
+SendMessage( hDlg, PSM_SETCURSEL, index, hpage); }
+
+:dword PropSheet_RemovePage( dword hDlg, index, hpage) {
+SendMessage( hDlg, PSM_REMOVEPAGE, index, hpage); }
+
+:dword PropSheet_AddPage( dword hDlg, hpage) {
+SendMessage( hDlg, PSM_ADDPAGE, 0, hpage); }
+
+:dword PropSheet_Changed( dword hDlg, hwnd) {
+SendMessage( hDlg, PSM_CHANGED, hwnd, 0); }
+
+:dword PropSheet_RestartWindows( dword hDlg) {
+SendMessage( hDlg, PSM_RESTARTWINDOWS, 0, 0); }
+
+:dword PropSheet_RebootSystem( dword hDlg) {
+SendMessage( hDlg, PSM_REBOOTSYSTEM, 0, 0); }
+
+:dword PropSheet_CancelToClose( dword hDlg) {
+PostMessage( hDlg, PSM_CANCELTOCLOSE, 0, 0); }
+
+:dword PropSheet_QuerySiblings( dword hDlg, wParam, lParam) {
+SendMessage( hDlg, PSM_QUERYSIBLINGS, wParam, lParam); }
+
+:dword PropSheet_UnChanged( dword hDlg, hwnd) {
+SendMessage( hDlg, PSM_UNCHANGED, hwnd, 0); }
+
+:dword PropSheet_Apply( dword hDlg) {
+SendMessage( hDlg, PSM_APPLY, 0, 0); }
+
+:dword PropSheet_SetTitle( dword hDlg, wStyle, lpszText) {
+SendMessage( hDlg, PSM_SETTITLE, wStyle, lpszText); }
+
+:dword PropSheet_SetWizButtons( dword hDlg, dwFlags) {
+PostMessage( hDlg, PSM_SETWIZBUTTONS, 0, dwFlags); }
+
+:dword PropSheet_PressButton( dword hDlg, iButton) {
+PostMessage( hDlg, PSM_PRESSBUTTON, iButton, 0); }
+
+:dword PropSheet_SetCurSelByID( dword hDlg, id) {
+SendMessage( hDlg, PSM_SETCURSELID, 0, id); }
+
+:dword PropSheet_SetFinishText( dword hDlg, lpszText) {
+SendMessage( hDlg, PSM_SETFINISHTEXT, 0, lpszText); }
+
+:dword PropSheet_GetTabControl( dword hDlg) {
+SendMessage( hDlg, PSM_GETTABCONTROL, 0, 0); }
+
+:dword PropSheet_IsDialogMessage( dword hDlg, pMsg) {
+SendMessage( hDlg, PSM_ISDIALOGMESSAGE, 0, pMsg); }
+
+:dword PropSheet_GetCurrentPageHwnd( dword hDlg) {
+SendMessage( hDlg, PSM_GETCURRENTPAGEHWND, 0, 0); }
+

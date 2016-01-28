@@ -1,0 +1,115 @@
+// ------------------------------------------------------------------- //
+//        WINDOWS.H-- для Sphinx C--                                   //
+//        Предложения и плевки отправляйте на hd_keeper@mail.ru        //
+// ------------------------------------------------------------------- //
+#ifndef _INC_WINDOWS
+#define _INC_WINDOWS TRUE
+
+// "winuser.h--" подключается всегда
+#ifndef _WINUSER_
+#define _WINUSER_ TRUE
+
+#include "windef.h--"
+
+#ifdef _WINBASE_
+#undef _WINBASE_
+#include "winbase.h--"
+#endif
+
+#ifdef _WINGDI_
+#undef _WINGDI_
+#include "wingdi.h--"
+#endif
+
+#ifdef _WINUSER_
+#undef _WINUSER_
+#include "winuser.h--"
+#endif
+
+#ifdef _WINNT_
+#undef _WINNT_
+#include "winbase.h--"
+#endif
+
+#ifdef _WINERROR_
+#undef _WINERROR_
+#include "winerror.h--"
+#endif
+
+#ifdef _COMMCTRL_
+#undef _COMMCTRL_
+#include "commctrl.h--"
+#endif
+
+#ifdef _CCANIM_
+#undef _CCANIM_
+#include "ccanim.h--"
+#endif
+
+#ifdef _CCHEADER_
+#undef _CCHEADER_
+#include "ccheader.h--"
+#endif
+
+#ifdef _CCLIST_
+#undef _CCLIST_
+#include "cclist.h--"
+#endif
+
+#ifdef _CCPRSHT_
+#undef _CCPRSHT_
+#include "ccprsht.h--"
+#endif
+
+#ifdef _CCTAB_
+#undef _CCTAB_
+#include "cctab.h--"
+#endif
+
+#ifdef _CCTREE_
+#undef _CCTREE_
+#include "cctree.h--"
+#endif
+
+#ifdef _COMMDLG_
+#undef _COMMDLG_
+#include "commdlg.h--"
+#endif
+
+#ifdef _ADVAPI_
+#undef _ADVAPI_
+#include "advapi.h--"
+#endif
+
+#ifdef _SHELLAPI_
+#undef _SHELLAPI_
+#include "shellapi.h--"
+#endif
+
+#ifdef _LZEXPAND_
+#undef _LZEXPAND_
+#include "lzexpand.h--"
+#endif
+
+#ifdef _STRING32_
+#undef _STRING32_
+#include "string32.h--"
+#endif
+
+#ifdef _WINSOCK_
+#undef _WINSOCK_
+#include "WINSOCK.h--"
+#endif
+
+#ifdef _WINNETWK_
+#undef _WINNETWK_
+#include "WINNETWK.h--"
+#endif
+
+#ifdef _WINCON_
+#undef _WINCON_
+#include "WINCON.h--"
+#endif
+
+#endif
+#endif

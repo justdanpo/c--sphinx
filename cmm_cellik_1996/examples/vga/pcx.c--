@@ -1,0 +1,109 @@
+/*
+    SPHINX Programming 1994
+    NAME:  PCX.C--
+    DESCRIPTION:  This program demonstrates some of the PCX display routines
+                  currently available in C--.
+    LAST MODIFIED:  22 Apr. 1994
+*/
+
+
+?parsecommandline  TRUE
+
+
+?include "PCX.H--"
+
+?include "VIDEO.H--"
+?include "DOS.H--"
+?include "KEYCODES.H--"
+?include "WRITE.H--"
+?include "VGA.H--"
+?include "STRING.H--"
+
+
+?define PALSIZE  256*3
+byte palette[PALSIZE];    // palette buffer
+
+?define BUFSEGSIZE 4095    // 4095 paragraphs == 65520 bytes
+word bufseg;
+
+
+void display_info ()
+{
+WRITESTR("\n");
+WRITESTR(PARAMSTR(0));
+WRITESTR(" Loaded.\n");
+
+WRITESTR("\nxmin = ");
+WRITEWORD(PCX_xmin);
+WRITESTR("    xmax = ");
+WRITEWORD(PCX_xmax);
+
+WRITESTR("\nymin = ");
+WRITEWORD(PCX_ymin);
+WRITESTR("    ymax = ");
+WRITEWORD(PCX_ymax);
+
+WRITESTR("\nhres = ");
+WRITEWORD(PCX_hres);
+WRITESTR("    vres = ");
+WRITEWORD(PCX_vres);
+
+WRITESTR("\nbits_per_pixel = ");
+WRITEWORD(PCX_bits_per_pixel);
+
+WRITESTR("\ncolor_planes = ");
+WRITEWORD(PCX_color_planes);
+
+WRITESTR("\nbytes_per_line = ");
+WRITEWORD(PCX_bytes_per_line);
+
+WRITESTR("\npalette type = ");
+WRITEWORD(PCX_palette_type);
+
+WRITESTR("\n\nPress any key to display...");
+BIOSREADKEY();
+}
+
+
+void main ()
+{
+IF( PARAMCOUNT() != 1 )
+    {WRITESTR("\nUSAGE:  PCX <pcx file to read>\n");
+    EXIT(1);
+    }
+
+bufseg = GETMEM(BUFSEGSIZE);
+IF( bufseg == 0 )
+    {WRITESTR("Unable to allocate memory.\n");
+    EXIT(1);
+    }
+
+IF( byte readPCX(PARAMSTR(0),bufseg,0,BUFSEGSIZE*16,pcx_cut) != pcx_e_ok )
+    {WRITESTR("Not valid PCX file.\n");
+    EXIT(2);
+    }
+
+IF( byte readPCXpalette(PARAMSTR(0),DS,#palette) != pcx_e_ok )
+    {WRITESTR("Error reading palette.\n");
+    EXIT(4);
+    }
+
+display_info();
+
+SETVIDEOMODE(vid_320x200_256);
+
+SETVGAPALETTE( ,0,256,#palette);
+
+$ PUSH DS
+DS = bufseg;
+putimage19(0,0,0);    //  put onto the screen
+$ POP DS
+
+BIOSREADKEY();  // wait for a key
+
+
+SETVIDEOMODE(vid_text80c);
+}
+
+
+/* end of PCX.C-- */

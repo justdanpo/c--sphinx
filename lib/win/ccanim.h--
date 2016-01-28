@@ -1,0 +1,30 @@
+// ------------------------------------------------------------------- //
+//        CCANIM.H-- для Sphinx C-- (COMCTL32.DLL)                     //
+//        Основан на COMMCTRL.H из C++ Builder                         //
+//        Предложения и плевки отправляйте на hd_keeper@mail.ru        //
+// ------------------------------------------------------------------- //
+
+
+// Описание функций
+
+:dword Animate_Create( dword hwndP, id, dwStyle, hInstance) {
+CreateWindowEx( 0, ANIMATE_CLASS, NULL, dwStyle, 0, 0, 0, 0, hwndP, id, hInstance, NULL); }
+
+:dword Animate_Open( dword hwnd, szName) {
+SendMessage( hwnd, ACM_OPEN, 0, szName); }
+
+:dword Animate_OpenEx( dword hwnd, hInst, szName) {
+SendMessage( hwnd, ACM_OPEN, hInst, szName); }
+
+:dword Animate_Play( dword hwnd, from, to, rep) {
+SendMessage( hwnd, ACM_PLAY, rep, @MAKELONG( from, to)); }
+
+:dword Animate_Stop( dword hwnd) {
+SendMessage( hwnd, ACM_STOP, 0, 0); }
+
+:dword Animate_Close( dword hwnd) {
+SendMessage( hwnd, ACM_OPEN, 0, 0); }
+
+:dword Animate_Seek( dword hwnd, frame) {
+SendMessage( hwnd, ACM_PLAY, 1, @MAKELONG( frame, frame)); }
+

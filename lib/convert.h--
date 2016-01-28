@@ -1,0 +1,177 @@
+/*
+  FILE: CONVERT.H--
+
+  DESCRIPTION: ?
+
+  LAST MODIFIED: March 11, 2001
+
+  FUNCTIONS:
+     *** ?
+        :byte HEX2BCD()
+     *** ?
+        :byte BCD2HEX()
+     *** ?
+        :word BCD2ASC()
+
+     *** convert byte value in AL to hexadecimal string at DS:BX
+        :void BYTE2HEXSTR(byte byte_value, string_offset)
+     *** same as above, but doesn't terminate the string
+        :void BYTE2HEXSTR2(byte byte_value, string_offset)
+     *** convert word value in AX to hexadecimal string at DS:BX
+        :void WORD2HEXSTR(word_value, string_offset)
+     *** same as above, but doesn't terminate the string
+        :void WORD2HEXSTR2(word_value, string_offset)
+     *** convert dword value in EAX to hexadecimal string at DS:BX
+        :void DWORD2HEXSTR(dword dword_value, string_offset)
+     *** same as above, but doesn't terminate the string
+        :void DWORD2HEXSTR2(dword dword_value, string_offset)
+*/
+
+?ifndef _CONVERT_
+?define _CONVERT_ TRUE
+
+/*-----------------22.12.98 16:22-------------------
+ Некоторые конверсии чисал и данных
+--------------------------------------------------*/
+
+/*-----------------22.12.98 16:23-------------------
+ Преобразовать 16-ричное число в упакованное 10-ричное
+--------------------------------------------------*/
+:byte HEX2BCD()
+//Вход AL - hex число от 0-0x63
+//Выход AL - BCD число от 0x00-0x99
+{
+  $aam
+  $shl AH, 4
+  AL |= AH;
+}
+
+/*-----------------22.12.98 16:29-------------------
+ Преобразовать число формата BCD в 16-ричное
+--------------------------------------------------*/
+//Вход AL - BCD число от 0x00-0x99
+//Выход AL - hex число от 0-0x63
+:byte BCD2HEX()
+{
+  DL = AL;
+  $shr AL, 4
+  AL = AL * 10;
+  DL &= 0xF;
+  AL += DL;
+//ПОРТИТ DL CL
+}
+
+/*-----------------22.12.98 16:30-------------------
+ Преобразовать число формата BCD в два ascii символа
+--------------------------------------------------*/
+//Вход AL - BCD число от 0x00-0x99
+//Выход - AL ascii символ десятков
+//        AH ascii символ единиц
+:word BCD2ASC()
+{
+  AH = AL;
+  AH &= 0xF;
+  $shr AL, 4
+  AX |= 0x3030;
+}
+
+:void BYTE2HEXSTR()
+{
+  CX = 2;
+  loop (CX) {
+    $rol AL, 4
+    $push AX
+    AL &= 0xF;
+    $cmp AL, 10
+    $sbb AL, 0x69
+    $das
+    DSBYTE[BX] = AL;
+    BX++;
+    $pop AX
+  }
+  DSBYTE[BX] = 0;
+}
+
+:void BYTE2HEXSTR2()
+{
+  CX = 2;
+  loop (CX) {
+    $rol AL, 4
+    $push AX
+    AL &= 0xF;
+    $cmp AL, 10
+    $sbb AL, 0x69
+    $das
+    DSBYTE[BX] = AL;
+    BX++;
+    $pop AX
+  }
+}
+
+:void WORD2HEXSTR()
+{
+  CX = 4;
+  loop (CX) {
+    $rol AX, 4
+    $push AX
+    AL &= 0xF;
+    $cmp AL, 10
+    $sbb AL, 0x69
+    $das
+    DSBYTE[BX] = AL;
+    BX++;
+    $pop AX
+  }
+  DSBYTE[BX] = 0;
+}
+
+:void WORD2HEXSTR2()
+{
+  CX = 4;
+  loop (CX) {
+    $rol AX, 4
+    $push AX
+    AL &= 0xF;
+    $cmp AL, 10
+    $sbb AL, 0x69
+    $das
+    DSBYTE[BX] = AL;
+    BX++;
+    $pop AX
+  }
+}
+
+:void DWORD2HEXSTR()
+{
+  CX = 8;
+  loop (CX) {
+    $rol EAX, 4
+    $push EAX
+    AL &= 0xF;
+    $cmp AL,10
+    $sbb AL, 0x69
+    $das
+    DSBYTE[BX] = AL;
+    BX++;
+    $pop EAX
+  }
+  DSBYTE[BX] = 0;
+}
+
+:void DWORD2HEXSTR2()
+{
+  CX = 8;
+  loop (CX) {
+    $rol EAX, 4
+    $push EAX
+    AL &= 0xF;
+    $cmp AL,10
+    $sbb AL, 0x69
+    $das
+    DSBYTE[BX] = AL;
+    BX++;
+    $pop EAX
+  }
+}
+
+?endif /* _CONVERT_ */

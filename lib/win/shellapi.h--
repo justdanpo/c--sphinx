@@ -1,0 +1,318 @@
+// ------------------------------------------------------------------- //
+//        SHELLAPI.H-- для Sphinx C-- (SHELL32.DLL)                    //
+//        Основан на SHELLAPI.H и SHLOBJ.H из C++ Builder              //
+//        Предложения и плевки отправляйте на hd_keeper@mail.ru        //
+// ------------------------------------------------------------------- //
+
+// Описание констант
+
+#define SE_ERR_FNF              2
+#define SE_ERR_PNF              3
+#define SE_ERR_ACCESSDENIED     5
+#define SE_ERR_OOM              8
+#define SE_ERR_SHARE           26
+#define SE_ERR_ASSOCINCOMPLETE 27
+#define SE_ERR_DDETIMEOUT      28
+#define SE_ERR_DDEFAIL         29
+#define SE_ERR_DDEBUSY         30
+#define SE_ERR_NOASSOC         31
+#define SE_ERR_DLLNOTFOUND     32
+
+#define SEE_MASK_CLASSNAME        0x00000001
+#define SEE_MASK_CLASSKEY         0x00000003
+#define SEE_MASK_IDLIST           0x00000004
+#define SEE_MASK_INVOKEIDLIST     0x0000000c
+#define SEE_MASK_ICON             0x00000010
+#define SEE_MASK_HOTKEY           0x00000020
+#define SEE_MASK_NOCLOSEPROCESS   0x00000040
+#define SEE_MASK_CONNECTNETDRV    0x00000080
+#define SEE_MASK_FLAG_DDEWAIT     0x00000100
+#define SEE_MASK_DOENVSUBST       0x00000200
+#define SEE_MASK_FLAG_NO_UI       0x00000400
+#define SEE_MASK_UNICODE          0x00004000
+#define SEE_MASK_NO_CONSOLE       0x00008000
+#define SEE_MASK_ASYNCOK          0x00100000
+#define SEE_MASK_HMONITOR         0x00200000
+
+#define NIM_ADD         0x00000000
+#define NIM_MODIFY      0x00000001
+#define NIM_DELETE      0x00000002
+#define NIF_MESSAGE     0x00000001
+#define NIF_ICON        0x00000002
+#define NIF_TIP         0x00000004
+
+#define SHARD_PIDL      0x00000001
+#define SHARD_PATHA     0x00000002
+#define SHARD_PATHW     0x00000003
+
+#define ABM_NEW              0x00000000
+#define ABM_REMOVE           0x00000001
+#define ABM_QUERYPOS         0x00000002
+#define ABM_SETPOS           0x00000003
+#define ABM_GETSTATE         0x00000004
+#define ABM_GETTASKBARPOS    0x00000005
+#define ABM_ACTIVATE         0x00000006
+#define ABM_GETAUTOHIDEBAR   0x00000007
+#define ABM_SETAUTOHIDEBAR   0x00000008
+#define ABM_WINDOWPOSCHANGED 0x00000009
+#define ABN_STATECHANGE      0x00000000
+#define ABN_POSCHANGED       0x00000001
+#define ABN_FULLSCREENAPP    0x00000002
+#define ABN_WINDOWARRANGE    0x00000003
+#define ABS_AUTOHIDE         0x00000001
+#define ABS_ALWAYSONTOP      0x00000002
+#define ABE_LEFT             0x00000000
+#define ABE_TOP              0x00000001
+#define ABE_RIGHT            0x00000002
+#define ABE_BOTTOM           0x00000003
+
+#define BIF_RETURNONLYFSDIRS   0x0001
+#define BIF_DONTGOBELOWDOMAIN  0x0002
+#define BIF_STATUSTEXT         0x0004
+#define BIF_RETURNFSANCESTORS  0x0008
+#define BIF_EDITBOX            0x0010
+#define BIF_VALIDATE           0x0020
+#define BIF_BROWSEFORCOMPUTER  0x1000
+#define BIF_BROWSEFORPRINTER   0x2000
+#define BIF_BROWSEINCLUDEFILES 0x4000
+#define BFFM_INITIALIZED       0x0001
+#define BFFM_SELCHANGED        0x0002
+#define BFFM_VALIDATEFAILEDA   0x0003
+#define BFFM_VALIDATEFAILEDW   0x0004
+#define BFFM_SETSTATUSTEXTA    WM_USER+100
+#define BFFM_ENABLEOK          WM_USER+101
+#define BFFM_SETSELECTIONA     WM_USER+102
+#define BFFM_SETSELECTIONW     WM_USER+103
+#define BFFM_SETSTATUSTEXTW    WM_USER+104
+
+#define SHCNE_RENAMEITEM          0x00000001
+#define SHCNE_CREATE              0x00000002
+#define SHCNE_DELETE              0x00000004
+#define SHCNE_MKDIR               0x00000008
+#define SHCNE_RMDIR               0x00000010
+#define SHCNE_MEDIAINSERTED       0x00000020
+#define SHCNE_MEDIAREMOVED        0x00000040
+#define SHCNE_DRIVEREMOVED        0x00000080
+#define SHCNE_DRIVEADD            0x00000100
+#define SHCNE_NETSHARE            0x00000200
+#define SHCNE_NETUNSHARE          0x00000400
+#define SHCNE_ATTRIBUTES          0x00000800
+#define SHCNE_UPDATEDIR           0x00001000
+#define SHCNE_UPDATEITEM          0x00002000
+#define SHCNE_SERVERDISCONNECT    0x00004000
+#define SHCNE_UPDATEIMAGE         0x00008000
+#define SHCNE_DRIVEADDGUI         0x00010000
+#define SHCNE_RENAMEFOLDER        0x00020000
+#define SHCNE_FREESPACE           0x00040000
+#define SHCNE_EXTENDED_EVENT      0x04000000
+#define SHCNE_ASSOCCHANGED        0x08000000
+#define SHCNE_DISKEVENTS          0x0002381F
+#define SHCNE_GLOBALEVENTS        0x0C0581E0
+#define SHCNE_ALLEVENTS           0x7FFFFFFF
+#define SHCNE_INTERRUPT           0x80000000
+#define SHCNEE_ORDERCHANGED       0x00000002
+
+#define SHCNF_IDLIST      0x0000
+#define SHCNF_PATH        0x0001
+#define SHCNF_PRINTER     0x0002
+#define SHCNF_DWORD       0x0003
+#define SHCNF_TYPE        0x00FF
+#define SHCNF_FLUSH       0x1000
+#define SHCNF_FLUSHNOWAIT 0x2000
+
+#define FO_MOVE           0x0001
+#define FO_COPY           0x0002
+#define FO_DELETE         0x0003
+#define FO_RENAME         0x0004
+
+#define FOF_MULTIDESTFILES         0x0001
+#define FOF_CONFIRMMOUSE           0x0002
+#define FOF_SILENT                 0x0004
+#define FOF_RENAMEONCOLLISION      0x0008
+#define FOF_NOCONFIRMATION         0x0010
+#define FOF_WANTMAPPINGHANDLE      0x0020
+#define FOF_ALLOWUNDO              0x0040
+#define FOF_FILESONLY              0x0080
+#define FOF_SIMPLEPROGRESS         0x0100
+#define FOF_NOCONFIRMMKDIR         0x0200
+#define FOF_NOERRORUI              0x0400
+#define FOF_NOCOPYSECURITYATTRIBS  0x0800
+
+#define SHGFI_ICON              0x000000100
+#define SHGFI_DISPLAYNAME       0x000000200
+#define SHGFI_TYPENAME          0x000000400
+#define SHGFI_ATTRIBUTES        0x000000800
+#define SHGFI_ICONLOCATION      0x000001000
+#define SHGFI_EXETYPE           0x000002000
+#define SHGFI_SYSICONINDEX      0x000004000
+#define SHGFI_LINKOVERLAY       0x000008000
+#define SHGFI_SELECTED          0x000010000
+#define SHGFI_ATTR_SPECIFIED    0x000020000
+#define SHGFI_LARGEICON         0x000000000
+#define SHGFI_SMALLICON         0x000000001
+#define SHGFI_OPENICON          0x000000002
+#define SHGFI_SHELLICONSIZE     0x000000004
+#define SHGFI_PIDL              0x000000008
+#define SHGFI_USEFILEATTRIBUTES 0x000000010
+
+#define CSIDL_DESKTOP                   0x0000
+#define CSIDL_INTERNET                  0x0001
+#define CSIDL_PROGRAMS                  0x0002
+#define CSIDL_CONTROLS                  0x0003
+#define CSIDL_PRINTERS                  0x0004
+#define CSIDL_PERSONAL                  0x0005
+#define CSIDL_FAVORITES                 0x0006
+#define CSIDL_STARTUP                   0x0007
+#define CSIDL_RECENT                    0x0008
+#define CSIDL_SENDTO                    0x0009
+#define CSIDL_BITBUCKET                 0x000a
+#define CSIDL_STARTMENU                 0x000b
+#define CSIDL_DESKTOPDIRECTORY          0x0010
+#define CSIDL_DRIVES                    0x0011
+#define CSIDL_NETWORK                   0x0012
+#define CSIDL_NETHOOD                   0x0013
+#define CSIDL_FONTS                     0x0014
+#define CSIDL_TEMPLATES                 0x0015
+#define CSIDL_COMMON_STARTMENU          0x0016
+#define CSIDL_COMMON_PROGRAMS           0X0017
+#define CSIDL_COMMON_STARTUP            0x0018
+#define CSIDL_COMMON_DESKTOPDIRECTORY   0x0019
+#define CSIDL_APPDATA                   0x001a
+#define CSIDL_PRINTHOOD                 0x001b
+#define CSIDL_ALTSTARTUP                0x001d
+#define CSIDL_COMMON_ALTSTARTUP         0x001e
+#define CSIDL_COMMON_FAVORITES          0x001f
+#define CSIDL_INTERNET_CACHE            0x0020
+#define CSIDL_COOKIES                   0x0021
+#define CSIDL_HISTORY                   0x0022
+
+// Описание структур
+
+struct SHELLEXECUTEINFO {
+  DWORD cbSize;
+  ULONG fMask;
+  HWND hwnd;
+  LPCSTR lpVerb;
+  LPCSTR lpFile;
+  LPCSTR lpParameters;
+  LPCSTR lpDirectory;
+  INT nShow;
+  HINSTANCE hInstApp;
+  LPVOID lpIDList;
+  LPCSTR lpClass;
+  HKEY hkeyClass;
+  DWORD dwHotKey;
+  union {
+    HANDLE hIcon;
+    HANDLE hMonitor;
+  };
+  HANDLE hProcess;
+};
+
+struct NOTIFYICONDATA {
+  DWORD cbSize;
+  HWND hWnd;
+  UINT uID;
+  UINT uFlags;
+  UINT uCallbackMessage;
+  HICON hIcon;
+  CHAR szTip[64];
+};
+
+struct APPBARDATA {
+  DWORD cbSize;
+  HWND hWnd;
+  UINT uCallbackMessage;
+  UINT uEdge;
+  struct RECT rc;
+  LPARAM lParam;
+};
+
+struct BROWSEINFO {
+  HWND hwndOwner;
+  LPVOID pidlRoot;
+  LPSTR pszDisplayName;
+  LPCSTR lpszTitle;
+  UINT ulFlags;
+  LPVOID lpfn;
+  LPARAM lParam;
+  INT iImage;
+};
+
+struct SHFILEOPSTRUCT {
+  HWND hwnd;
+  UINT wFunc;
+  LPCSTR pFrom;
+  LPCSTR pTo;
+  WORD fFlags;
+  BOOL fAnyOperationsAborted;
+  LPVOID hNameMappings;
+  LPCSTR lpszProgressTitle;
+};
+
+struct SHNAMEMAPPING {
+  LPSTR pszOldPath;
+  LPSTR pszNewPath;
+  INT cchOldPath;
+  INT cchNewPath;
+};
+
+struct SHFILEINFO {
+  HICON hIcon;
+  INT iIcon;
+  DWORD dwAttributes;
+  CHAR szDisplayName[MAX_PATH];
+  CHAR szTypeName[80];
+};
+
+// Импорт функций
+
+extern WINAPI "shell32.dll"
+{
+  CommandLineToArgvW();
+  DoEnvironmentSubstA();
+  DragAcceptFiles();
+  DragFinish();
+  DragQueryFileA();
+  DragQueryPoint();
+  DuplicateIcon();
+  ExtractAssociatedIconA();
+  ExtractIconA();
+  ExtractIconExA();
+  FindExecutableA();
+  ShellAboutA();
+  ShellExecuteA();
+  ShellExecuteExA();
+  Shell_NotifyIconA();
+  SHAddToRecentDocs();
+  SHAppBarMessage();
+  SHBrowseForFolderA();
+  SHChangeNotify();
+  SHFileOperationA();
+  SHFreeNameMappings();
+  SHGetDataFromIDListA();
+  SHGetDesktopFolder();
+  SHGetFileInfoA();
+  SHGetInstanceExplorer();
+  SHGetMalloc();
+  SHGetPathFromIDListA();
+  SHGetSpecialFolderLocation();
+  SHLoadInProc();
+}
+
+#define DoEnvironmentSubst DoEnvironmentSubstA
+#define DragQueryFile DragQueryFileA
+#define ExtractAssociatedIcon ExtractAssociatedIconA
+#define ExtractIcon ExtractIconA
+#define ExtractIconEx ExtractIconExA
+#define FindExecutable FindExecutableA
+#define ShellAbout ShellAboutA
+#define ShellExecute ShellExecuteA
+#define ShellExecuteEx ShellExecuteExA
+#define Shell_NotifyIcon Shell_NotifyIconA
+#define SHBrowseForFolder SHBrowseForFolderA
+#define SHFileOperation SHFileOperationA
+#define SHGetDataFromIDList SHGetDataFromIDListA
+#define SHGetFileInfo SHGetFileInfoA
+#define SHGetPathFromIDList SHGetPathFromIDListA
+

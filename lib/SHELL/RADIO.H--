@@ -1,0 +1,76 @@
+#ifndef _RADIO_
+#define _RADIO_ TRUE
+#warning FALSE
+
+void Radio(int,int,byte,byte,word);
+
+byte radiochar[4]={'(', ')',      // radio button brackets ==> ()
+                   ' ', 0x7};      // radio button selector ==> 
+
+?ifdef GOODFONTS
+
+?ifndef SMOLLFONT
+
+byte _fontradio[4*17]={
+	198,0x00,0x00,0x01,0x02,0x02,0x04,0x04,0x04,0x04,0x02,0x02,0x01,0x00,0x00,0x00,0x00,		/* radio button () */
+	 20,0x00,0x00,0x00,0x80,0x80,0x40,0x40,0x40,0x40,0x80,0x80,0x00,0x00,0x00,0x00,0x00,
+	199,0x00,0xFE,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0xFE,0x00,0x00,0x00,		/* radio button ( ) & () */
+	202,0x00,0xFE,0x01,0x00,0x7C,0xFE,0xFE,0xFE,0xFE,0x7C,0x00,0x01,0xFE,0x00,0x00,0x00};
+
+?else
+
+byte _fontradio[NUMFONT*9]={
+	198,0x00,0x01,0x02,0x04,0x04,0x02,0x01,0x00,
+	 20,0x00,0x00,0x80,0x40,0x40,0x80,0x00,0x00,
+	199,0xFE,0x01,0x00,0x00,0x00,0x00,0x01,0xFE,
+	202,0xFE,0x01,0x7C,0xFE,0xFE,0x7C,0x01,0xFE};
+
+?endif
+
+?endif
+
+byte initradio=FALSE;
+
+void Radio(int y,x;byte activ,select;word str)
+int battr;
+byte pchar;
+{
+	IF(!initradio){
+		initradio=TRUE;
+?ifdef GOODFONTS
+ 		DefineFont(#_fontradio,4);	//загрузить красивые фонты
+/* radio button () */
+		radiochar[0]=198;
+		radiochar[1]=20;
+/* radio button ( ) & () */
+		radiochar[2]=199;
+		radiochar[3]=202;
+?endif
+	}
+	mshidecur(); // спрятать курсор мыши
+	AX=_scheme.schNormalText[Window.scheme];
+	IF(activ)AX=_scheme.schActiveRadio[Window.scheme];
+	battr=AX;
+	AL=radiochar[2];
+	IF(select)AL=radiochar[3];
+	pchar=AL;
+	wprintc(y,x,battr,radiochar[0]);
+	wprintc(y,x+1,battr,pchar);
+	wprintc(y,x+2,battr,radiochar[1]);
+	msshowcur(); // показать курсор мыши
+	Say(y,x+4,battr,str);
+  /* курсорчик покажем или не покажем */
+  /* спрятать курсор? */
+//	IF(!activ)HIDECUR();
+//	ELSE{
+/* спозиционировать курсор под среднюю часть переключателя */
+//		wgotoxy (y,x+1);
+//		SHOWCUR(0x507);
+//	}
+    /* зафиксируем положение указателя */
+//    crow = 0;
+//    ccol = 1;
+
+}
+
+#endif

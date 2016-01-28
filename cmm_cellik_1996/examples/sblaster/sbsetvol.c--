@@ -1,0 +1,232 @@
+/*
+   Copyright (C) 1994  Michael B. Martin
+
+   SETVOL ver. 1.0
+
+   Description:  A TSR that uses <ALT> plus '[' or ']' to decrease or
+                 increase (respectively) the SB Pro master (mixer) volume.
+
+   28 May 1994:  Small modifications by SPHINX.
+*/
+
+?resize FALSE
+
+?include "KEYCODES.H--"
+?include "WRITE.H--"
+?include "SYSTEM.H--"
+?include "DOS.H--"
+?include "TSR.H--"
+
+?define DSP_RESET        0x06
+?define DSP_WRITE_STATUS 0x0C
+?define DSP_DATA_AVAIL   0x0E
+?define DSP_VER          0xE1
+
+?define MIXER_ADDRESS  0x04
+?define MASTER_VOL     0x22
+
+?define s_upalt s_alt+128
+?define s_upctrl s_ctrl+128
+
+word SbIOaddr = 0x220;
+dword oldkeyhandle={};
+byte altflag=0, ctrlflag=0;
+
+void WRITEMIXER()
+{
+   DX = SbIOaddr+MIXER_ADDRESS;
+   $ OUT DX,AL   // output x
+   $ INC DX      // DX = SbIOaddr+MIXER_DATA  ==  SbIOaddr+MIXER_ADDRESS+1
+   AL = BL;      // output y
+   $ OUT DX,AL
+}
+
+byte READMIXER()
+{
+   DX = SbIOaddr+MIXER_ADDRESS;
+   $ OUT DX,AL     // output x
+   $ INC DX        // DX = SbIOaddr+MIXER_DATA;
+   $ IN AL,DX
+}
+
+interrupt keyhandle()
+{
+   $ PUSH DS
+   $ PUSH AX
+   $ PUSH BX
+   $ PUSH DX
+   DS = CS;
+   $ IN AL,KEYBOARD_PORT
+   IF (AL == s_alt)
+      altflag=1;
+   else IF (AL == s_upalt)
+      altflag=0;
+   else IF (AL == s_ctrl)
+      ctrlflag=1;
+   else IF (AL == s_upctrl)
+      ctrlflag=0;
+   else IF (AL == s_opensquare)
+   {
+      IF (altflag == 1)
+      {
+         READMIXER(MASTER_VOL);
+         BL = AL;
+         $ SHR BL,4        // BL has left volume
+         $ AND AL,0x0F     // AL has right volume
+         IF (AL > 1)
+            AL -= 2;
+         IF (BL > 1)
+            BL -= 2;
+         $ SHL BL,4
+         $ ADD BL,AL
+         WRITEMIXER(MASTER_VOL,BX);
+         @EATKEY();
+         @EOI();
+         $ POP DX
+         $ POP BX
+         $ POP AX
+         $ POP DS
+         return();
+      }
+   }
+   ELSE IF (AL == s_closesquare)
+   {
+      IF (altflag == 1)
+      {
+         READMIXER(MASTER_VOL);
+         BL = AL;
+         $ SHR BL,4        // BL has left volume
+         $ AND AL,0x0F     // AL has right volume
+         IF (AL < 14)
+            AL += 2;
+         IF (BL < 14)
+            BL += 2;
+         $ SHL BL,4
+         $ ADD BL,AL
+         WRITEMIXER(MASTER_VOL,BX);
+         @EATKEY();
+         @EOI();
+         $ POP DX
+         $ POP BX
+         $ POP AX
+         $ POP DS
+         return();
+      }
+   }
+   $ POP DX
+   $ POP BX
+   $ POP AX
+   $ POP DS
+   $ JMP FAR CSDWORD[#oldkeyhandle]
+}
+
+/*
+   Reset routine for Sound Blaster.
+   Returns non-zero value on error.
+*/
+: int SB_INIT()
+{
+    AL = 1;
+    DX = SbIOaddr + DSP_RESET;
+    $ OUT DX,AL
+    $ IN AL,DX
+    $ IN AL,DX
+    $ IN AL,DX
+    $ IN AL,DX
+    $ XOR AL,AL
+    $ OUT DX,AL
+    DX += 4;
+    CX = 100;
+    loop(CX)
+    {
+       $ IN AL,DX
+       $ CMP AL,0xAA
+       $ JE DONE1
+    }
+    AX = -1;
+    $ JMP DONE2
+DONE1:
+    $ XOR AX,AX
+DONE2:
+}
+
+/*
+   Write data to the DSP
+
+   On entry: byte to be written in AL
+*/
+: void WRITEDSP()
+{
+   $ MOV AH,AL     // save a copy of AL for later
+   DX = SbIOaddr + DSP_WRITE_STATUS;
+WAITLOOP:
+   $ IN AL,DX
+   $ OR AL,AL
+   $ JS WAITLOOP
+//   DX = SbIOaddr + DSP_WRITE_DATA;   // not necessary (same port)
+   $ MOV AL,AH
+   $ OUT DX,AL
+}
+
+/*
+   Read data from the DSP, with a timeout
+   Usage: READDSP(,,count)
+   On exit: byte read in AL
+*/
+: byte READDSP()
+{
+   DX = SbIOaddr + DSP_DATA_AVAIL;
+   loop(CX)
+   {
+      $ IN AL,DX
+      $ OR AL,AL
+      $ JS READY
+   }
+READY:
+   $ SUB DL,4         // DX = SbIOaddr + DSP_READ_DATA;
+   $ IN AL,DX
+}
+
+
+/* Gets the DSP version number from the sound card.
+   Returns:
+      AH = high byte
+      AL = low byte
+*/
+: word GET_DSP_VER()
+{
+   @WRITEDSP(DSP_VER);
+   @WAIT(3);
+REGET:
+   @READDSP(,,100);       // get the high byte
+   IF (AL == 0xAA)
+      $ JMP REGET
+   $ MOV AH,AL
+   @READDSP(,,100);       // get the low byte
+}
+
+main()
+{
+   /* Do a quick check to see a SB Pro card is installed. */
+   SbIOaddr = 0x220;
+   IF (@SB_INIT() != 0)
+   {
+      SbIOaddr = 0x240;
+      IF (@SB_INIT() != 0)
+      {
+         @WRITESTR("Couldn't find Sound Blaster card!\n");
+         @EXIT(-1);
+      }
+   }
+   @GET_DSP_VER();
+   IF (AH != 3)
+   {
+      @WRITESTR("Sound Blaster Pro not detected!\n");
+      @EXIT(-1);
+   }
+
+   @WRITESTR("SETVOL installed.\n\t Use <ALT> + ']' to increase volume\n\t Use <ALT> + '[' to decrease volume\n");
+   @GETINTVECT(#oldkeyhandle,KEYBOARD_INT);
+   @SETINTVECT( ,KEYBOARD_INT,CS,#keyhandle);
+   @KEEP( , , ,#main);
+}

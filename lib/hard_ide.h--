@@ -1,0 +1,225 @@
+?ifndef _HARD_IDE_
+?define _HARD_IDE_ TRUE
+?warning FALSE
+
+:void readsect(byte head,sect;word cul;byte count_sect;word buffer)
+/* чтение секторов  вход:
+ головка
+ сектор
+ цилиндр
+ число секторов
+ буфер
+ */
+{
+	DX=0X3F6;
+	AL=0;
+	$OUT DX,AL
+	WAIT_BUSY();
+	IF(CARRYFLAG){
+		AX=-1;
+		$JMP SHORT EN
+	}
+	DX--;
+	AL=head|0XA0;	//выбрать головку и устройство
+	$OUT DX,AL
+	DX=0X1F2;	//число секторов
+	AL=count_sect;
+	$OUT DX,AL
+	DX++;
+	AL=sect;	//стартовый сектор
+	$OUT DX,AL
+	DX++;
+	AX=cul;		//старший байт номера цилиндра
+	$OUT DX,AL
+	DX++;
+	AL=AH;
+	$OUT DX,AL
+	DX=0X1F7;
+	AL=0X20;	//команда чтения сектора
+	$OUT DX,AL
+	do
+	{
+		$IN AL,DX	//проверка готовности буфера
+		$TEST AL,8
+	} while ( ZEROFLAG );
+	DI=buffer;
+	loop(count_sect){
+		$CLI
+		DX=0X1F0;
+		$PUSH SS
+		$POP ES
+		CX=256;
+		$REPE
+		$INSW
+		$STI
+		WAIT_BUSY();
+		IF(CARRYFLAG){
+			AX=-1;
+			$JMP SHORT EN
+		}
+	}
+	DX=0X3F6;
+	AL=2;
+	$OUT DX,AL
+	AX=0;
+EN:
+}
+
+:void savesect(byte head,sect;word cul;byte count_sect;word buffer)
+/* запись секторов вход:
+ головка
+ сектор
+ цилиндр
+ число секторов
+ буфер
+ */
+{
+	DX=0X3F6;
+	AL=0;
+	$OUT DX,AL
+	WAIT_BUSY();
+	IF(CARRYFLAG){
+		AX=-1;
+		$JMP SHORT EN
+	}
+	DX--;
+	AL=head|0XA0;	//выбрать головку и устройство
+	$OUT DX,AL
+	DX=0X1F2;	//число секторов
+	AL=count_sect;
+	$OUT DX,AL
+	DX++;
+	AL=sect;	//стартовый сектор
+	$OUT DX,AL
+	DX++;
+	AX=cul;		//старший байт номера цилиндра
+	$OUT DX,AL
+	DX++;
+	AL=AH;
+	$OUT DX,AL
+	DX=0X1F7;
+	AL=0X30;	//команда запись сектора
+	$OUT DX,AL
+	do
+	{
+		$IN AL,DX	//проверка готовности буфера
+		$TEST AL,8
+	} while ( ZEROFLAG );
+	SI=buffer;
+	loop(count_sect){
+		DX=0X1F0;
+		$CLI
+		CX=256;
+		$REPE
+		$OUTSW
+		WAIT_BUSY();
+		$STI
+		IF(CARRYFLAG){
+			AX=-1;
+			$JMP SHORT EN
+		}
+	}
+	DX=0X3F6;
+	AL=2;
+	$OUT DX,AL
+	AX=0;
+EN:
+}
+
+
+:VINT_INFO()
+/* Возвр параметры IDE винчестера
+ вход:
+ AX-буфер  512 байт
+ выход:
+ AX-число цилиндров
+ BX-число головок
+ CX-число секторов
+
+ структура буфера
+ ofs │leng│
+ ────┼────┼─────────────────
+  00 │ 02 │ ????
+  02 │ 04 │ Culindrs
+  06 │ 02 │ Heads
+  08 │ 02 │ Byte per trec
+  0A │ 02 │ Byte per sector
+  0C │ 02 │ Sectors
+  2C │ 02 │ ECC LENGHT
+  14 │    │ Ser. num          ─┐
+  2E │    │ Firmvare revision  ├запись в текстовом виде но байты в словах
+  36 │    │ Model             ─┘   перевернуты
+     │    │
+*/
+
+word BBB;
+{
+	BBB=AX;
+	do{
+		DX=0X1F7;
+		$IN	AL,DX
+	}while(AL<>0X50);
+	DX--;
+	AL=0XA0;
+	$OUT	DX,AL
+	DX++;
+	AL=0XEC;
+	$OUT	DX,AL
+	DI=BBB;
+	$PUSH SS
+	$POP ES
+	do{
+		$IN	AL,DX
+	}while(AL<>0X58);
+	CX=0X100;
+	DX=0X1F0;
+	$CLI
+	$REPE
+	$INSW
+	$STI
+	SI=BBB+2;
+	$LODSW
+	CX><AX;
+	$LODSW
+	$LODSW
+	BX><AX;
+	$LODSW
+	$LODSW
+	$LODSW
+	AX><CX;
+}
+
+WAIT_BUSY()
+{
+	ES=0;
+	CX=ESWORD[0X46C];
+	DX=0X1F7;
+	do{
+		IF(ESWORD[0X46C]-CX>36){
+			$STC
+			$RET
+		}
+		$IN AL,DX
+		AL&=0X80;
+	}while(NOTZEROFLAG);
+	$CLC
+}
+
+:GREEN_IDE()
+// АКТИВИЗИРУЕТ РЕЖИМ  ОТКЛЮЧЕНИЯ ШПИНДЕЛЯ ПРИ НЕ ИСПОЛЬЗОВАНИИ
+//AL-ЧИСЛО МИНУТ ОЖИДАНИЯ (1-15) 0-ОТМЕНА
+{
+	$PUSH AX
+	DX=0X1F6;
+	AL=0XAF;
+	$OUT DX,AL
+	$POP AX
+	AL=AL*12;
+	DL=0XF2;
+	$OUT DX,AL
+	AL=0XE3;
+	DL=0XF7;
+	$OUT DX,AL
+}
+
+?endif

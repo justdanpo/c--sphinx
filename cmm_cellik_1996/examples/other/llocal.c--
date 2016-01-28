@@ -1,0 +1,35 @@
+/*
+    NAME:  LLOCAL.C--
+    DESCRIPTION:  Last minute example of procedures and local variables,
+                  you get the idea.
+    RUN FILE SIZE:  102 bytes
+*/
+
+
+
+main()
+{proc1();
+}
+
+
+proc1()
+byte hello,i;
+word bag,cat[5+12];
+{
+hello = 1;
+i = 1;
+PROC2();
+bag = 1;
+cat = 1;
+}
+
+
+PROC2()
+byte hello,i;
+word bag,cat;
+{
+hello = 2;
+i = 2;
+bag = 1;
+cat = 1;
+}

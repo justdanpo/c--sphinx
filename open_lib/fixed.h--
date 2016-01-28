@@ -1,0 +1,220 @@
+/****************************************************************************
+    SPHINX Programming (C) 2001.
+    NAME:  FIXED.H--
+    DESCRIPTION: Hабор процедур для работы с фиксированной точкой.
+    LAST MODIFIED:  17-03-2001 17:04:11
+ ----------------------------------------------------------------------------
+    PROCEDURES DEFINED IN THIS FILE:
+    :void WriteFixed_24_8(fixed count)
+    :fixed fastcall FIDIV_24_8(EAX,EBX)
+    :fixed fastcall FDIV_24_8(EAX,EBX)
+    :fixed fastcall FMUL_24_8(EAX,EBX)
+    :fixed fastcall FIDIV_16_16(EAX,EBX)
+    :fixed fastcall FDIV_16_16(EAX,EBX)
+    :fixed fastcall FMUL_16_16(EAX,EBX)
+    :void WriteFixed_16_16(fixed count)
+    :fixed fastcall FIDIV_8_24(EAX,EBX)
+    :fixed fastcall FDIV_8_24(EAX,EBX)
+    :fixed fastcall FMUL_8_24(EAX,EBX)
+    :void WriteFixed_8_24(fixed count)
+    :void fastcall WriteDWordNDigits(EAX,EDI);
+ ----------------------------------------------------------------------------
+    Dryamov Alexey (Din)
+    FidoNet : 2:5055/141.11
+    E-mail  : _Din_@mail.ru
+****************************************************************************/
+
+#ifndef _FIXED_
+ #define _FIXED_ TRUE
+
+#ifndef _WRITE_
+ #include "write.h--"
+#endif
+
+
+#warning FALSE
+
+#define fixed   long
+#define DSFIXED DSLONG
+#define FSFIXED FSLONG
+#define GSFIXED GSLONG
+
+// Объявляем все процедуры
+void WriteFixed_24_8(fixed count);
+fixed fastcall FIDIV_24_8(EAX,EBX);
+fixed fastcall FDIV_24_8(EAX,EBX);
+fixed fastcall FMUL_24_8(EAX,EBX);
+fixed fastcall FIDIV_16_16(EAX,EBX);
+fixed fastcall FDIV_16_16(EAX,EBX);
+fixed fastcall FMUL_16_16(EAX,EBX);
+void WriteFixed_16_16(fixed count);
+fixed fastcall FIDIV_8_24(EAX,EBX);
+fixed fastcall FDIV_8_24(EAX,EBX);
+fixed fastcall FMUL_8_24(EAX,EBX);
+void WriteFixed_8_24(fixed count);
+void fastcall WriteDWordNDigits(EAX,EDI);
+
+
+// Выводит N-знаков DWord-овского значения
+// Параметры (dword number), unsigned int N
+:void fastcall WriteDWordNDigits(EAX,(E)DI)
+{
+        EBX=10;   // Сколько раз делим
+        (E)CX=(E)BX;  // Hа че делим
+        loop((E)CX){
+                EDX=0;
+                $div EBX
+                $push DX // Сохраняем остаток на стеке
+        }
+        CL=10; (E)CX-=(E)DI;
+        WHILE ((E)CX>0){
+         (E)CX--;
+         $pop AX  // Отбрасываем лишние знаки
+        }
+        (E)CX=(E)DI;
+        loop((E)CX){
+                $pop AX
+                AL+=48;
+                Write();
+        }
+}
+
+///////////////////// Fixed 24:8 /////////////////////////
+:void WriteFixed_24_8(fixed count)
+{
+ IF (count<0){
+    Write('-');
+    -count;
+ }
+
+ WriteDWord(count>>8);
+ Write('.');
+
+ count&=0FFh;
+
+ EAX=99;
+ EBX=count;
+ $mul EBX
+ $shrd EAX,EDX,8
+
+ WriteDWordNDigits(EAX,2);
+}
+
+:fixed fastcall FIDIV_24_8(EAX,EBX)
+{
+ $ROL EAX,8
+ $movsx EDX,AL
+ AL=0;
+ $idiv EBX
+}
+
+:fixed fastcall FDIV_24_8(EAX,EBX)
+{
+ $ROL EAX,8
+ $movzx EDX,AL
+ AL=0;
+ $div EBX
+}
+
+:fixed fastcall FMUL_24_8(EAX,EBX)
+{
+ $imul EBX
+ $shrd EAX,EDX,8
+}
+
+
+///////////////////// Fixed 16:16 /////////////////////////
+:fixed fastcall FIDIV_16_16(EAX,EBX)
+{
+ $ROL EAX,16
+ $movsx EDX,AX
+ AX=0;
+ $idiv EBX
+}
+
+:fixed fastcall FDIV_16_16(EAX,EBX)
+{
+ $ROL EAX,16
+ $movzx EDX,AX
+ AX=0;
+ $div EBX
+}
+
+:fixed fastcall FMUL_16_16(EAX,EBX)
+{
+ $imul EBX
+ $shrd EAX,EDX,16
+}
+
+:void WriteFixed_16_16(fixed count)
+{
+ IF (count<0){
+    Write('-');
+    -count;
+ }
+
+ WriteDWord(count>>16);
+ Write('.');
+
+ count&=0FFFFh;
+
+ EAX=9999;
+ EBX=count;
+ $mul EBX
+ $shrd EAX,EDX,16
+
+ WriteDWordNDigits(EAX,4);
+}
+
+///////////////////// Fixed 8:24 /////////////////////////
+:fixed fastcall FIDIV_8_24(EAX,EBX)
+{
+ $shld EDX,EAX,24
+ IF (long EDX&800000h) EDX|=0FF000000h;
+ $shl EAX,24
+ $idiv EBX
+}
+
+:fixed fastcall FDIV_8_24(EAX,EBX)
+{
+ $ROL EAX,24
+ EDX=EAX&0FFFFFFh;
+ EAX&=0FF000000h;
+ $div EBX
+}
+
+:fixed fastcall FMUL_8_24(EAX,EBX)
+{
+ $imul EBX
+ $shrd EAX,EDX,24
+}
+
+:void WriteFixed_8_24(fixed count)
+{
+ IF (count<0){
+    Write('-');
+    -count;
+ }
+
+ WriteDWord(count>>24);
+ Write('.');
+
+ count&=0FFFFFFh;
+
+ EAX=9999999;
+ EBX=count;
+ $mul EBX
+ $shrd EAX,EDX,24
+
+ WriteDWordNDigits(EAX,7);
+}
+
+
+// Абсолютное значение числа
+:fixed fastcall FABS(EAX)
+{
+ IF (EAX<0) -EAX;
+}
+
+#endif
+

@@ -1,0 +1,27 @@
+/*
+    NAME:  BIOSKEY.C--
+    DESCRIPTION:  Small and simple demo program.
+    RUN FILE SIZE:  277 bytes.
+*/
+
+
+?include "KEYCODES.H--"
+?include "WRITE.H--"
+
+word keycode;
+
+main ()
+{
+WRITESTR("Press <ESC> to quit, any other key for BIOS scan code.\n");
+do { 
+     keycode = @BIOSREADKEY();
+     WRITEWORD(DSBYTE[#keycode+1]);   // print high byte
+     WRITE(' ');
+     WRITEWORD(DSBYTE[#keycode]);     // print low byte
+     WRITE(' ');
+     WRITEWORD(keycode);              // print word
+     WRITELN();
+    } while( keycode != k_esc );
+}
+
+/* end of BIOSKEY.C-- */

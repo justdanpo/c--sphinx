@@ -1,0 +1,565 @@
+/****************************************************************************
+    SPHINX Programming (C) 1994, 2000.
+    NAME:  FILE.H--
+    DESCRIPTION:  File related constant definitions and procedures.
+    LAST MODIFIED:  24.12.00 12:36
+ ----------------------------------------------------------------------------
+    PROCEDURES DEFINED IN THIS FILE:
+ word open(word filename;byte mode)
+ word create(word filename,attribute)
+ word close(word filehandle)
+ word readfile(word filename,bufseg,bufoff,bytes)
+ word appendfile(word filename,bufseg,bufoff,bytes)
+ word writefile(word filename,bufseg,bufoff,bytes)
+ word read(word filehandle,bufferoffset,bytes)
+ word readfar(word filehandle,bufferseg,bufferoffset,bytes)
+ word write(word filehandle,bufferoffset,bytes)
+ word writefar(word filehandle,bufferseg,bufferoffset,bytes)
+ word MOUNTDSK(DL)
+ word UNMOUNTDSK(DL)
+ dword SIZEDSK(DL)
+ dword FREESIZEDSK(DL)
+ void FNSPLIT(SI,DI,CX,DX,BX)
+ byte TYPEDRIVE(BL,CX)
+ void LSEEKHOME(BX)
+ word READFAR(BX,AX,DX,CX)
+ word WRITEFAR(BX,AX,DX,CX)
+ void REMOVER(DX)
+ dword SIZEFILE(DX)
+ byte READSECTOR(AL,CX,DX,BX)
+ byte WRITESECTOR(AL,CX,DX,BX)
+ void LLSEEKSET(BX,EDX)
+
+*****************************************************************************/
+?warning FALSE
+
+#include "io.hmm"
+#include "dir.hmm"
+
+/*** standard input, output, error, auxilary and printer file handles ***/
+#define  STDIN    0
+#define  STDOUT   1
+#define  STDERR   2
+#define  STDAUX   3
+#define  STDPRN   4
+
+/****** procedure definitions ******/
+/*****************************************************************************
+* TITLE : word open(word filename;byte mode)
+* DESCR : Open file (work in 32-bit DOS)
+* PARAMS: input: filename, mode
+*       : output: AX - handle
+*       :         if AX==0 error
+*****************************************************************************/
+:word open(unsigned int filename;byte mode)
+{
+	OPEN(filename,mode);
+	IF(CARRYFLAG)AX=0;
+}
+
+/*****************************************************************************
+* TITLE : word create(word filename,attribute)
+* DESCR : create file (work in 32-bit DOS)
+* PARAMS:
+*****************************************************************************/
+:word create(unsigned int filename;word attribute)
+{
+	CREAT(filename,attribute);
+	IF(CARRYFLAG)AX=0;
+}
+
+/*****************************************************************************
+* TITLE : word close(word filehandle)
+* DESCR : close file
+* PARAMS:
+*****************************************************************************/
+:word close(word filehandle)
+{
+	CLOSE(filehandle)
+	IF(NOTCARRYFLAG)AX=0;
+}
+
+/*****************************************************************************
+* TITLE : word readfile(word filename,bufseg,bufoff,bytes)
+* DESCR : read from not open file
+* PARAMS:
+*****************************************************************************/
+:word readfile(word filename,bufseg,bufoff,bytes)
+{
+	OPEN(filename,0);
+	IF(CARRYFLAG)AX=0;
+	ELSE{
+#ifdef speed
+		BX=AX;
+#else
+		BX><AX;
+#endif
+		READFAR(BX,bufseg,bufoff,bytes);
+		IF(CARRYFLAG)AX=0;
+#ifdef speed
+		DX=AX;
+#else
+		DX><AX;
+#endif
+		CLOSE(BX);
+#ifdef speed
+		AX=DX;
+#else
+		DX><AX;
+#endif
+	}
+}
+
+/*****************************************************************************
+* TITLE : appendfile(word filename,bufseg,bufoff,bytes)
+* DESCR : append to not open file
+* PARAMS:
+*****************************************************************************/
+:word appendfile(word filename,bufseg,bufoff,bytes)
+{
+	OPEN(filename,1);
+	IF(CARRYFLAG){
+		CREAT(DX,0);
+		IF(CARRYFLAG){
+			AX=0;
+			GOTO ERR;
+		}
+	}
+#ifdef speed
+	BX=AX;
+#else
+	BX><AX;
+#endif
+	LSEEKEND(BX);
+	IF(CARRYFLAG)GOTO ERR1;
+	WRITEFAR(BX,bufseg,bufoff,bytes);
+	IF(CARRYFLAG){
+ERR1:
+		AX=0;
+	}
+#ifdef speed
+	DX=AX;
+#else
+	DX><AX;
+#endif
+	CLOSE(BX);
+#ifdef speed
+	AX=DX;
+#else
+	DX><AX;
+#endif
+ERR:
+}
+
+/*****************************************************************************
+* TITLE : word writefile(word filename,bufseg,bufoff,bytes)
+* DESCR : write to not open file
+* PARAMS:
+*****************************************************************************/
+:word writefile(word filename,bufseg,bufoff,bytes)
+{
+	CREAT(filename,0);
+	IF(CARRYFLAG)AX=0;
+	ELSE{
+#ifdef speed
+		BX=AX;
+#else
+		BX><AX;
+#endif
+		WRITEFAR(BX,bufseg,bufoff,bytes);
+		IF(CARRYFLAG)AX=0;
+#ifdef speed
+		DX=AX;
+#else
+		DX><AX;
+#endif
+		CLOSE(BX);
+#ifdef speed
+		AX=DX;
+#else
+		DX><AX;
+#endif
+	}
+}
+
+/*****************************************************************************
+* TITLE : word read(word filehandle,bufferoffset,bytes)
+* DESCR : read from file
+* PARAMS:
+*****************************************************************************/
+:word read(word filehandle,bufferoffset,bytes)
+inline
+{
+$DB 0x58,0x59,0x5A,0x5B,0x50,0xB4,0x3F,0xCD,0x21,0x73,
+    0x02,0x31,0xC0,0xc3
+}
+
+/*****************************************************************************
+* TITLE : word readfar(word filehandle,bufferseg,bufferoffset,bytes)
+* DESCR : far read from file
+* PARAMS:
+*****************************************************************************/
+:word readfar(word filehandle,bufferseg,bufferoffset,bytes)
+inline
+{
+$DB 0x58,0x59,0x5A,0x1F,0x5B,0x50,0xB4,0x3F,0xCD,0x21,
+    0x73,0x02,0x31,0xC0,0x0E,0x1f,0xc3
+}
+
+/*****************************************************************************
+* TITLE : word write(word filehandle,bufferoffset,bytes)
+* DESCR : write to file
+* PARAMS:
+*****************************************************************************/
+:word write(word filehandle,bufferoffset,bytes)
+inline
+{
+$DB 0x58,0x59,0x5A,0x5B,0X50,0xB4,0x40,0xCD,0x21,0x73,
+    0x02,0x31,0xC0,0xC3
+}
+
+/*****************************************************************************
+* TITLE : word writefar(word filehandle,bufferseg,bufferoffset,bytes)
+* DESCR : far write to file
+* PARAMS:
+*****************************************************************************/
+:word writefar(word filehandle,bufferseg,bufferoffset,bytes)
+inline
+{
+$DB 0x58,0x59,0x5A,0x1F,0x5B,0x50,0xB4,0x40,0xCD,0x21,
+    0x73,0x02,0x31,0xC0,0x0E,0x1f,0xc3
+}
+
+/*****************************************************************************
+* TITLE : word MOUNTDSK(DL)
+* DESCR : Enable Drive
+* PARAMS: input: DL - drive number (0=A:)
+*       : output: CF clear if successful
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline word MOUNTDSK(DL)
+{
+	AX=0X5F07;
+	$INT 0X21
+}
+
+/*****************************************************************************
+* TITLE : word UNMOUNTDSK(DL)
+* DESCR : Disable Drive
+* PARAMS: input: DL - drive number (0=A:)
+*       : output: CF clear if successful
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline word UNMOUNTDSK(DL)
+{
+	AX=0X5F08;
+	$INT 0X21
+}
+
+/*****************************************************************************
+* TITLE : dword SIZEDSK(DL)
+* DESCR : return size disk space
+* PARAMS: input: DL = drive number (00h = default, 01h = A:, etc)
+*       : output: size disk in bytes
+*****************************************************************************/
+inline dword SIZEDSK(DL)
+{
+	AH=0X36;
+	$INT 0X21
+	IF(PLUSFLAG){
+		BX=DX;
+		$MUL CX
+		$MUL BX
+		$push DX,AX
+		$pop EAX
+	}
+	ELSE EAX=-1;
+}
+
+/*****************************************************************************
+* TITLE : dword FREESIZEDSK(DL)
+* DESCR : Get Free Disk Space
+* PARAMS: input: DL = drive number (00h = default, 01h = A:, etc)
+*       : output: free size disk in bytes
+*****************************************************************************/
+inline dword FREESIZEDSK(DL)
+{
+	AH=0X36;
+	$INT 0X21
+	IF(PLUSFLAG){
+		$MUL CX
+		$MUL BX
+		$push DX,AX
+		$pop EAX
+	}
+	ELSE EAX=-1;
+}
+
+/*****************************************************************************
+* TITLE : void FNSPLIT(SI,DI,CX,DX,BX)
+* DESCR : split full name
+* PARAMS: input: SI - source file name
+*       :        DI - dest. buffer for drive name
+*       :        CX - dest. buffer for directory name
+*       :        DX - dest. buffer for file name
+*       :        BX - dest. buffer fot extension name
+*****************************************************************************/
+:void FNSPLIT(SI,DI,CX,DX,BX)
+{
+	ES=DS;
+	IF(DI!=0){
+		IF(DSBYTE[SI+1]==':'){
+			$MOVSW
+		}
+		AL=0;
+		$STOSB
+	}
+	IF(CX!=0){
+		DI=CX;
+		IF(DSBYTE[SI]=='\\'){
+			$PUSH SI
+			CX=0;
+			do{
+				$LODSB
+				CX++;
+			}while(AL!=0);
+			$STD
+			SI--;
+			do{
+				$LODSB
+				CX--;
+			}while(AL!='\\');
+			CX++;
+			$POP SI
+			$CLD
+			$REPE
+			$MOVSB
+		}
+		AL=0;
+		$STOSB
+	}
+	IF(DX!=0){
+		DI=DX;
+		CX=8;
+		loop(CX){
+			$LODSB
+			IF(AL=='.')||(AL==0){
+				SI--;
+				BREAK;
+			}
+			$STOSB
+		}
+		AL=0;
+		$STOSB
+	}
+	IF(BX!=0){
+		DI=BX;
+		do{
+			$LODSB
+			$STOSB
+		}while(AL!=0);
+	}
+}
+
+/*****************************************************************************
+* TITLE : byte TYPEDRIVE(BL,CX)
+* DESCR : Identification type drive
+* PARAMS: input: BL - number drive (1-26)
+*       :        CX - termopary buffer(size 32 bytes)
+*       : output: type drive:
+*       :             0 -FLOPPY
+*       :             1 - FIXED
+*       :             2 - RAM
+*       :             3 - NETWORK
+*       :             4 - SUBST
+*       :            -1 - INVALID
+*****************************************************************************/
+:byte TYPEDRIVE(BL,CX)
+{
+	AX=0X4408;
+	$INT  0X21
+	AL|=AL;    //FLOP
+	IF(NOTZEROFLAG){
+		DX=0;
+		AX=0X4409;
+		$INT 0X21
+		$LAHF
+		AL=3;         //NETWORK
+		$TEST DH,0X10
+		IF(ZEROFLAG){
+			AX++;        //SUBST
+			$TEST DH,0X80
+			IF(ZEROFLAG){
+				AL=-1;
+				$SAHF
+				IF(NOTCARRYFLAG){
+					DX=CX;
+					CX=0X860;
+					AX=0X440d;
+					$INT 0X21
+					AL=2;      //RAM
+					IF(NOTCARRYFLAG)AX--; //FIXED
+				}
+			}
+		}
+	}
+}
+
+/*****************************************************************************
+* TITLE : void LSEEKHOME(BX)
+* DESCR : Set position in file to end
+* PARAMS: input: BX - file handle
+*       : output: CF clear if successful
+*       :         DX:AX - new file position
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline void LSEEKHOME(BX)
+{
+	AX=0X4200;
+	CX=0;
+	DX=0;
+	$INT 0X21
+}
+
+/*****************************************************************************
+* TITLE : word READFAR(BX,AX,DX,CX)
+* DESCR : Read from file in far buffer
+* PARAMS: input: BX - file handle
+*       :        AX - segment far buffer
+*       :        DX - offset far buffer
+*       :        CX - count bytes for read
+*       : output: CF clear if successful
+*       :         AX = number of bytes actually read
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline word READFAR(BX,AX,DX,CX)
+{
+	$PUSH DS
+	DS=AX;
+	FREAD();
+	$POP DS
+}
+
+/*****************************************************************************
+* TITLE : word WRITEFAR(BX,AX,DX,CX)
+* DESCR : Write to file from far buffer
+* PARAMS: input: BX - file handle
+*       :        AX - segment far buffer
+*       :        DX - offset far buffer
+*       :        CX - count bytes for write
+*       : output: CF clear if successful
+*       :         AX = number of bytes actually write
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline word WRITEFAR(BX,AX,DX,CX)
+{
+	$PUSH DS
+	DS=AX;
+	FWRITE();
+	$POP DS
+}
+
+/*****************************************************************************
+* TITLE : void REMOVER(DX)
+* DESCR : Remove and read-only file
+* PARAMS: input: DX - file name
+*       : output: CF clear if successful
+*       :         AX destroyed (DOS 3.3)
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline void REMOVER(DX)
+{
+	CHMOD(DX,0);
+	UNLINK(DX);
+}
+
+/*****************************************************************************
+* TITLE : dword SIZEFILE(DX)
+* DESCR : Get size not opened file
+* PARAMS: input: DX - file name
+*       : output: EAX = -1 error, else size file
+*****************************************************************************/
+:dword SIZEFILE(DX)
+{
+	OPEN(DX,0);
+	IF(NOTCARRYFLAG){
+?ifdef codesize
+		BX><AX;
+?else
+		BX=AX;
+?endif
+		LSEEKEND(BX);
+		$push  DX
+		$push  AX
+		CLOSE(BX);
+		$POP EAX
+	}
+	IF(CARRYFLAG)EAX=-1;
+}
+
+/*****************************************************************************
+* TITLE : byte READSECTOR(AL,CX,DX,BX)
+* DESCR : Absolute Disk Read
+* PARAMS: input: AL - drive number (0 = A:, 1 = B:, etc)
+*       :        CX - number of sectors to read (not 0xFFFF)
+*       :        DX - starting logical sector number (0 - highest sector on drive)
+*       :        BX - buffer for data
+*       : output: CF clear if successful
+*       :         CF set on error
+*       :            AH = status
+*       :            AL = error code
+*       :            AX = 0207h if more than 64K sectors on drive - use
+*       :                 new-style call may destroy all other registers
+*       :                 except segment registers
+*****************************************************************************/
+inline byte READSECTOR(AL,CX,DX,BX)
+{
+	$INT 0X25
+}
+
+/*****************************************************************************
+* TITLE : byte WRITESECTOR(AL,CX,DX,BX)
+* DESCR : Absolute Disk Write
+* PARAMS: input: AL - drive number (0 = A:, 1 = B:, etc)
+*       :        CX - number of sectors to write (not 0xFFFF)
+*       :        DX - starting logical sector number (0 - highest sector on drive)
+*       :        BX - data to write
+*       : output: CF clear if successful
+*       :         CF set on error
+*       :            AH = status
+*       :            AL = error code
+*       :            AX = 0207h if more than 64K sectors on drive - use
+*       :                 new-style call may destroy all other registers
+*       :                 except segment registers
+*****************************************************************************/
+inline byte WRITESECTOR(AL,CX,DX,BX)
+{
+	$INT 0X26
+}
+
+/*****************************************************************************
+* TITLE : void LLSEEKSET(BX,EDX)
+* DESCR : Set new position from start file
+* PARAMS: input: BX - file handle
+*       :        EDX = (signed) offset from origin of new file position
+*       : output: CF clear if successful
+*       :         DX:AX - new file position
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline void LLSEEKSET(BX,EDX)
+{
+	$PUSH EDX
+	$POP CX
+	$POP CX
+	AX=0x4200;
+	$INT 0x21
+}
+
+/* end of FILE.H-- */

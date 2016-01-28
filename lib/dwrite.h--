@@ -1,0 +1,392 @@
+/*  TITLE:  DWRITE.H--
+    PROCEDURES DEFINED IN THIS FILE:
+        : void DWRITE(character)
+        : void DWRITEDIGITS(word_value)
+        : void DWRITEINT(int_value)
+        : void DWRITELN()
+        : void DWRITESTR(string)
+        : void __dwriteword() AX=word_value
+        : void DWRITEDWORD (word_value)
+        : void DWRITEDWORDCOMA (EAX) ‚›‚Ž„ —ˆ‘‹€ €‡„…‹ ’Ž—Š€Œˆ
+      	: void DWRITEDWORDSP (EAX) ‚›‚Ž„ —ˆ‘‹€ ‘ ‚…„“™ˆŒˆ Ž…‹€Œˆ  */
+
+?ifndef _DWRITE_
+?define _DWRITE_ TRUE
+?warning FALSE
+
+:void DWRITE()
+{
+?ifdef codesize
+	DX><AX;
+?else
+	DX=AX;
+?endif
+	AH=2;
+	$INT 0x21
+}
+
+: void DWRITELN ()
+{
+	AH=2;
+	DL=0X0D;
+	$INT 0x21
+	AH=2;
+	DL=0X0A;
+	$INT 0x21
+}
+
+: void DWRITESTR ()
+// AX = offset address of string to write at cursor
+{
+	$PUSH SI
+?ifdef codesize
+	SI><AX;
+?else
+	SI=AX;
+?endif
+UP:
+	$LODSB
+	$CMP AL,0
+	$JZ DOWN
+?ifdef codesize
+	DX><AX;
+?else
+	DX=AX;
+?endif
+	AH=2;
+	$INT 0x21
+	$JMP SHORT UP
+DOWN:
+	$POP SI
+}
+
+: void fastcall __dwriteword ()
+// AX = word value to write to screen at cursor
+{
+	$ CMP AX,10000
+	$ JNB DOWN1
+	$ CMP AX,1000
+	$ JNB DOWN2
+	$ CMP AX,100
+	$ JNB DOWN3
+	$ CMP AX,10
+	$ JNB DOWN4
+	$ JMP SHORT DOWN5
+DOWN1:
+	DX = 0;
+	CX = 10000;
+	$DIV CX
+	$CALL NEAR DOWN5
+DOWN2:
+	DX = 0;
+	CX = 1000;
+	$ DIV CX
+	$CALL NEAR DOWN5
+DOWN3:
+	CL = 100;
+	$ DIV CL
+	DL = AH;
+	$CALL NEAR DOWN5
+DOWN4:
+	$AAM
+	DL=AL;
+	AL=AH;
+	$CALL NEAR DOWN5
+DOWN5:
+	$PUSH	DX
+	DL=AL + '0';
+	AH = 0x2;
+	$ INT 0x21
+	$POP	AX
+}
+
+: void fastcall __dwriteint()  // AX = int value to write to screen at cursor
+{
+	$OR	AX,AX
+	$JGE	MEM1
+?ifdef codesize
+	DX><AX;
+?else
+	DX=AX;
+?endif
+	$PUSH	DX
+	AH=2;
+	DL=0X2D;
+	$ INT 0x21
+	$POP AX
+	-AX;
+MEM1:
+	$ CMP AX,10000
+	$ JNB DOWN1
+	$ CMP AX,1000
+	$ JNB DOWN2
+	$ CMP AX,100
+	$ JNB DOWN3
+	$ CMP AX,10
+	$ JNB DOWN4
+	$ JMP SHORT DOWN5
+DOWN1:
+	DX=0;
+	CX=10000;
+	$DIV CX
+	$CALL NEAR DOWN5
+DOWN2:
+	DX=0;
+	CX=1000;
+	$ DIV CX
+	$CALL NEAR DOWN5
+DOWN3:
+	CL = 100;
+	$ DIV CL
+	DL = AH;
+	$CALL NEAR DOWN5
+DOWN4:
+	$AAM
+	DL=AL;
+	AL=AH;
+	$CALL NEAR DOWN5
+DOWN5:
+	$PUSH	DX
+	DL=AL + '0';
+	AH = 0x2;
+	$ INT 0x21
+	$POP	AX
+}
+
+:void fastcall __dwritedigits()  // AX = word value to display all digits at cursor
+{
+	DX=0;
+	CX=10000;
+	$ DIV CX
+	$CALL NEAR DOWN
+	DX = 0;
+	CX = 1000;
+	$DIV CX
+	$CALL NEAR DOWN
+	CL = 100;
+	$ DIV CL
+	DL = AH;
+	$CALL NEAR DOWN
+	$AAM
+	DL=AL;
+	AL=AH;
+	$CALL NEAR DOWN
+DOWN:
+	$PUSH	DX
+	DL=AL + '0';
+	AH = 0x2;
+	$ INT 0x21
+	$POP	AX
+}
+
+:void DWRITEDWORD ()
+/* EAX = dword value to write to screen at cursor */
+{
+	$PUSH SI
+	$PUSH DI
+	DI=FALSE;
+	SI=9;
+	ECX=1000000000;
+	loop(SI){
+		EDX=0;
+		$DIV ECX;
+		$PUSH EDX
+		IF(AL>0)DI++;
+		IF(DI!=FALSE){
+			AL+='0';
+?ifdef codesize
+			DX><AX;
+?else
+			DX=AX;
+?endif
+			AH=0x2;
+			$INT 0x21
+		}
+		EAX=ECX/10;
+?ifdef codesize
+		ECX><EAX;
+?else
+		ECX=EAX;
+?endif
+		$POP EAX
+	}
+	AL+='0';
+?ifdef codesize
+	DX><AX;
+?else
+	DX=AX;
+?endif
+	AH=0x2;
+	$INT 0x21
+	$POP DI
+	$POP SI
+}
+// returns:  EAX,EBX,ECX,EDX = undefined
+
+:void DWRITEDWORDCOMA()  /* EAX = dword value to write to screen at cursor */
+{
+	$PUSH SI
+	$PUSH DI
+	DI=FALSE;
+	SI=9;
+	ECX=1000000000;
+	loop(SI){
+		IF(DI!=FALSE){
+			$PUSH AX
+			$PUSH CX
+			AX=SI;
+			CL=3;
+			$DIV CL
+			IF(AH==2){
+				DL=',';
+				$ INT 0x21
+			}
+			$POP CX
+			$POP AX
+		}
+		EDX=0;
+		$DIV ECX;
+		$PUSH EDX
+		IF(AL>0)DI++;
+		IF(DI!=FALSE){
+			AL+='0';
+?ifdef codesize
+			DX><AX;
+?else
+			DX=AX;
+?endif
+			AH=0x2;
+			$INT 0x21
+		}
+		EAX=ECX/10;
+?ifdef codesize
+		ECX><EAX;
+?else
+		ECX=EAX;
+?endif
+		$POP EAX
+	}
+	AL+='0';
+?ifdef codesize
+	DX><AX;
+?else
+	DX=AX;
+?endif
+	AH=0x2;
+	$INT 0x21
+	$POP DI
+	$POP SI
+}
+// returns:  EAX,EBX,ECX,EDX = undefined
+
+:void DWRITEDWORDSP()  /* EAX = dword value to write to screen at cursor */
+{
+	$PUSH SI
+	$PUSH DI
+	DI=FALSE;
+	SI=9;
+	ECX=1000000000;
+	loop(SI){
+		EDX=0;
+		$DIV ECX;
+		IF(AL>0)DI++;
+		IF(DI!=FALSE)AL+='0';
+		ELSE AL=32;
+		$PUSH	EDX
+?ifdef codesize
+		DX><AX;
+?else
+		DX=AX;
+?endif
+		AH=0x2;
+		$INT 0x21
+		EAX=ECX/10;
+?ifdef codesize
+		ECX><EAX;
+?else
+		ECX=EAX;
+?endif
+		$POP EAX
+	}
+	AL+='0';
+?ifdef codesize
+	DX><AX;
+?else
+	DX=AX;
+?endif
+	AH=0x2;
+	$INT 0x21
+	$POP DI
+	$POP SI
+}
+
+:void __dwritehex()  /* AX = word value to write */
+{
+	$XCHG	AH,AL
+	DX=AX;
+	$SHR AL,4
+	$CALL NEAR DOWN
+	AL=DL;
+	$CALL NEAR DOWN2
+	AL=DH;
+	$SHR AL,4
+	$CALL NEAR DOWN
+	AL=DH;
+DOWN2:
+	AL&=0x0F;
+DOWN:
+	IF(AL>=10)AL+=7;
+	$PUSH	DX
+ 	DL=AL+'0';
+	AH=0x2;
+	$INT 0x21
+	$POP DX
+}
+
+:void DWRITEHEXWORD()
+{
+	CX=4;
+	loop(CX){
+		$rol AX,4
+		$push	AX
+		AL&=0xF;
+		$CMP AL,10
+		$sbb AL,0x69
+		$das
+		@DWRITE();
+		$pop AX
+	}
+}
+
+:void DWRITEHEXBYTE()
+{
+	CX=2;
+	loop(CX){
+		$rol AL,4
+		$push	AX
+		AL&=0xF;
+		$CMP AL,10
+		$sbb AL,0x69
+		$das
+		@DWRITE();
+		$pop AX
+	}
+}
+
+:void DWRITEHEXDWORD()
+{
+	CX=8;
+	loop(CX){
+		$rol EAX,4
+		$push	EAX
+		AL&=0xF;
+		$CMP AL,10
+		$sbb AL,0x69
+		$das
+		@DWRITE();
+		$pop EAX
+	}
+}
+
+?endif
+/* end of DWRITE.H-- */

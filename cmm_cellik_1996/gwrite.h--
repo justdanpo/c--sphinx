@@ -1,0 +1,213 @@
+/*
+    SPHINX Programming (C) 1993.
+    TITLE:  GWRITE.H--
+    DESCRIPTION:  This file contains a collection of procedures for writing
+                  text to the screen.  The difference between this file and
+                  WRITE.H--, is that these procedures support colour
+                  selection and are to be used for graphics modes.
+    PROCEDURES DEFINED IN THIS FILE:
+        : void GWRITE(character,colour)
+        : void GWRITEDIGITS(word_value,colour)
+        : void GWRITEINT(int_value,colour)
+        : void GWRITELN()  
+        : void GWRITESTR(string,colour)
+        : void GWRITEWORD(word_value,colour)
+*/
+
+
+
+: void GWRITE ()  /* AL = character to write to screen at cursor
+                     BL = colour to use */
+/* Writes the specified character at the cursor and then advances the
+   cursor.  Bell, CR, and LF are treated as special characters and
+   supported.
+*/
+{
+BH = 0;
+AH = 0xE;
+$ INT 0x10
+}
+
+
+: void GWRITELN ()
+/* Moves the cursor to the beginning of the next line */
+{
+BX = 0x0007;
+AX = 0x0E0D;
+$ INT 0x10
+AL = 0xA;
+$ INT 0x10
+}
+
+
+: void GWRITESTR ()  /* AX = offset address of string to write at cursor
+                        BL = colour to use */
+{
+BH = 0;
+$ PUSH SI
+SI = AX;
+AH = 0xE;
+UP:
+  $ LODSB
+  $ CMP AL,0
+  $ JZ DOWN
+  $ INT 0x10
+  $ JMP SHORT UP
+DOWN:
+  $ POP SI
+}
+
+
+: void GWRITEWORD ()  /* AX = word value to write to screen at cursor
+                         BL = colour to use */
+{
+BH = 0;
+$ CMP AX,10000
+$ JNB DOWN1                               
+$ CMP AX,1000
+$ JNB DOWN2                               
+$ CMP AX,100
+$ JNB DOWN3                               
+$ CMP AX,10
+$ JNB DOWN4
+$ JMP SHORT DOWN5
+DOWN1:
+  DX = 0;
+  CX = 10000;
+  $ DIV CX
+  AL += '0';
+  AH = 0xE;
+  $ INT 0x10
+  AX = DX;
+DOWN2:
+  DX = 0;
+  CX = 1000;
+  $ DIV CX
+  AL += '0';
+  AH = 0xE;
+  $ INT 0x10
+  AX = DX;
+DOWN3:
+  CL = 100;
+  $ DIV CL
+  DL = AH;
+  AL += '0';
+  AH = 0xE;
+  $ INT 0x10
+  AL = DL;
+  AH = 0;
+DOWN4:
+  CL = 10;
+  $ DIV CL
+  DL = AH;
+  AL += '0';
+  AH = 0xE;
+  $ INT 0x10
+  AL = DL;
+DOWN5:
+  AL += '0';
+  AH = 0xE;
+  $ INT 0x10
+}
+
+
+: void GWRITEINT ()  /* AX = int value to write to screen at cursor
+                        BL = colour to use */
+{
+BH = 0;
+IF( int AX < 0 )
+    {DX = AX;
+    AX = 0x0E2D;
+    $ INT 0x10     
+    AX = DX;
+    -AX;
+    }
+$ CMP AX,10000
+$ JNB DOWN1                               
+$ CMP AX,1000
+$ JNB DOWN2                               
+$ CMP AX,100
+$ JNB DOWN3                               
+$ CMP AX,10
+$ JNB DOWN4
+$ JMP SHORT DOWN5
+DOWN1:
+  DX = 0;
+  CX = 10000;
+  $ DIV CX
+  AL += '0';
+  AH = 0xE;
+  $ INT 0x10
+  AX = DX;
+DOWN2:
+  DX = 0;
+  CX = 1000;
+  $ DIV CX
+  AL += '0';
+  AH = 0xE;
+  $ INT 0x10
+  AX = DX;
+DOWN3:
+  CL = 100;
+  $ DIV CL
+  DL = AH;
+  AL += '0';
+  AH = 0xE;
+  $ INT 0x10
+  AL = DL;
+  AH = 0;
+DOWN4:
+  CL = 10;
+  $ DIV CL
+  DL = AH;
+  AL += '0';
+  AH = 0xE;
+  $ INT 0x10
+  AL = DL;
+DOWN5:
+  AL += '0';
+  AH = 0xE;
+  $ INT 0x10
+}
+
+
+: void GWRITEDIGITS ()  /* AX = word value to display all digits at cursor
+                           BL = colour to use */
+{
+BH = 0;
+DX = 0;
+CX = 10000;
+$ DIV CX
+AL += '0';
+AH = 0xE;
+$ INT 0x10
+AX = DX;
+DX = 0;
+CX = 1000;
+$ DIV CX
+AL += '0';
+AH = 0xE;
+$ INT 0x10
+AX = DX;
+CL = 100;
+$ DIV CL
+DL = AH;
+AL += '0';
+AH = 0xE;
+$ INT 0x10
+AL = DL;
+AH = 0;
+CL = 10;
+$ DIV CL
+DL = AH;
+AL += '0';
+AH = 0xE;
+$ INT 0x10
+AL = DL;
+AL += '0';
+AH = 0xE;
+$ INT 0x10
+}
+
+
+/* end of GWRITE.H-- */

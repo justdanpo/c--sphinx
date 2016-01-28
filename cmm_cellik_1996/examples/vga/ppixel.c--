@@ -1,0 +1,59 @@
+/*
+    SPHINX C-- example program of loop speed
+
+    SPHINX C-- is a tiny memory model high speed C-- compiler
+    by SPHINX programming.
+
+    C-- a half way point between C and ASSEMBLY.  It has some
+    features which may be desirable with small high speed
+    applications.  This program generates a .COM file of the
+    size of 284 bytes, not bad?
+
+    SPHINX programming:
+
+    PETER CELLIK
+    RR#2 Site 33 C11
+    Gabriola Is.  B.C.
+    V0R 1X0
+    CANADA
+*/
+
+
+?include "VIDEO.H--"
+?include "WRITE.H--"
+?include "RANDOM.H--"
+?include "DOS.H--"
+?include "KEYCODES.H--"
+
+byte color=0;  
+
+main ()               /* execution starts here like in C */
+{
+@ SETVIDEOMODE(vid_320x200_256);  /* set videomode to 320x200 256 colours */
+IF(byte @GETVIDEOMODE() <> vid_320x200_256)
+    {WRITESTR("Unable to enter 320x200-256 video mode.\n");
+    EXIT(-1);
+    }
+
+@ RANDOMIZE();  /* seed the random number generator with the clock ticks */
+do {
+    ES = VGA_SEG;       /* set the ES register to VGA segment */
+
+    SI = 0;        
+    loop(SI)  /* loop 65536 times since count is 0, use SI as loop counter */
+        {AX = @RAND();      /* generate random number */
+        IF( AX < 64000 )    /* if random number is valid screen address */
+            {DI = AX;
+            ESBYTE[DI] = color;  /* use ES segment to write byte to screen */
+            }
+        }
+
+    color++;            /* increment colour */
+    } while( @KBHIT() == 0 );     /* loop while no key has been hit */
+
+@ BIOSREADKEY();             /* read the key pressed with BIOS */
+@ SETVIDEOMODE(vid_text80c);    /* set videomode with macro */
+WRITESTR("SPHINX Programming 1993");  /* display end message */
+}
+ÿÿ
+/* end of PPIXEL.C-- */

@@ -1,0 +1,129 @@
+/*
+    NAME:  DOODLE.C--
+    DESCRIPTION:  A very small doodle program.
+*/
+
+
+?include "KEYCODES.H--"
+?include "VIDEO.H--"
+?include "VGA.H--"
+?include "WRITE.H--"
+?include "MOUSE.H--"
+?include "FILE.H--"
+?include "DOS.H--"
+
+byte colour = 8;     /* current colour */
+
+byte filename1 = "draw.scr";   /* file name for screen */
+byte filename2 = "draw.pal";   /* file name for palette */
+
+?define PALSIZE    256*3    /* size of palette buffer 256 colours * RGB */
+byte palette[PALSIZE];      /* buffer for palette */
+
+?define  SCREENSIZE  64000  /* size of screen in bytes */
+
+
+byte hidden = FALSE;
+
+main()
+{
+@ SETVIDEOMODE( vid_320x200_256 );    /* set video mode */
+IF( byte @GETVIDEOMODE() != vid_320x200_256)  /* check if mode worked */
+    {WRITESTR("Unable to enter 320x200 256 colour video mode.");
+    @ EXIT(1);
+    }
+GETVGAPALETTE( ,0,256,#palette);
+
+@ RESETMOUSE();
+@ SHOWMOUSE();
+
+do {
+    } while( byte doit() == 0 );
+
+@ HIDEMOUSE();
+@ SETVIDEOMODE( vid_text80c );    /* return to text mode */
+}
+
+
+byte dothekey()
+byte holdR,holdG,holdB;     
+{
+AX = BIOSREADKEY();
+IF(AX==k_up)
+     colour++;
+else IF(AX==k_down)
+    colour--;
+else IF(AX==k_F2)
+    {@ HIDEMOUSE();
+    IF( writefile(#filename1,VGA_SEG,0,SCREENSIZE) <> SCREENSIZE)
+        BEEP();
+    IF( writefile(#filename2,DS,#palette,PALSIZE) <> PALSIZE)
+        BEEP();
+    @ SHOWMOUSE();
+    }
+else IF(AX==k_F3)
+    {@ HIDEMOUSE();
+    IF( readfile(#filename1,VGA_SEG,0,SCREENSIZE) <> SCREENSIZE)
+        BEEP();
+    IF( readfile(#filename2,DS,#palette,PALSIZE) <> PALSIZE)
+        {BEEP();
+        GETVGAPALETTE( ,0,256,#palette);}
+    ELSE SETVGAPALETTE( ,0,256,#palette);
+    @ SHOWMOUSE();
+    }
+else IF(AX==k_F5)
+    {do {
+        holdR = palette[3];
+        holdG = palette[4];
+        holdB = palette[5];
+        @ COPYFAR(DS,#palette[3],DS,#palette[6],254*3);
+        palette[PALSIZE-3] = holdR;
+        palette[PALSIZE-2] = holdG;
+        palette[PALSIZE-1] = holdB;
+        @ WAITVSYNC();
+        @ SETVGADAC(0, ,256*3, , ,#palette);
+        } while( KBHIT() == 0 );
+    @ BIOSREADKEY();
+    }
+ELSE IF(AX==k_esc)
+    return(1);
+return(0);
+}
+
+
+byte doit()
+word x,y,buttons;   /* used for holding mouse status */
+{
+CX = 60;
+loop(CX)   /* delay for a bit to give the mouse driver some time */
+    {BX++;
+    BX--;
+    }
+@ GETMOUSEXY();
+x = CX;
+y = DX;
+buttons = BX;
+x = x /2;       /* adjust x after so as not to undefine the regs */
+IF( buttons == 0 )
+    {IF( hidden == TRUE )
+        {@ SHOWMOUSE();
+        hidden = FALSE;}        
+    }
+ELSE{IF( hidden == FALSE )
+        {@ HIDEMOUSE();
+        hidden = TRUE;}        
+    }
+
+IF(buttons==1)
+    PUTPIXEL19( ,x,colour,y);
+ELSE IF(buttons==2)
+    bar19(x,y,2,2,colour);
+ELSE IF(buttons==3)
+    bar19(x,y,4,4,colour);
+
+IF( KBHIT() <> 0)
+    return( dothekey() );
+return( 0 );
+}
+ÿÿÿÿÿÿÿÿÿÿÿ
+/* end of DOODLE.C-- */ÿÿÿÿÿÿÿÿÿÿ

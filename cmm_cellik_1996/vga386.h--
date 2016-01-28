@@ -1,0 +1,303 @@
+/*
+    SPHINX Programming (C) 1993.
+    NAME:  VGA386.H--
+    DESCRIPTION:  This file contains procedures for writing to VGA screens
+                  that have been optimized by use of 80386 instructions.
+    LAST UPDATE:  7 April 1994
+    PROCEDURES DEFINED IN THIS FILE:
+        : void CLEARSCREEN19_386()
+        : void _CLEARSCREEN19_386()
+        : void ellipse19_386(int x,y,xsize,ysize; byte colour)
+        : void _ellipse19_386(int x,y,xsize,ysize; byte colour)
+        : void UPDATESCREEN19_386(oldbuf,newbuf)
+*/
+
+
+: void UPDATESCREEN19_386 ()  /* AX = old screen,  BX = new screen */
+{ES = AX;
+$ PUSH DS
+DS = BX;
+FS = 0xA000;
+DI = 0;
+SI = 0;
+CX = 64000/4;
+loop()
+    {$ REPE
+    $ CMPSD
+    $ JCXZ DOWN
+    EAX = DSDWORD[SI-4];
+    FSDWORD[SI-4] = EAX;
+    }
+DOWN:
+$ POP DS
+}
+
+
+: void CLEARSCREEN19_386 ()
+{ES = 0xA000;
+EAX = 0;
+CX = 64000/4;
+DI = 0;
+$ REPZ
+$ STOSD
+}
+
+
+: void _CLEARSCREEN19_386 ()
+{EAX = 0;
+CX = 64000/4;
+DI = 0;
+$ REPZ
+$ STOSD
+}
+
+
+: void ellipse19_386 (int x,y,xsize,ysize; byte colour)
+/*
+*/
+int workingx,workingy;
+long threshold;
+long asquared,bsquared;
+long xadjust,yadjust;
+{
+ES = 0xA000;
+AX = xsize;
+$ MUL AX
+SSWORD[#asquared[0]] = AX;
+SSWORD[#asquared[2]] = DX;   // asquared = xsize * xsize;
+AX = ysize;
+$ MUL AX
+SSWORD[#bsquared[0]] = AX;
+SSWORD[#bsquared[2]] = DX;   // bsquared = ysize * ysize;
+DI = x;
+SI = y;
+AX = SI+ysize*320 +DI;
+BX = AX;
+ESBYTE[BX] = colour;   // drawdot(x,y+ysize);
+AX = SI-ysize*320 +DI;
+BX = AX;
+ESBYTE[BX] = colour;  // drawdot(x,y+ysize);
+workingx = 0;
+workingy = ysize;
+xadjust = 0;
+yadjust = asquared + EAX * ysize;
+EBX = asquared;
+$ SAR EBX,2
+$ MOVSX ECX,ysize
+EAX = asquared; 
+$ IMUL ECX
+EBX -= EAX;
+threshold = EBX;    // threshold = (asquared / 4) - (asquared * B);
+
+loop() 
+    {
+    threshold += xadjust+bsquared;
+
+    $ CMP threshold,0
+    $ JNGE DOWN1
+    yadjust -= asquared+EAX;
+    threshold -= yadjust;
+    workingy--;
+    DOWN1:
+
+    xadjust += bsquared+EAX;
+    workingx++;
+
+    EAX = xadjust;
+    $ CMP EAX,yadjust
+    $ JGE EXITFIRSTLOOP
+
+    AX = SI-workingy * 320 + DI + workingx;
+    BX = AX;
+    ESBYTE[BX] = colour;
+    AX = SI-workingy * 320 + DI - workingx;
+    BX = AX;
+    ESBYTE[BX] = colour;
+    AX = SI+workingy * 320 + DI + workingx;
+    BX = AX;
+    ESBYTE[BX] = colour;
+    AX = SI+workingy * 320 + DI - workingx;
+    BX = AX;
+    ESBYTE[BX] = colour;
+    }
+EXITFIRSTLOOP:
+
+AX = SI*320 +DI+xsize;
+BX = AX;
+ESBYTE[BX] = colour;   // drawdot(x+xsize,y);
+AX = xsize;
+BX -= AX;
+BX -= AX;
+ESBYTE[BX] = colour;  // drawdot(x-xsize,y);
+workingx = xsize;
+workingy = 0;
+yadjust = 0;
+xadjust = bsquared + EAX * xsize;
+$ MOV EBX,bsquared
+$ SAR EBX,2
+$ MOVSX ECX,xsize
+$ MOV EAX,bsquared 
+$ IMUL ECX
+$ SUB EBX,EAX
+$ MOV threshold,EBX    // threshold = (bsquared / 4) - (bsquared * xsize);
+
+loop() 
+    {
+    threshold += yadjust+asquared;
+
+    $ CMP threshold,0
+    $ JNGE DOWN2
+    xadjust -= bsquared+EAX;
+    threshold -= xadjust;
+    workingx--;
+    DOWN2:
+
+    yadjust += asquared + EAX;
+    workingy++;
+
+    EAX = yadjust;
+    $ CMP EAX,xadjust
+    $ JGE EXITSECONDLOOP
+
+    AX = SI-workingy * 320 + DI + workingx;
+    BX = AX;
+    ESBYTE[BX] = colour;
+    AX = SI-workingy * 320 + DI - workingx;
+    BX = AX;
+    ESBYTE[BX] = colour;
+    AX = SI+workingy * 320 + DI + workingx;
+    BX = AX;
+    ESBYTE[BX] = colour;
+    AX = SI+workingy * 320 + DI - workingx;
+    BX = AX;
+    ESBYTE[BX] = colour;
+    }
+EXITSECONDLOOP:
+}
+
+
+
+: void _ellipse19_386 (int x,y,xsize,ysize; byte colour)
+/*
+*/
+int workingx,workingy;
+long threshold;
+long asquared,bsquared;
+long xadjust,yadjust;
+{
+AX = xsize;
+$ MUL AX
+SSWORD[#asquared[0]] = AX;
+SSWORD[#asquared[2]] = DX;   // asquared = xsize * xsize;
+AX = ysize;
+$ MUL AX
+SSWORD[#bsquared[0]] = AX;
+SSWORD[#bsquared[2]] = DX;   // bsquared = ysize * ysize;
+DI = x;
+SI = y;
+AX = SI+ysize*320 +DI;
+BX = AX;
+ESBYTE[BX] = colour;   // drawdot(x,y+ysize);
+AX = SI-ysize*320 +DI;
+BX = AX;
+ESBYTE[BX] = colour;  // drawdot(x,y+ysize);
+workingx = 0;
+workingy = ysize;
+xadjust = 0;
+yadjust = asquared + EAX * ysize;
+EBX = asquared;
+$ SAR EBX,2
+$ MOVSX ECX,ysize
+EAX = asquared; 
+$ IMUL ECX
+EBX -= EAX;
+threshold = EBX;    // threshold = (asquared / 4) - (asquared * B);
+
+loop() 
+    {
+    threshold += xadjust+bsquared;
+
+    $ CMP threshold,0
+    $ JNGE DOWN1
+    yadjust -= asquared+EAX;
+    threshold -= yadjust;
+    workingy--;
+    DOWN1:
+
+    xadjust += bsquared+EAX;
+    workingx++;
+
+    EAX = xadjust;
+    $ CMP EAX,yadjust
+    $ JGE EXITFIRSTLOOP
+
+    AX = SI-workingy * 320 + DI + workingx;
+    BX = AX;
+    ESBYTE[BX] = colour;
+    AX = SI-workingy * 320 + DI - workingx;
+    BX = AX;
+    ESBYTE[BX] = colour;
+    AX = SI+workingy * 320 + DI + workingx;
+    BX = AX;
+    ESBYTE[BX] = colour;
+    AX = SI+workingy * 320 + DI - workingx;
+    BX = AX;
+    ESBYTE[BX] = colour;
+    }
+EXITFIRSTLOOP:
+
+AX = SI*320 +DI+xsize;
+BX = AX;
+ESBYTE[BX] = colour;   // drawdot(x+xsize,y);
+AX = xsize;
+BX -= AX;
+BX -= AX;
+ESBYTE[BX] = colour;  // drawdot(x-xsize,y);
+workingx = xsize;
+workingy = 0;
+yadjust = 0;
+xadjust = bsquared + EAX * xsize;
+$ MOV EBX,bsquared
+$ SAR EBX,2
+$ MOVSX ECX,xsize
+$ MOV EAX,bsquared 
+$ IMUL ECX
+$ SUB EBX,EAX
+$ MOV threshold,EBX    // threshold = (bsquared / 4) - (bsquared * xsize);
+
+loop() 
+    {
+    threshold += yadjust+asquared;
+
+    $ CMP threshold,0
+    $ JNGE DOWN2
+    xadjust -= bsquared+EAX;
+    threshold -= xadjust;
+    workingx--;
+    DOWN2:
+
+    yadjust += asquared + EAX;
+    workingy++;
+
+    EAX = yadjust;
+    $ CMP EAX,xadjust
+    $ JGE EXITSECONDLOOP
+
+    AX = SI-workingy * 320 + DI + workingx;
+    BX = AX;
+    ESBYTE[BX] = colour;
+    AX = SI-workingy * 320 + DI - workingx;
+    BX = AX;
+    ESBYTE[BX] = colour;
+    AX = SI+workingy * 320 + DI + workingx;
+    BX = AX;
+    ESBYTE[BX] = colour;
+    AX = SI+workingy * 320 + DI - workingx;
+    BX = AX;
+    ESBYTE[BX] = colour;
+    }
+EXITSECONDLOOP:
+}
+
+
+/* end of VGA386.H-- */

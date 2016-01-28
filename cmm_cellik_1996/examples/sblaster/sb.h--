@@ -1,0 +1,380 @@
+/* Include file for C-- Sound Blaster library */
+
+/* Defines for Sound Blaster and Sound Blaster Pro IO address */
+?define LEFT_FM_STATUS      0x00    /* Pro only */
+?define LEFT_FM_ADDRESS     0x00    /* Pro only */
+?define LEFT_FM_DATA        0x01    /* Pro only */
+?define RIGHT_FM_STATUS     0x02    /* Pro only */
+?define RIGHT_FM_ADDRESS    0x02    /* Pro only */
+?define RIGHT_FM_DATA       0x03    /* Pro only */
+?define MIXER_ADDRESS       0x04    /* Pro only */
+?define MIXER_DATA          0x05    /* Pro only */
+?define DSP_RESET           0x06
+?define FM_STATUS           0x08
+?define FM_ADDRESS          0x08
+?define FM_DATA             0x09
+?define DSP_READ_DATA       0x0A
+?define DSP_WRITE_DATA      0x0C
+?define DSP_WRITE_STATUS    0x0C
+?define DSP_DATA_AVAIL      0x0E
+?define CD_ROM_DATA         0x10    /* Pro only */
+?define CD_ROM_STATUS       0x11    /* Pro only */
+?define CD_ROM_RESET        0x12    /* Pro only */
+?define CD_ROM_ENABLE       0x13    /* Pro only */
+
+?define ADLIB_FM_STATUS     0x388
+?define ADLIB_FM_ADDRESS    0x388
+?define ADLIB_FM_DATA       0x389
+
+/* Defines for 8237 DMA Controller IO addresses (not used currently) */
+/*
+?define DMA         0x00
+?define CH0_BASE    DMA+0
+?define CH0_COUNT   DMA+1
+?define CH1_BASE    DMA+2
+?define CH1_COUNT   DMA+3
+?define CH2_BASE    DMA+4
+?define CH2_COUNT   DMA+5
+?define CH3_BASE    DMA+6
+?define CH3_COUNT   DMA+7
+?define DMA_STATUS  DMA+8
+?define DMA_CMD     DMA+8
+?define DMA_REQUEST DMA+9
+?define DMA_MASK    DMA+10
+?define DMA_MODE    DMA+11
+?define DMA_FF      DMA+12
+?define DMA_TMP     DMA+13
+?define DMA_CLEAR   DMA+13
+?define DMA_CLRMSK  DMA+14
+?define DMA_WRMSK   DMA+15
+?define DMAPAGE     0x80
+*/
+
+/* Types of Sound Blaster Cards */
+?define SB15	1
+?define SBPro	2
+?define SB20	3
+
+/* DSP Commands */
+?define DIRECT_8_BIT_DAC	0x10
+?define DMA_8_BIT_DAC		0x14
+?define DMA_2_BIT_DAC		0x16
+?define DMA_2_BIT_REF_DAC	0x17
+?define DIRECT_ADC		0x20
+?define DMA_ADC			0x24
+?define MIDI_READ_POLL		0x30
+?define MIDI_READ_IRQ		0x31
+?define MIDI_WRITE_POLL		0x38
+?define TIME_CONSTANT		0x40
+?define DMA_8_BIT_DAC_HI_INIT	0x48   // for high-speed SB Pro transfers
+?define DMA_4_BIT_DAC		0x74
+?define DMA_4_BIT_REF_DAC	0x75
+?define DMA_26_BIT_DAC		0x76
+?define DMA_26_BIT_REF_DAC	0x77
+?define DMA_8_BIT_DAC_HI_START	0x91   // for high-speed SB Pro transfers
+?define DMA_8_BIT_ADC_HI_START	0x99   // for high-speed SB Pro transfers
+?define HALT_DMA		0xD0
+?define CONTINUE_DMA		0xD4
+?define SPEAKER_ON		0xD1
+?define SPEAKER_OFF		0xD3
+?define DSP_ID			0xE0
+?define DSP_VER			0xE1
+?define DSP_COPYRIGHT		0xE3
+?define INT_REQUEST		0xF2
+?define MDAC1			0x61
+?define MDAC2			0x62
+?define MDAC3			0x63
+?define MDAC4			0x64
+?define MDAC5			0x65
+?define MDAC6			0x66
+?define MDAC7			0x67
+
+/* Defines for the mixer */
+?define MIXER_RESET 0x00
+?define MASTER_VOL  0x22
+?define VOC_VOL     0x04
+?define LINE_VOL    0x2e
+?define FM_VOL	    0x26
+?define CD_VOL	    0x28
+?define RECORD_SRC  0x0C
+?define MIC	    0x11
+?define LINE	    0x17
+?define CD	    0x13
+
+/*
+   These four need to be set to the proper values by SB_GET_PARAMS()
+   and SB_INIT or by SB_DETECT() before making calls to any other
+   routines!
+*/
+word SbIOaddr;    // == 0x220
+word SbIRQ;       // == 7
+word SbDMAchan;   // == 1
+word SbType;      // == 1
+
+/*
+   Write data to the DSP
+
+   On entry: byte to be written in AL
+*/
+void WRITEDSP()
+{
+   $ MOV AH,AL     // save a copy of AL for later
+   DX = SbIOaddr + DSP_WRITE_STATUS;
+WAITLOOP:
+   $ IN AL,DX
+   $ OR AL,AL
+   $ JS WAITLOOP
+//   DX = SbIOaddr + DSP_WRITE_DATA;   // not necessary (same port)
+   $ MOV AL,AH
+   $ OUT DX,AL
+}
+
+/*
+   Read data from the DSP, with a timeout
+   Usage: READDSP(,,count)
+   On exit: byte read in AL
+*/
+byte READDSP()
+{
+   DX = SbIOaddr + DSP_DATA_AVAIL;
+   loop(CX)
+   {
+      $ IN AL,DX
+      $ OR AL,AL
+      $ JS READY
+   }
+READY:
+   $ SUB DL,4         // DX = SbIOaddr + DSP_READ_DATA;
+   $ IN AL,DX
+}
+
+/*
+   Write a byte to the SB Pro mixer chip
+
+   Usage: WRITEMIXER(x,y);
+
+   x specifies to which line the value y should be written
+*/
+void WRITEMIXER()
+{
+   DX = SbIOaddr+MIXER_ADDRESS;
+   $ OUT DX,AL   // output x
+   $ INC DX      // DX = SbIOaddr+MIXER_DATA  ==  SbIOaddr+MIXER_ADDRESS+1
+   AL = BL;      // output y
+   $ OUT DX,AL
+}
+
+/*
+   Read a byte from the SB Pro mixer chip.
+   The value is returned in AL.
+
+   Usage: READMIXER(byte x);
+
+   x specifies from which line the value should be read
+*/
+byte READMIXER()
+{
+   DX = SbIOaddr+MIXER_ADDRESS;
+   $ OUT DX,AL     // output x
+   $ INC DX        // DX = SbIOaddr+MIXER_DATA;
+   $ IN AL,DX
+}
+
+/*
+   Reset routine for Sound Blaster.
+   Returns non-zero value on error.
+*/
+int SB_INIT()
+{
+    AL = 1;
+    DX = SbIOaddr + DSP_RESET;
+    $ OUT DX,AL
+    $ IN AL,DX
+    $ IN AL,DX
+    $ IN AL,DX
+    $ IN AL,DX
+    $ XOR AL,AL
+    $ OUT DX,AL
+    DX += 4;
+    CX = 100;
+    loop(CX)
+    {
+       $ IN AL,DX
+       $ CMP AL,0xAA
+       $ JE DONE
+    }
+    AX = -1;
+    $ RET            // return();
+DONE:
+    $ XOR AX,AX
+}
+
+/*
+   Sets the sample rate to be used for digitising or playback.
+
+   Usage: SB_SAMPLE_RATE(,word rate);
+*/
+void SB_SAMPLE_RATE()
+{
+    AX = 0x4240;
+    DX = 0x000F;   // DX:AX == 0xF4240 == 1,000,000
+    $ DIV BX
+    BX = 256;
+    $ SUB BX,AX    // tc = (unsigned char) (256 - (1,000,000/rate));
+
+    WRITEDSP(TIME_CONSTANT);  /* Command byte for sample rate */
+    WRITEDSP(BL);    /* Sample rate time constant */
+}
+
+/*
+   Turns the speaker on or off.
+
+   Usage: SB_VOICE(state);
+*/
+void SB_VOICE()
+{
+    IF (AX == FALSE)
+       WRITEDSP(SPEAKER_OFF);
+    ELSE
+       WRITEDSP(SPEAKER_ON);
+}
+
+/* Gets the DSP version number from the sound card.
+   Returns:
+      AH = high byte
+      AL = low byte
+*/
+word GET_DSP_VER()
+{
+   WRITEDSP(DSP_VER);
+   WAIT(3);
+REGET:
+   READDSP(,,100);       // get the high byte
+   IF (AL == 0xAA)
+      $ JMP REGET
+   $ MOV AH,AL
+   READDSP(,,100);       // get the low byte
+   return(AX);
+}
+
+
+
+/*
+   Parses the BLASTER enviroment variable to get SB settings.
+
+   Returns 1 on error and 0 on success.
+*/
+int SB_GET_PARAMS()
+{
+   /* Set arguments to reasonable values (Sound Blaster defaults) */
+   SbIOaddr = 0x220;
+   SbIRQ = 7;
+   SbDMAchan = 1;
+
+   /* Attempt to read environment variable */
+   ENVSTR("BLASTER");
+   SI = DI;
+
+   /* Is the environment variable set? */
+   IF(ESBYTE[SI] == 0)
+      return(1);
+
+   /* Now parse the BLASTER variable */
+   do {
+NEXT_CHAR:     // loop to bypass "white-space"
+      AL = ESBYTE[SI];
+      IF (AL == ' ')
+         SI++;
+      ELSE IF (AL == '\t')
+         SI++;
+      ELSE
+         $ JMP CONTINUE
+      $ JMP NEXT_CHAR
+CONTINUE:
+      IF (AL >= 'a')
+         IF (AL <= 'z')
+            AL -= 'a' + 'A';   // capitalize character in AL
+      IF (AL == 'A')                /* I/O address */
+      {
+         SI++;
+         DIGITSTOHEXWORD();
+         SbIOaddr = AX;
+      }
+      ELSE IF (AL == 'I')           /* Hardware IRQ */
+      {
+         SI++;
+         DIGITSTOWORD();
+         SbIRQ = AX;
+      }
+      ELSE IF (AL == 'D')           /* DMA channel */
+      {
+         SI++;
+         DIGITSTOWORD();
+         SbDMAchan = AX;
+      }
+      ELSE IF (AL == 'T')           /* Sound Blaster type */
+      {
+         SI++;
+         DIGITSTOWORD();
+         SbType = AX;
+      }
+      ELSE
+      {
+         WRITESTR("Unknown BLASTER option ");
+         WRITE(AL);
+         WRITELN();
+      }
+   } while (ESBYTE[SI] != 0);  // are we at the end of the string?
+   return(0);
+}
+
+
+
+/*
+    The following are procedures required by SB_GET_PARAMS.
+*/
+
+/*
+   On entry:  ES:SI = segment:offset of string
+   On return: word in AX
+*/
+word DIGITSTOWORD()
+{
+   $ XOR AX,AX;
+   CX = 10;
+   $ XOR BH,BH
+NEXT_CHAR:
+   BL = ESBYTE[SI];
+   IF (BL < '0')
+      $ JMP DONE
+   IF (BL > '9')
+      $ JMP DONE
+   $ MUL CX
+   BL -= '0';
+   AX += BX;
+   SI++;
+   $ JMP NEXT_CHAR
+DONE:
+}
+
+/*
+   On entry:  ES:SI = segment:offset of string
+   On return: word in AX
+*/
+word DIGITSTOHEXWORD()
+{
+   $ XOR AX,AX;
+   $ XOR BH,BH
+NEXT_CHAR:
+   BL = ESBYTE[SI];
+   IF (BL < '0')
+      $ JMP DONE
+   IF (BL > '9')
+      $ JMP DONE
+   $ SHL AX,4     // == AX *= 16;
+   BL -= '0';
+   AX += BX;
+   SI++;
+   $ JMP NEXT_CHAR
+DONE:
+}

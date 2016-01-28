@@ -1,0 +1,65 @@
+/*
+   CyberRax Programming (C) 2000
+   TITLE:  AMIS.H--
+   DESCRIPTION:   One procedure (for now) for TSRs which 'want' to conform
+                  to the Alternate Multiplex Interrupt Specification 3.5+
+                  (AMIS) (Check AMIS351.TXT for the specification)
+   LAST MODIFIED:   16 Nov 2000
+   PROCEDURES DEFINED IN THIS FILE:
+       : byte SCANNING(signature)
+*/
+
+
+? define AMI 0x2D
+
+
+: byte SCANNING ()   // ver. 1.11, optimized by 3 bytes
+/* Checks for the presents of AMIS TSR with specified signature. If not found
+   then returns the number of first free multiplexnumber
+   NB!   DS must equal to segment of signature (usually CS)
+   Size: 94 bytes (new size on my compiller 74 bytes)
+*/
+{
+	$push BP
+	$PUSH 0, AX, 0, 0
+	BP = SP;
+	AX = 0;
+	do {
+		$PUSH AX
+		$INT 0x2D
+		IF (AL == 0)&& (SSBYTE[BP + 2] == FALSE){
+			SSBYTE[BP + 2] = TRUE;
+			SSBYTE[BP + 3] = AH;
+		}
+		IF (AL == 0xFF){
+			SSWORD[BP + 6] = CX;
+			SI = SSWORD[BP + 4];
+			$push DX
+			$pop ES	// ES = DX; this not destroyed AX
+			CX = 8;
+			$CLD
+			$REP $CMPSW
+			IF(ZEROFLAG){
+				SSBYTE[BP + 1] = AH;
+				SSBYTE[BP] = TRUE;
+				$pop AX
+				BREAK;
+			}
+		}
+		$POP AX
+		AH++;
+		$CWD	//this instruction not destroyed flags
+	} while (NOTZEROFLAG);
+	$POP AX, BX, CX, CX, BP
+}
+/* Returns: AH = multiplex number, AL = 1, BX = 0 if TSR found
+            AX = 0, BH = first free number, BL = 1 if TSR not found
+            DX = 0 if all numbers were checked, else undetermined
+            So, AX = BX = DX = 0 if TSR not installed and no free numbers
+            CX = version number (if TSR was not resident then it's someone
+                 else's version number)
+            SI, DI, BP, ES destroyed
+*/
+
+
+/* end of AMIS.H-- */

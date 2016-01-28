@@ -1,0 +1,42 @@
+/*
+    CYBERMAN.C--
+*/
+
+?include "WRITE.H--"
+?include "DOS.H--"
+?include "CYBERMAN.H--"
+
+
+void main ()
+{
+IF( cyberman_installed() != TRUE )
+    {WRITESTR("Cyberman and Driver not installed!\n");
+    EXIT(1);
+    }
+
+CYBERMAN_FEEDBACK(100,100,10);  // test the tactile feed back motor
+
+do {
+    GET_CYBERMAN();   // query cyberman values.
+    WRITEINT(cyberman_xpos);
+    WRITE(' ');
+    WRITEINT(cyberman_ypos);
+    WRITE(' ');
+    WRITEINT(cyberman_zpos);
+    WRITE(' ');
+    WRITEINT(cyberman_yawvalue);
+    WRITE(' ');
+    WRITEINT(cyberman_pitchvalue);
+    WRITE(' ');
+    WRITEINT(cyberman_rollvalue);
+    WRITE(' ');
+    WRITEINT(cyberman_buttons);
+    WRITELN();
+    } while( cyberman_buttons & 5 == 0 );
+                // press left or right button to quit.
+
+EXIT(0);
+}
+
+
+/* end of CYBERMAN.C-- */

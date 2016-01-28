@@ -1,0 +1,57 @@
+/*
+    NAME:  DATETIME.C--
+    DESCRIPTION:  Displays current system date and time.
+*/
+
+?include "DOS.H--"
+?include "WRITE.H--"
+
+byte day,month,wday;
+word year;
+
+byte hour,minute,second;
+
+void main ()
+{
+@ DOSGETDATE();
+day = DL;
+month = DH;
+year = CX;
+wday = AL;
+
+WRITESTR("\nCurrent Date: ");
+IF( wday == 0 )
+    WRITESTR("Sunday ");
+ELSE IF( wday == 1 )
+    WRITESTR("Monday ");
+ELSE IF( wday == 2 )
+    WRITESTR("Tuesday ");
+ELSE IF( wday == 3 )
+    WRITESTR("Wednesday ");
+ELSE IF( wday == 4 )
+    WRITESTR("Thursday ");
+ELSE IF( wday == 5 )
+    WRITESTR("Friday ");
+ELSE IF( wday == 6 )
+    WRITESTR("Saturday ");
+WRITEWORD(day);
+WRITE('/');
+WRITEWORD(month);
+WRITE('/');
+WRITEWORD(year);
+
+@ DOSGETTIME();
+hour = CH;
+minute = CL;
+second = DH;
+WRITESTR("\nCurrent Time: ");
+WRITEWORD(hour);
+WRITE(':');
+WRITEWORD(minute);
+WRITE(':');
+WRITEWORD(second);
+WRITELN();
+}
+
+
+/* end of DATETIME.C-- */

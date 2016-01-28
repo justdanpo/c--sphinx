@@ -1,0 +1,49 @@
+/*-----------------22.12.98 16:19-------------------
+  Набор структур для работы с графическим файлом
+  Формата BMP.
+--------------------------------------------------*/
+?ifndef _BMP_
+?define _BMP_ TRUE
+
+struct _BITMAPFILEHEADER
+{
+	word	Type;      //тип файла (для битового образа - BM)
+	dword	Size;      //размер файла в dword
+	word	Reserved1; //не используется
+	word	Reserved2; //не используется
+ 	dword	Offbits;   //смещение данных битового образа от заголовка в байтах
+};
+
+struct _BITMAPINFOHEADER
+{
+	dword	Size;         //число байт, занимаемых структурой BITMAPINFOHEADER
+ 	dword	Width;        //ширина битового образа в пикселах
+ 	dword	Height;       //высота битового образа в пикселах
+	word	Planes;       //число битовых плоскостей устройства
+	word	BitCount;     //число битов на пиксель
+	dword	Compression;  //тип сжатия
+	dword	SizeImage;    //размер картинки в байтах
+	dword	XPelsPerMeter;//горизонтальное разрешение устройства,пиксел/м
+	dword	YPelPerMeter; //вертикальное разрешение устройства,пиксел/м
+	dword	ClrUsed;      //число используемых цветов
+	byte	PalRot;       //номер цвета с которого произв изм
+	byte	StyleRot;     //стиль изменения
+	word	ClrImportant; //число "важных" цветов
+};
+
+struct _RGBQUAD
+{
+	byte	Red;     //интенсивность красного
+	byte	Green;   //интенсивность зеленого
+	byte	Blue;    //интенсивность голубого
+	byte	Rserved; //не используется
+};
+
+struct PALITRA
+{
+	byte Blue;
+	byte Green;
+	byte Red;
+};
+
+?endif

@@ -1,0 +1,38 @@
+?warning FALSE
+/*****************************************************************************
+* .NAME   : Box
+* .TITLE  : Рисует рамку с сообщением.
+*****************************************************************************/
+void Box(int wrow,wcol,height,width,title)
+byte attrLight;
+byte attrShade;
+int len;
+{
+	mshidecur();
+	height++;
+	width++;
+// длина сообщения + 2 пробела
+	len=0;
+	IF(title!=0){
+		len=STRLEN(title)+2;
+		attrLight=_scheme.schAccentText[Window.scheme];
+		wprintc(wrow,wcol+1,attrLight,' ');
+		Say(wrow,wcol+2,attrLight,title);
+		wprintc(wrow,wcol+len,attrLight,' ');
+	}
+	attrLight=_scheme.schNormalText[Window.scheme];
+	attrShade=_scheme.schDarkLine[Window.scheme];
+	FOR(SI=1;SI<width;SI++){
+		IF(len<SI)wprintc(wrow,wcol+SI,attrLight,_box_table[brdSingle].ch[1]);
+		wprintc(wrow+height,wcol+SI,attrShade,_box_table[brdSingle].ch[6]);
+	}
+	FOR(SI=1;SI<height;SI++){
+		wprintc(wrow+SI,wcol,attrLight,_box_table[brdSingle].ch[3]);
+		wprintc(wrow+SI,wcol+width,attrShade,_box_table[brdSingle].ch[4]);
+	}
+	wprintc(wrow,wcol,attrLight,_box_table[brdSingle].ch[0]);
+	wprintc(wrow,wcol+width,attrShade,_box_table[brdSingle].ch[2]);
+	wprintc(wrow+height,wcol,attrLight,_box_table[brdSingle].ch[5]);
+	wprintc(wrow+height,wcol+width,attrShade,_box_table[brdSingle].ch[7]);
+	msshowcur();
+}

@@ -1,0 +1,157 @@
+ H E L P   F O R   U S E   O F   S P H I N X   C - -   W O R K   B E N C H
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Last Updated:  2 May 1993
+
+QUICK LIST OF QUICK KEYS AND FUNCTIONS OF SPHINX C-- WORKBENCH
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+           K E Y    ------  F U N C T I O N
+
+            <F1>    ------ Open C-- Work Bench Help Window
+        <SHIFT><F1> ------ Open Main General Help Window
+         <CTRL><F1> ------ Reset All Work Bench Settings
+         <ALT><F1>  ------ Open About Window
+
+            <F2>    ------ Save File
+        <SHIFT><F2> ------ Save File As
+
+            <F3>    ------ Load File
+
+            <F4>    ------ View Output Screen
+        <SHIFT><F4> ------ Just Execute Run File Without Recompiling
+         <ALT><F4>  ------ Close Window
+
+            <F5>    ------ Compile and Run
+        <SHIFT><F5> ------ Compile
+         <CTRL><F5> ------ Set Primary Run File
+         <ALT><F5>  ------ Set Run Command Line Parameters
+
+            <F6>    ------ Next Window
+        <SHIFT><F6> ------ Previous Window
+
+            <F7>    ------ Zoom Current Window
+        <SHIFT><F7> ------ Tile Windows
+         <CTRL><F7> ------ Cascade Windows
+         <ALT><F7>  ------ ReSize/Move Current Window
+
+            <F8>    ------ Set Compiler Options
+        <SHIFT><F8> ------ Set Primary Compile File
+
+            <F9>    ------ Search Again
+        <SHIFT><F9> ------ Find (set search string)
+         <CTRL><F9> ------ Search and Replace
+
+            <F10>    ------ Open All Procedure Quick List Window
+        <SHIFT><F10> ------ Open Stack Procedure Help Window
+         <CTRL><F10> ------ Open REG Procedure Help Window
+
+          <ALT><1>   ------ Select Colour Sceme 1
+          <ALT><2>   ------ Select Colour Sceme 2
+
+          <ALT><A>   ------ Open ASCII Table Window
+          <ALT><B>   ------ Blank Screen Until A Key Is Pressed
+          <ALT><C>   ------ Pull Down Compile/Compiler Options Menu
+          <ALT><D>   ------ Small DOS Shell
+          <ALT><E>   ------ Pull Down Edit Menu
+          <ALT><F>   ------ Pull Down File Menu
+          <ALT><H>   ------ Pull Down Help Menu
+          <ALT><K>   ------ Open Calculator Window
+          <ALT><L>   ------ Open Clipboard Window
+          <ALT><O>   ------ Pull Down Options Menu
+          <ALT><P>   ------ Change Current Directory
+          <ALT><Q>   ------ Full DOS shell
+          <ALT><R>   ------ Pull Down Run Menu
+          <ALT><S>   ------ Pull Down Search/Search and Replace Menu
+          <ALT><U>   ------ Undo
+          <ALT><V>   ------ Toggle Between 25 and 43/50 lines
+          <ALT><W>   ------ Pull Down Windows Menu
+          <ALT><X>   ------ Exit C-- Work Bench
+
+<SHIFT><CURSOR KEYS> ------ Select Text
+    <SHIFT><DEL>     ------ Cut Selected Text Into Clipboard
+    <SHIFT><INS>     ------ Paste Text From Clipboard
+    <CTRL><INS>      ------ Copy Selected Text Into Clipboard
+    <CTRL><DEL>      ------ Clear Clipboard
+
+
+
+STARTING C-- WORK BENCH
+^^^^^^^^^^^^^^^^^^^^^^^
+First ensure that all files included with C-- are in the same directory as
+the Work Bench Program (WB.COM and WB.EXE).  Then set the environment
+variable 'C--' to the path in which the work bench files are located.
+
+For example, if your files are located in the directory 'C:\C--' then type
+the following line at the DOS prompt:
+
+          SET C--=C:\C--
+
+You may wish to add the command to your AUTOEXEC.BAT.
+
+After the variable has been set, simply type WB at the DOS prompt.  It is
+also possible to specify a file or files to load into the editor at start
+up.  Just WB followed by the files you wish to be loaded, WILD CARD
+CHARACTERS CAN BE USED (don't you just love it!). 
+
+For example, to load all the *.C-- files in the current directory into the
+SPHINX C-- Work Bench, type:
+
+           WB *.C--
+
+If an extension is not given, .C-- will be assumed.
+
+
+USING C-- WORK BENCH
+^^^^^^^^^^^^^^^^^^^^
+    Most features of the C-- Work Bench are reasonably straight forward.
+Two features, set run file and set compile file may need some explanation.
+
+SET PRIMARY RUN FILE
+    Pressing <CTRL><F8> will open a window allowing you to change the 
+primary run file.  The primary run file is the filename of the program
+that is run when the Compile&Run or the Just Run option is selected.  If
+compile&run has been selected, the compile file is compiled and the run file
+is executed.  The run file may be different than the run file, this allows
+for development of programs that required a driver or loader program to be
+run to execute the compiled file.
+    If the primary run filename is left blank, the primary compile filename
+will be used.
+
+SET PRIMARY COMPILE FILE
+    Pressing <SHIFT><F8> will open a window allowing you to change the 
+primary compile file.  The primary compile file is the filename of the 
+source file to be compiled.
+    If the primary compile filename is left blank, the filename of the 
+current window will be used as the source file.
+
+
+NOTES ON COMPILING
+^^^^^^^^^^^^^^^^^^
+The C-- Work Bench spawns the C-- compiler, which is actually a command line
+compiler.  The compiler then compiles the given file.  The compiler only
+compiles the file off disk, therefore all changes must be saved to disk to 
+be recognized by the compiler.  So save your source file before selecting
+<F5> to compile&run or <SHIFT><F5> to compile.
+
+Pressing <F4> will display the output screen.  This may be used to view
+output from the compiler, such as error messages. 
+
+
+EMERGENCY KILL KEYS
+^^^^^^^^^^^^^^^^^^^
+Even the best programmers sometimes make mistakes, and the dreadful lock-up
+occurs, usually in some non-terminating loop that does not allow <CTRL><C>
+to kill it.  Well the work bench has a built in kill key combo that will
+terminate the current program that is executing.
+
+Pressing <CTRL><ALT><C> will terminate the current program running.  When
+these keys are pressed, a serious attempt will be made to kill off the
+current program running.  No care will be given to what state the program
+is in.  This does impose the possiblities of severly crashing your machine,
+but at this point your probably desperate to kill the program anyway, so its
+worth a shot.  Be careful, <CTRL><ALT><C> will also terminate the C--
+compiler or the C-- Work Bench if they are the currently executing program.
+
+
+/* end of WBHELP.DOC */

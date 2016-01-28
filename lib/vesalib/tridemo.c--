@@ -1,0 +1,81 @@
+?include "DOS.H--"
+?include "WRITE.H--"
+?include "PCX.H--"
+?include "VGA.H--"
+?include "KEYCODES.H--"
+?include "RANDOM.H--"
+?include "VIDEO.H--"
+
+#includepath "includes"
+?include "VESALIB.H--"
+
+?define PALSIZE 256*3
+byte palette[PALSIZE]; //palette buffer
+
+word trash,whichkey,keyflag;
+word x1,y1,x2,y2,x3,y3;
+byte color,temp,cpu;
+	
+main()
+{
+cpu = GETCPU();  /* get the CPU type */
+IF(cpu<3){
+	WRITESTR("386cpu or better is required!");
+	EXIT(0);};
+
+RANDOMIZE();
+
+IF(byte readPCXpalette("PROPHET.PCX", DS ,#palette)!=pcx_e_ok)
+	{WRITESTR("Error reading palette.\n");
+	EXIT(0);
+	}
+CLEARSCREEN0();
+GOTOXY(0,0);
+WRITESTR("Welcome to trigonVesa demo. ");
+WRITELN();
+WRITELN();
+WRITESTR("Select resolution:");
+WRITELN();
+WRITELN();
+WRITESTR("Press A for 640x480");
+WRITELN();
+WRITESTR("Press B for 800x600");
+WRITELN();
+WRITESTR("Press C for 1024x768");
+WRITELN();
+WRITELN();
+WRITESTR("Any other key to cancel");
+
+keyflag=0;
+whichkey=BIOSREADKEY();
+
+IF(whichkey==0x1e61){	temp=set640x480VESA(0);
+			IF(temp==0)keyflag=1;}
+IF(whichkey==0x3062){	temp=set800x600VESA(0);
+			IF(temp==0)keyflag=1;}
+IF(whichkey==0x2e63){	temp=set1024x768VESA(0);
+			IF(temp==0)keyflag=1;}
+IF(keyflag!=1)EXIT(0);
+
+SETVGAPALETTE( ,0 ,256 ,#palette);
+
+barVESA(0,0,screenwidth-1,screenheight-1,0);
+
+do{
+
+IF(KBHIT()){trash=BIOSREADKEY();SETVIDEOMODE(vid_text80c);EXIT(0);};
+
+	color=RAND();
+	color&=255;
+
+	x1=RAND()%screenwidth;
+	y1=RAND()%screenheight;
+	x2=RAND()%screenwidth;
+	y2=RAND()%screenheight;
+	x3=RAND()%screenwidth;
+	y3=RAND()%screenheight;
+
+	trigonclipVESA(x1,y1,x2,y2,x3,y3,color);
+
+}while(1==1);
+}

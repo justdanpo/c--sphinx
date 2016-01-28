@@ -1,0 +1,24 @@
+/*
+    NAME: OBJTEST.C--
+    DESCRIPTION:  This program must be compiled to an OBJ file for use with
+                  C_TEST.C and PAS_TEST.PAS.
+                  To build an OBJ file, on the compiler options window select
+                  OBJ file as the output type, and set jump to main() as
+                  none.
+*/
+
+?include "WRITE.H--"
+
+void far display_word (word wordvalue)  
+{
+@ WRITEWORD(wordvalue);
+@ WRITELN();
+}       
+
+
+word far double_it (word wordvalue)  
+{
+return(wordvalue*2);
+}       
+
+/* end of OBJTEST.C-- */

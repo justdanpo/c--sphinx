@@ -1,0 +1,149 @@
+/*---------- ―¨α ­¨¥ δγ­ªζ¨©
+
+	:word ACCESS(filename,mode) - ΰ®Ά¥ΰª  αγι¥αβΆ®Ά ­¨ο δ ©«  ¨ ¤®αβγ― ª ­¥¬γ
+	:word chsize(word hd;dword sz) - §¬¥­¨βμ ΰ §¬¥ΰ δ ©« 
+	:word REMOVE(filename) - “¤ «¨βμ δ ©«
+
+----------------------------------*/
+?ifndef _IO_
+?define _IO_ TRUE
+?warning FALSE
+
+:word ACCESS()
+//‚……’ ‘“™ ‹ ”€‰‹  „‘’“… ‹ ‚ „€ …†
+//‚•„ AX -  ”€‰‹€ BX - …† ‚…: 6 - ‚ ‚‡ —’…  ‡€‘
+//4 - ‚‡ —’… 2 - ‚‡ ‡€‘ 0 - ‚ ‘“™ ”€‰‹€
+//€ ‚›•„… 0 - „‘’“ €‡ 1 - „‘’ ‡€ ‹ ”€‰‹ … ‘“™
+{
+?ifdef codesize
+	DX><AX;
+?else
+	DX=AX;
+?endif
+	IF(BL==6)AL=2;
+	ELSE IF(BL==2)AL=1;
+	ELSE AL=0;
+	AH=0X3D;
+	$INT 0X21
+	IF(NOTCARRYFLAG){
+?ifdef codesize
+		BX><AX;
+?else
+		BX=AX;
+?endif
+		AH=0X3E;
+		$INT 0X21
+		AX=0;
+	}
+	ELSE AX=1;
+}
+
+:word chsize(word hd;dword sz)
+//‡……’ €‡… ”€‰‹€. ”€‰‹ „‹†… ›’ ’›’ „‹ ‡€‘
+word ls,ms,buf[0X40];
+{
+	$PUSH DS
+	$PUSH DI
+	AX=0X4201;
+	BX=hd;
+	CX=0;
+	DX=CX;
+	$INT 0X21
+	if ( NOTCARRYFLAG ){
+		ls=DX;
+		ms=AX;
+		AX=0X4202;
+		CX=0;
+		DX=CX;
+		$INT 0X21
+		if(NOTCARRYFLAG){
+			$CMP DX,SSWORD[#sz+2]
+			$JA L1D
+			$JB LC7
+			$CMP AX,SSWORD[#sz]
+			$JNB L1D
+LC7:
+			$SUB SSWORD[#sz],AX;
+			$SBB SSWORD[#sz+2],DX;
+			CX=DX;
+?ifdef codesize
+			DX><AX;
+?else
+			DX=AX;
+?endif
+			AX=0X4200;
+			$INT 0X21
+			$JB ER
+			ES=SS;
+			DI=#buf;
+			$CLD
+			AX=0;
+			CX=0X40;
+			$REPE
+			$STOSW
+LE5:
+			CX=0X80;
+			$CMP SSWORD[#sz+2],0
+			$JNZ LF6
+			$CMP CX,SSWORD[#sz]
+			$JBE LF6
+			CX=sz;
+LF6:
+			$SUB SSWORD[#sz],CX
+			$SBB SSWORD[#sz+2],0
+			DX=#buf;
+			DS=SS;
+			$PUSH CX
+			AH=0X40;
+			$INT 0X21
+			$POP CX
+			$JB ER
+			IF(AX==CX){
+				AX=sz;
+				$OR AX,SSWORD[#sz+2]
+				$JNZ LE5
+				AX=0;
+				$JMP SHORT SETPOC
+L1D:
+				AX=0X4200;
+				BX=hd;
+				DX=sz;
+				CX=SSWORD[#sz+2];
+				$INT 0X21
+				$JB ER
+				AH=0X40;
+				CX=0;
+				$INT 0X21
+				$JB ER
+SETPOC:
+				DX=ms;
+				CX=ls;
+				AX=0X4200;
+				$INT 0X21;
+				AX=0;
+				$JMP SHORT EN
+			}
+		}
+	}
+ER:
+	AX=-1;
+EN:
+	$POP DI
+	$POP DS
+}
+
+:word REMOVE()
+//“„€‹…’ ”€‰‹ AX- ”€‰‹€
+{
+?ifdef codesize
+	DX><AX;
+?else
+	DX=AX;
+?endif
+	AH=0X41;
+	$INT 0X21
+	IF(CARRYFLAG)AX=-1;
+	ELSE AX=0;
+}
+
+?endif

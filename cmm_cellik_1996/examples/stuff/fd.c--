@@ -1,0 +1,2114 @@
+/*
+    C-- source code for FD.COM
+    The main program for FUNDOS, a very pretty DOS shell.
+    FUNDOS.COM must be run first.
+    SPHINX Programming 1994
+    This file includes FDTEXT.C--.
+    Last Modified:  2 May 1994
+*/
+/*
+    THINGS TO STILL BE DONE:
+          - handle fundos apps.
+          - do error messages
+          - prompt for parameters
+          - entry of more push keys, current limit is 9, but should be 15
+          - support of quick keys
+          - check on no icon name error (if no name, bad things happen)
+          - make blank time configurable
+*/
+
+?speed                   // optimize for speed not code size
+?use80286                // enable 286 code optimizations
+?assumeDSSS FALSE        // do not assume SS is equal to DS
+?resize TRUE             // do not resize program memory to 64K
+?resizemessage "ERROR>  Unable to resize program memory block."
+?parsecommandline FALSE  // do not parse command line
+?jumptomain NEAR
+
+?include "KEYCODES.H--"
+?include "SOUND.H--"
+?include "WRITE.H--"
+?include "SYSTEM.H--"
+?include "FILE.H--"
+?include "VIDEO.H--"
+?include "FUNDOS.H--"
+?include "RANDOM.H--"
+?include "MOUSE.H--"
+?include "VGA.H--"
+?include "DOS.H--"
+?include "STRING.H--"
+
+
+?define LOGICALSCREENWIDTH    640
+?define LOGICALSCREENHEIGHT   200
+?define THECLEARCOLOR          45
+?include "VGAX.H--"
+
+enum { e_moved=1, e_leftpressed=2, e_leftreleased=4, e_rightpressed=8,
+       e_rightreleased=16 };   // mouse event bit values
+
+
+byte letters = FROM "FUNDOS.FON";
+
+void putletter (word x,y,letter,foreattr,backattr)
+{
+IF( letter >= 128 )
+    letter = 1;
+putletter_x(x,y,letter*64+#letters,foreattr,backattr);
+}
+
+
+void x_writestr (word x,y,str,fg,bg)
+{
+SI = str;
+IF( DSBYTE[SI] != 0 )
+    {do {
+        IF( DSBYTE[SI] >= 128 )
+            DSBYTE[SI] = 1;
+        $ PUSH SI
+        putletter_x(x,y,DSBYTE[SI]*64+#letters,fg,bg);
+        x += 8;
+        $ POP SI
+        SI++;
+        } while( DSBYTE[SI] != 0 );
+    }
+}
+
+
+byte DOSavailable = TRUE;         // flag if DOS is busy or not
+
+/*+++++  SYSTEM III's +++++*/
+byte mousenormal = FROM "MOUSE.III";
+byte mouseloading = FROM "LOADING.III";
+byte mouseexiting = FROM "EXITING.III";
+byte mousespawning = FROM "SPAWNING.III";
+byte mouseedit = FROM "EDIT.III";
+byte mousedelete = FROM "DELETE.III";
+
+enum { i_exit=10000, i_add, i_delete, i_edit, i_settings, i_help };
+byte exitiii = FROM "EXIT.III";
+byte addiii = FROM "ADD-ICON.III";
+byte deleteiii = FROM "DEL-ICON.III";
+byte changeiii = FROM "EDITICON.III";
+byte settingsiii = FROM "SETTINGS.III";
+byte helpiii = FROM "HELP.III";
+
+word iconinternal = {#exitiii, #addiii, #deleteiii, #changeiii, #settingsiii,
+                     #helpiii};  // offset locs for special III's
+
+enum { ds_exit, ds_spawnfundos, ds_spawnthenexit, ds_spawnthenfundos,
+       ds_fundosapp };   // driver state values
+
+enum { de_firstrun=0x8000, de_driveerror=1, de_direrror=2 };
+        // driver error state values
+
+byte defaultOK = "\nERROR loading config file FUNDOS.CFG.\n"
+                 "Press <ENTER> to assume default configuation,"
+                 " or any other key to ABORT.\n";
+
+/********************  START OF STUFF in CONFIG file **********************/
+enum { b_load640, b_solid, b_random };  // background types
+enum { icon_iii, icon_text };           // icon types
+enum { fvm_320x200, fvm_320x240 };      // fundos video mode types
+enum { LOCK_NONE, LOCK_ALL };           // lock icon modes
+enum { BLANKER_OFF, BLANKER_BLACK, BLANKER_DIM,
+       BLANKER_RED, BLANKER_GREEN, BLANKER_BLUE };  // blankeron values
+
+? align           // align now, insert byte here if not even address
+? alignword FALSE // make sure block is always the same size
+
+byte configheader = "FUNDOS config file.\026";
+
+// start of program info block
+word spawnpushkeys[16]={0};     // keys to push onto key-Q
+word spawnreserved[32]={0};     // 64 bytes reserved for future purposes
+byte spawnkeysindex = 0;        // number of keys to push
+byte spawnfunction = 0;         // function definition (normal prog, fundos prog, etc.)
+byte spawnvidmode = 3;          // initial videomode 
+byte spawnfreeupmem = TRUE;     // remove FD.COM from memory during run 
+byte spawnretfundos = TRUE;     // return to fundos after
+byte spawnhotkey = 0;           // quick key for alt-<?>
+byte spawnprog[STRLENGTH] = "C:\\COMMAND.COM";  // spawn program name 
+byte spawnparam[STRLENGTH] = "\000\013"; // spawn parameters, first byte is count 
+byte spawndir[STRLENGTH] = "C:\\";       // spawn program path 
+byte spawnicontype = icon_iii;  // icon type
+byte spawniconfg = 7;           // text icon foreground colour
+byte spawniconbg = 0;           // text icon background colour
+byte spawnicon[8+1+3+1] = "DOS.III";     // spawn icon filename 
+// end of program info block
+
+// config settings
+word icons=0,progicons=0;     // icons must be declared here for its used for
+                              // size determining of spawn block
+word config_reserved[128] = 0;  // 256 bytes available for future use
+byte cyclespeed=0, cycleloops=TRUE, cycledir=0;  // palette cycling controls
+byte blankeron = BLANKER_DIM;       // screen blanker enable flag
+word blanktime = 0;                 // ticks until blanking
+byte screenfilename[14] = "Initialized"; // file name for screen 
+byte palettefilename[14] = "Not POST";   // (always assigned as FUNDOS.PAL)
+byte backgroundtype = b_load640;           // wall paper type
+byte backgroundcolor = 1;          // colour for background
+byte autoload = 0;          // loader 0 for OFF, 1 for ON, 2 for DO IT
+byte fundosvidmode = fvm_320x240;  // video mode 
+byte iconlock = LOCK_NONE;    // lock state of icons
+
+/********************* start of NON-saved config part *********************/
+
+? alignword TRUE  // done making sure block is always the same size
+
+// system flags
+byte configchanged=FALSE, xyzchanged=FALSE, iconschanged=FALSE;
+byte wanttoquit=FALSE, savepalette=FALSE, runicon=FALSE;
+byte addiconfrombuf=FALSE, updatebackground=FALSE;
+byte gotoaddscreen=FALSE, gotohelpscreen=FALSE;
+byte gotoaddscreenmode;  // set to TRUE if adding icon, FALSE if editing
+word editiconnumber;     // number of icon currently being editted
+byte gotosettingsscreen=FALSE;
+byte resetfundos = FALSE;
+byte setbeep = FALSE;
+word beepfrequency,beepcount;
+
+word mouseyboundary;   // max mouse y value that affects screen offset
+word screenyadjust;    // maximum screen offset y value
+
+
+
+void BACKGROUNDBEEP ()  // AX = frequency
+{beepfrequency = AX;
+beepcount = 5;
+setbeep = TRUE;
+}
+
+
+word icontorun;    // number of icon to spawn
+
+byte configfile  = "FUNDOS.CFG";   // main config file name
+byte configfile2 = "FUNDOS.INF";   // prog icon buf saving file name
+byte configfile3 = "FUNDOS.XYZ";   // icon xloc, yloc and type file
+?define CONFIGLEN  #configchanged - #configheader  // length of .CFG file
+?define CONFIGADDRESS  #configheader
+
+?define  ICONBUFSIZE  #icons - #spawnpushkeys
+?define  MAXICONS  100               // maximum number of icons
+
+word iconxyz[MAXICONS*3];            // ID, xloc, yloc
+word iconloc[MAXICONS];              // segment location of III buffer
+
+
+word screenbuf;
+?define  SCREENBUFSIZE  0x1000       /* size in paragraphs, 65536 bytes */
+word generalbuf;
+?define  GENERALBUFSIZE 0x1000       /* size in paragraphs, 65536 bytes */
+word iconbuf;
+?define  ICONBUF_P_SIZE ICONBUFSIZE*MAXICONS+15/16   // size in paragraphs
+
+
+byte getbuffers ()
+{@ ALLOCBESTFIT();
+screenbuf = GETMEM(SCREENBUFSIZE);
+IF( screenbuf == 0 )
+    return(1);
+generalbuf = GETMEM(GENERALBUFSIZE);
+IF( generalbuf == 0 )
+    return(1);
+iconbuf = GETMEM(ICONBUF_P_SIZE);
+IF( iconbuf == 0 )
+    return(1);
+return(0);
+}
+
+//***************** start of mouse DATA
+
+enum { m_normal, m_moveicon, m_exiting, m_edit, m_delete, m_spawning,
+       m_loading };
+       // mouse mode values
+
+word mousex=48*4+159,mousey=100,mousebuttons;
+word holdmousex=0,holdmousey=0,mouseevent=0;
+word mousemaxx=640,mousemaxy=400;
+byte mousemode = m_loading;
+byte mousebusy = FALSE;
+word mousehold;           // var used in mousehandle()
+word mouseiconseg,mouseiconoff;
+
+//***************** end of MOUSE DATA
+
+
+
+word geticonintobuf ()
+/*
+    Using the spawn buffer, the icon will be loaded or generated, then
+    stored in a buffer whose segment value will be the return value.
+    On error 0 will be returned.
+*/
+byte iiisize[2];  
+word bytesize,paragraphsize;
+word bufaddress;
+{
+IF( spawnicon[0] == 0 )
+    return(0);
+
+if( spawnicontype == icon_iii )
+    {IF( readfile(#spawnicon,SS,#iiisize,2) == 2 )
+        {IF( iiisize[0] <= 80 )
+            {IF( iiisize[1] <= 200 )
+                {bytesize = iiisize[0] * iiisize[1] * 4 +2; 
+                paragraphsize = bytesize +15 /16;
+                bufaddress = GETMEM(paragraphsize);
+                IF( bufaddress != 0 )
+                    {IF( readfile(#spawnicon,bufaddress,0,bytesize) == bytesize )
+                        return(bufaddress);
+                    ELSE FREEMEM(bufaddress);
+                    }
+                }
+            }
+        }
+    }
+
+// TEXT ICON, must be generated either by choice or by default
+
+bytesize = STRLEN(#spawnicon) * 64 +2;
+paragraphsize = bytesize +15 /16;
+bufaddress = GETMEM(paragraphsize);
+IF( bufaddress == 0 )
+    return(0);
+ES = bufaddress;
+DI = 2;
+CX = bytesize-2;
+AL = 0;
+$ REPZ
+$ STOSB
+ESBYTE[0] = STRLEN(#spawnicon)*2;
+ESBYTE[1] = 8;
+swapicon_x(0,0,bufaddress,0); 
+x_writestr(0,0,#spawnicon,spawniconfg,spawniconbg);
+swapicon_x(0,0,bufaddress,0); 
+return(bufaddress);
+}
+
+
+byte doloadiconfrombuf ()
+byte iiisize[2];  
+word bytesize,paragraphsize;
+word bufaddress;
+{IF( icons >= MAXICONS )
+    return(FALSE);
+bufaddress = geticonintobuf();
+IF( bufaddress == 0 )
+    return(FALSE);
+SI = progicons + SI;
+iconloc[SI] = bufaddress;
+AX = progicons * ICONBUFSIZE;
+SI = AX;
+COPYFAR(iconbuf,SI,DS,#spawnpushkeys,ICONBUFSIZE);
+AX = icons * 6;
+SI = AX;
+iconxyz[SI] = progicons;
+iconxyz[SI+2] = 0;
+iconxyz[SI+4] = 0;
+DI = progicons + DI;
+swapicon_x(iconxyz[SI+2],iconxyz[SI+4],iconloc[DI],0); 
+icons++;
+progicons++;
+configchanged=TRUE;
+xyzchanged=TRUE;
+iconschanged=TRUE;
+}
+
+
+
+void GETICONLOC ()   /* AX contains icon number */
+{
+AX = AX * 6;
+SI = AX;
+BX = iconxyz[SI];
+IF( BX < MAXICONS )
+    {BX += BX;
+    DI = iconloc[BX];
+    BX = 0;}
+ELSE{BX -= i_exit;
+    BX += BX;
+    DI = DS;
+    BX = iconinternal[BX];
+    }
+/* returns DI = seg, BX = offset, SI = index in iconxyz */
+}
+
+
+void placeicons ( word firstone )
+word count;
+{count = firstone;
+if( count < icons )
+    {do {
+        GETICONLOC( count );    
+        swapicon_x(iconxyz[SI+2],iconxyz[SI+4],DI,BX); 
+        count++;
+        } while( count < icons );
+    }
+}
+
+
+void pickupicons ( word lastone )
+word count;
+{count = icons;
+if( count > lastone )
+    {do { 
+        count--;
+        GETICONLOC( count );    
+        swapicon_x(iconxyz[SI+2],iconxyz[SI+4],DI,BX); 
+        } while( count > lastone );
+    }
+}
+
+
+void movetotop( word iconnum; byte pickupputdown )
+word hold1,hold2,hold3;
+{IF( icons-1 == iconnum )  // if already top
+    return;
+IF( pickupputdown )
+    pickupicons(iconnum);
+AX = iconnum*6;
+SI = AX;
+hold1 = iconxyz[SI];
+hold2 = iconxyz[SI+2];
+hold3 = iconxyz[SI+4];
+AX = icons-iconnum-1*3;
+DI = AX;
+COPYFARW(DS,#iconxyz[SI],DS,#iconxyz[SI+6],DI);
+AX = icons-1*6;
+DI = AX;
+iconxyz[DI] = hold1;
+iconxyz[DI+2] = hold2;
+iconxyz[DI+4] = hold3;
+IF( pickupputdown )
+    placeicons(iconnum);
+}
+
+
+void deleteicon( word iconnum,pickupputdown )
+word bufnumber;
+{AX = iconnum*6;
+SI = AX;
+bufnumber = iconxyz[SI];
+IF( bufnumber >= icons )  // if system icon then don't delete
+    return;
+movetotop( iconnum,pickupputdown );
+IF( pickupputdown )
+    pickupicons(icons-1);
+icons--;
+progicons--;
+IF( progicons > bufnumber )
+    {AX = bufnumber * ICONBUFSIZE;
+    DI = AX;
+    AX = progicons * ICONBUFSIZE;
+    SI = AX;
+    COPYFAR(iconbuf,DI,iconbuf,SI,ICONBUFSIZE);
+    DI = bufnumber+DI;
+    SI = progicons+SI;
+    iconloc[DI] = iconloc[SI];
+    DI = 0;
+    do {
+        AX = DI * 6;
+        BX = AX;
+        IF( iconxyz[BX] == progicons )
+            iconxyz[BX] = bufnumber;
+        DI++;
+        } while( DI < icons );
+    }
+configchanged = TRUE;
+xyzchanged = TRUE;
+iconschanged = TRUE;
+}
+
+
+word clicktest ( word relx,rely,iiiseg,iiioffset ) 
+word xsize,ysize;
+{ES = iiiseg;
+SI = iiioffset;
+xsize = ESBYTE[SI]*4;
+IF( relx >= xsize )
+    return(FALSE);
+ysize = ESBYTE[SI+1];
+IF( rely >= ysize )
+    return(FALSE);
+xsize = ESBYTE[SI];
+AX = xsize*ysize;
+DI = AX;
+AX = relx%4 * DI;
+BX = AX;
+AX = relx/4;
+BX += AX;
+AX = rely * xsize;
+BX += AX;
+IF( ESBYTE[SI+BX+2] == 45 )
+    return(FALSE);
+return(TRUE);
+}
+
+
+word grabicon(word xloc,yloc)
+word count;
+{count = icons;
+do {count--;
+    GETICONLOC( count );
+    IF( clicktest(xloc-iconxyz[SI+2],yloc-iconxyz[SI+4],DI,BX) == TRUE )
+        return(count);
+    } while( count > 0 );
+return( icons );
+}
+
+
+void assumedefaultconfig ()      /* default config set-up */
+word writesize;
+{
+/******** start of initialize base spawn buffer ********/
+ES = DS;
+DI = #spawnpushkeys;
+CX = 16;
+AX = 0;
+$REPZ
+$STOSW  // initialize  word spawnpushkeys[16]={0};  
+ES = DS;
+DI = #spawnreserved;
+CX = 16;
+AX = 0;
+$REPZ
+$STOSW  // initialize  word spawnreserved[32]={0};
+spawnkeysindex = 0;    
+spawnfunction = 0;     
+spawnvidmode = vid_text80c; 
+spawnfreeupmem = TRUE;  
+spawnretfundos = TRUE;  
+spawnhotkey = 0;        
+spawnprog[0] = 0;
+spawnparam[0] = 0;
+spawnparam[1] = 13;
+spawndir[0] = 0; 
+spawnicontype = icon_iii;
+spawniconfg = 7;         
+spawniconbg = 0;         
+spawnicon[0] = 0;
+/******** end of initialize base spawn buffer ********/
+
+strcpy(#spawnicon,"A.III");
+strcpy(#spawnprog,"?COMSPEC");
+strcpy(#spawndir,"A:\\");
+spawnhotkey = 'A';        
+IF( writefile(#configfile2,DS,#spawnpushkeys,ICONBUFSIZE) <> ICONBUFSIZE )
+    {BEEP();  // do better error response later sometime
+    }
+strcpy(#spawnicon,"B.III");
+strcpy(#spawnprog,"?COMSPEC");
+strcpy(#spawndir,"B:\\");
+spawnhotkey = 'B';        
+IF( appendfile(#configfile2,DS,#spawnpushkeys,ICONBUFSIZE) <> ICONBUFSIZE )
+    {BEEP();  // do better error response later sometime
+    }
+strcpy(#spawnicon,"C.III");
+strcpy(#spawnprog,"?COMSPEC");
+strcpy(#spawndir,"C:\\");
+spawnhotkey = 'C';        
+IF( appendfile(#configfile2,DS,#spawnpushkeys,ICONBUFSIZE) <> ICONBUFSIZE )
+    {BEEP();  // do better error response later sometime
+    }
+strcpy(#spawnicon,"D.III");
+strcpy(#spawnprog,"?COMSPEC");
+strcpy(#spawndir,"D:\\");
+spawnhotkey = 'D';        
+IF( appendfile(#configfile2,DS,#spawnpushkeys,ICONBUFSIZE) <> ICONBUFSIZE )
+    {BEEP();  // do better error response later sometime
+    }
+strcpy(#spawnicon,"E.III");
+strcpy(#spawnprog,"?COMSPEC");
+strcpy(#spawndir,"E:\\");
+spawnhotkey = 'E';        
+IF( appendfile(#configfile2,DS,#spawnpushkeys,ICONBUFSIZE) <> ICONBUFSIZE )
+    {BEEP();  // do better error response later sometime
+    }
+
+cyclespeed = 2;
+cycleloops = TRUE;
+cycledir = 1;
+blankeron = BLANKER_DIM;
+blanktime = 1092*3;  // 1092 ticks per minute therefore 3 min.
+autoload = 0;
+backgroundtype = b_load640;
+backgroundcolor = 1;
+strcpy(#screenfilename,"STANDARD.640");
+strcpy(#palettefilename,"FUNDOS.PAL");
+fundosvidmode = fvm_320x240;
+iconlock = LOCK_NONE;
+config_reserved[0] = 0;
+progicons = 5;
+icons = progicons + 6;
+
+iconxyz[0] = i_exit;
+iconxyz[2] = 0;
+iconxyz[4] = 0;
+iconxyz[6] = i_add;
+iconxyz[8] = 0;
+iconxyz[10] = 30;
+iconxyz[12] = i_edit;
+iconxyz[14] = 0;
+iconxyz[16] = 50;
+iconxyz[18] = i_delete;
+iconxyz[20] = 0;
+iconxyz[22] = 70;
+iconxyz[24] = i_settings;
+iconxyz[26] = 0;
+iconxyz[28] = 95;
+iconxyz[30] = i_help;
+iconxyz[32] = 0;
+iconxyz[34] = 125;
+
+iconxyz[36] = 0;
+iconxyz[38] = 0;
+iconxyz[40] = 160;
+iconxyz[42] = 1;
+iconxyz[44] = 0;
+iconxyz[46] = 180;
+iconxyz[48] = 2;
+iconxyz[50] = 0;
+iconxyz[52] = 200;
+iconxyz[54] = 3;
+iconxyz[56] = 0;
+iconxyz[58] = 220;
+iconxyz[60] = 4;
+iconxyz[62] = 0;
+iconxyz[64] = 240;
+
+writesize = icons*6;
+IF( writefile(#configfile3,DS,#iconxyz,writesize) <> writesize )
+    {BEEP();
+    // do better error recovery here sometime
+    }
+configchanged = TRUE;
+}
+
+
+byte loadfirstconfig ()
+{DOSavailable = FALSE;
+IF( readfile(#configfile,DS,CONFIGADDRESS,CONFIGLEN) <> CONFIGLEN )
+    {DOSavailable = TRUE;
+    BEEP();
+    WRITESTR(#defaultOK);
+    AX = BIOSEREADKEY();
+    IF( AL <> 13 )     // return key
+        EXIT(2);
+    assumedefaultconfig();
+    return(FALSE);}
+DOSavailable = TRUE;
+return(TRUE);
+}
+
+
+byte loadiii (word iconnumber)
+word bufaddress;
+{AX = iconnumber * ICONBUFSIZE;
+SI = AX;
+COPYFAR(DS,#spawnpushkeys,iconbuf,SI,ICONBUFSIZE);
+bufaddress = geticonintobuf();
+IF( bufaddress == 0 )
+    return(FALSE);
+SI = iconnumber + SI;
+iconloc[SI] = bufaddress;
+return(TRUE);
+}
+
+
+void loadiiis ()
+word iconcount;
+{iconcount = 0;
+do {IF( loadiii( iconcount ) == FALSE )
+        BACKGROUNDBEEP(200);
+    iconcount++;
+    } while( iconcount < progicons );
+}
+
+
+void loadsecondconfig ()
+word readsize,sizeread;
+{DOSavailable = FALSE;
+if( icons > 0 )
+    {readsize = ICONBUFSIZE*progicons;
+    sizeread = readfile(#configfile2,iconbuf,0,readsize);
+    IF( sizeread <> readsize )
+        {BACKGROUNDBEEP(200);
+        progicons = sizeread/ICONBUFSIZE;
+        }
+    readsize = 6*icons;
+    sizeread = readfile(#configfile3,DS,#iconxyz,readsize);
+    IF( sizeread <> readsize )
+        {BACKGROUNDBEEP(200);
+        icons = sizeread /6;
+        }
+    IF( progicons > icons )
+        progicons = icons;
+    IF( progicons > 0 )
+        loadiiis();
+    }
+DOSavailable = TRUE;
+}
+
+
+/*********************** start of global stuff ***************************/
+
+byte blanked = FALSE;        // flag for if screen blanked
+word blankcount = 0;         // inactive tick counter 
+
+?define PALSIZE    256*3    /* size of palette buffer 256 colours * RGB */
+byte palette[PALSIZE] = FROM "fd.pal";   /* buffer for palette */
+byte palettedark[PALSIZE];     /* screen save palette buffer */
+byte palettebuf[PALSIZE];      /* transfer palette buffer */
+
+?define  SCREENSIZE   64000  /* size of screen in bytes */
+
+byte memerror = "Not enough memory!";
+
+
+byte setscreen = TRUE;
+word desiredscreenx=0,desiredscreeny=0;
+word screenx=1,screeny=1;   /* around this value */
+
+byte mousemoved = TRUE, showmouse = FALSE;
+
+
+/************************* start of timer int ****************************/
+
+byte cycleit = TRUE;      /* off/on used by main program */
+
+?define TIMERINT  0x8
+byte busy=0,cyclecount=0,redblue=0;
+word oldtimerhandle[2];
+byte holdR,holdG,holdB;
+byte chaintimernow = TRUE;
+?define  CYCLESTART  192-24-12-12
+?define  DACSTART    CYCLESTART/3
+?define  CYCLEFRONT  192
+?define  DACS        256*3 - CYCLESTART
+byte flashflip=0;
+?define  MAXBACKGROUNDCOLOR   45  // background can be 0 to 44
+?define  CLEARCOLOR           45
+?define  FLASHCOLOR  46
+?define  FLASH       FLASHCOLOR*3
+?define  FLASHCOLOR2 47
+?define  FLASH2      FLASHCOLOR2*3
+?define  FLASHREDCOLOR  FLASHCOLOR+2    
+?define  FLASHBLUECOLOR  FLASHCOLOR+2+4    
+?define  FLASHWHITECOLOR  FLASHCOLOR+2+4+4    
+word screenoffset = 0;
+int screenxgo=0,screenygo=0;
+
+
+
+void FILL_PALETTEDARK ()    // AX == blanker type
+{
+IF( AX == BLANKER_RED )
+    {DI = 0;
+    do {
+        palettedark[DI] = palette[DI];
+        palettedark[DI+1] = 0;
+        palettedark[DI+2] = 0;
+        DI += 3;
+        } while( DI < 256*3 );
+    }
+ELSE IF( AX == BLANKER_GREEN )
+    {DI = 0;
+    do {
+        palettedark[DI] = 0;
+        palettedark[DI+1] = palette[DI+1];
+        palettedark[DI+2] = 0;
+        DI += 3;
+        } while( DI < 256*3 );
+    }
+ELSE IF( AX == BLANKER_BLUE )
+    {DI = 0;
+    do {
+        palettedark[DI] = 0;
+        palettedark[DI+1] = 0;
+        palettedark[DI+2] = palette[DI+2];
+        DI += 3;
+        } while( DI < 256*3 );
+    }
+ELSE{DI = 0;
+    do {
+        palettedark[DI] = palette[DI] /8;
+        DI++;
+        } while( DI < 256*3 );
+    }
+}
+
+
+
+interrupt timerhandle()
+{
+IF( CSBYTE[#chaintimernow] == TRUE )
+    {$ PUSHF
+    $ CS:
+    $ CALL FAR oldtimerhandle;}
+ELSE{$ PUSH AX
+    EOI();
+    $ POP AX
+    }
+
+$ PUSH ES
+$ PUSH DS
+$ PUSHA
+DS = CS;
+
+chaintimernow = TRUE - chaintimernow;
+
+IF( blanktime > 0 )
+    {IF( blankeron != BLANKER_OFF )
+        {IF( blanked == FALSE )
+            {blankcount++;
+            IF( blankcount >= blanktime )
+                {IF( blankeron == BLANKER_BLACK )
+                    @ BLANKVGA();
+                ELSE{FILL_PALETTEDARK(blankeron);
+                    @ WAITVSYNC();
+                    @ SETVGADAC(0, ,256*3, , ,#palettedark);
+                    }
+                blanked = blankeron;
+                } 
+            }
+        }
+    }
+if( busy == FALSE )
+    {busy = TRUE;
+    if( cycleit != 0 )
+        {
+        holdR = palette[CYCLESTART+24];
+        holdG = palette[CYCLESTART+1+24];
+        holdB = palette[CYCLESTART+2+24];
+        @ COPYFAR(DS,#palette[CYCLESTART+24],DS,#palette[CYCLESTART+3+24],7*3);
+        palette[CYCLEFRONT-3] = holdR;
+        palette[CYCLEFRONT-2] = holdG;
+        palette[CYCLEFRONT-1] = holdB;
+        redblue = 1 - redblue;
+        IF( redblue == 1 )
+            {holdR = palette[CYCLESTART+12];
+            holdG = palette[CYCLESTART+1+12];
+            holdB = palette[CYCLESTART+2+12];
+            @ COPYFAR(DS,#palette[CYCLESTART+12],DS,#palette[CYCLESTART+3+12],3*3);
+            palette[CYCLEFRONT-3-24] = holdR;
+            palette[CYCLEFRONT-2-24] = holdG;
+            palette[CYCLEFRONT-1-24] = holdB;}
+        ELSE{holdR = palette[CYCLESTART];
+            holdG = palette[CYCLESTART+1];
+            holdB = palette[CYCLESTART+2];
+            @ COPYFAR(DS,#palette[CYCLESTART],DS,#palette[CYCLESTART+3],3*3);
+            palette[CYCLEFRONT-3-36] = holdR;
+            palette[CYCLEFRONT-2-36] = holdG;
+            palette[CYCLEFRONT-1-36] = holdB;}
+        if( cyclespeed != 0 )    /* background cycles */
+            {cyclecount++;
+            if( cyclecount >= cyclespeed)
+                {cyclecount = 0;
+                if( cycledir == 0 )     /* rotate one way */
+                    {holdR = palette[CYCLEFRONT];
+                    holdG = palette[CYCLEFRONT+1];
+                    holdB = palette[CYCLEFRONT+2];
+                    @ COPYFAR(DS,#palette[CYCLEFRONT],DS,#palette[CYCLEFRONT+3],191*3);
+                    IF( cycleloops == 1 )
+                        {palette[PALSIZE-3] = holdR;
+                        palette[PALSIZE-2] = holdG;
+                        palette[PALSIZE-1] = holdB;}
+                    ELSE{palette[PALSIZE-3] = RAND()%3 + palette[PALSIZE-3] % 64;
+                        palette[PALSIZE-2] = RAND()%3 + palette[PALSIZE-2] % 64;
+                        palette[PALSIZE-1] = RAND()%3 + palette[PALSIZE-1] % 64;}
+                    }
+                else{holdR = palette[PALSIZE-3];  /* rotate other way */
+                    holdG = palette[PALSIZE-2];
+                    holdB = palette[PALSIZE-1];
+                    $ STD
+                    @ COPYFAR(DS,#palette[PALSIZE-1],DS,#palette[PALSIZE-4],191*3);
+                    $ CLD
+                    IF( cycleloops == 1 )
+                        {palette[CYCLEFRONT] = holdR;
+                        palette[CYCLEFRONT+1] = holdG;
+                        palette[CYCLEFRONT+2] = holdB;}
+                    ELSE{palette[CYCLEFRONT] = RAND()%3 + palette[CYCLEFRONT] % 64;
+                        palette[CYCLEFRONT+1] = RAND()%3 + palette[CYCLEFRONT+1] % 64;
+                        palette[CYCLEFRONT+2] = RAND()%3 + palette[CYCLEFRONT+2] % 64;}
+                    }
+                }
+            }
+        flashflip = 1-flashflip;
+        IF( flashflip == 1 )
+            {palette[FLASH] = RAND()&63;
+            palette[FLASH+1] = RAND()&63;
+            palette[FLASH+2] = RAND()&63;}
+        ELSE{palette[FLASH2] = RAND()&63;
+            palette[FLASH2+1] = RAND()&63;
+            palette[FLASH2+2] = RAND()&63;}
+        if( setscreen == TRUE )
+            {IF( screenx < desiredscreenx )
+                screenx += desiredscreenx-screenx /2 +1;
+            ELSE IF( screenx > desiredscreenx )
+                screenx -= screenx-desiredscreenx /2 +1;
+            IF( screeny < desiredscreeny )
+                screeny += desiredscreeny-screeny /2 +1;
+            ELSE IF( screeny > desiredscreeny )
+                screeny -= screeny-desiredscreeny /2 +1;
+            screenoffset = screeny*160 + screenx;
+            }
+        if( blanked == BLANKER_DIM )  
+            {FILL_PALETTEDARK(BLANKER_DIM);
+            @ WAITVSYNC();
+            @ SETVGADAC(DACSTART, ,DACS, , ,#palettedark[CYCLESTART]);
+            IF( flashflip == 1 )
+                {palettedark[FLASH] = palette[FLASH] /8;
+                palettedark[FLASH+1] = palette[FLASH+1] /8;
+                palettedark[FLASH+2] = palette[FLASH+2] /8;
+                @ SETVGADAC(FLASHCOLOR, ,3, , ,#palettedark[FLASH]);
+                }
+            ELSE{palettedark[FLASH2] = palette[FLASH2] /8;
+                palettedark[FLASH2+1] = palette[FLASH2+1] /8;
+                palettedark[FLASH2+2] = palette[FLASH2+2] /8;
+                @ SETVGADAC(FLASHCOLOR2, ,3, , ,#palettedark[FLASH2]);
+                }
+            }  
+        else IF( blanked == BLANKER_RED )  
+            {FILL_PALETTEDARK(BLANKER_RED);
+            @ WAITVSYNC();
+            @ SETVGADAC(DACSTART, ,DACS, , ,#palettedark[CYCLESTART]);
+            IF( flashflip == 1 )
+                {palettedark[FLASH] = palette[FLASH];
+                palettedark[FLASH+1] = 0;
+                palettedark[FLASH+2] = 0;
+                @ SETVGADAC(FLASHCOLOR, ,3, , ,#palettedark[FLASH]);
+                }
+            ELSE{palettedark[FLASH2] = palette[FLASH2];
+                palettedark[FLASH2+1] = 0;
+                palettedark[FLASH2+2] = 0;
+                @ SETVGADAC(FLASHCOLOR2, ,3, , ,#palettedark[FLASH2]);
+                }
+            }  
+        else IF( blanked == BLANKER_GREEN )  
+            {FILL_PALETTEDARK(BLANKER_GREEN);
+            @ WAITVSYNC();
+            @ SETVGADAC(DACSTART, ,DACS, , ,#palettedark[CYCLESTART]);
+            IF( flashflip == 1 )
+                {palettedark[FLASH] = 0;
+                palettedark[FLASH+1] = palette[FLASH+1];
+                palettedark[FLASH+2] = 0;
+                @ SETVGADAC(FLASHCOLOR, ,3, , ,#palettedark[FLASH]);
+                }
+            ELSE{palettedark[FLASH2] = 0;
+                palettedark[FLASH2+1] = palette[FLASH2+1];
+                palettedark[FLASH2+2] = 0;
+                @ SETVGADAC(FLASHCOLOR2, ,3, , ,#palettedark[FLASH2]);
+                }
+            }  
+        else IF( blanked == BLANKER_BLUE )  
+            {FILL_PALETTEDARK(BLANKER_BLUE);
+            @ WAITVSYNC();
+            @ SETVGADAC(DACSTART, ,DACS, , ,#palettedark[CYCLESTART]);
+            IF( flashflip == 1 )
+                {palettedark[FLASH] = 0;
+                palettedark[FLASH+1] = 0;
+                palettedark[FLASH+2] = palette[FLASH+2];
+                @ SETVGADAC(FLASHCOLOR, ,3, , ,#palettedark[FLASH]);
+                }
+            ELSE{palettedark[FLASH2] = 0;
+                palettedark[FLASH2+1] = 0;
+                palettedark[FLASH2+2] = palette[FLASH2+2];
+                @ SETVGADAC(FLASHCOLOR2, ,3, , ,#palettedark[FLASH2]);
+                }
+            }  
+        ELSE{ // the screen is not blanked
+            @ WAITVSYNC();
+            @ SETVGADAC(DACSTART, ,DACS, , ,#palette[CYCLESTART]);
+            IF( flashflip == 1 )
+                @ SETVGADAC(FLASHCOLOR, ,3, , ,#palette[FLASH]);
+            ELSE @ SETVGADAC(FLASHCOLOR2, ,3, , ,#palette[FLASH2]);
+            }
+        IF( setscreen == TRUE )     
+            SETSCREENOFFSET( ,screenoffset);   
+        @ WAITVSYNC();
+        IF( mousemoved == TRUE )
+        updatemouse();
+        }
+    else{if( setscreen == TRUE )
+            {IF( screenx < desiredscreenx )
+                screenx += desiredscreenx-screenx /2 +1;
+            ELSE IF( screenx < desiredscreenx )
+                screenx -= screenx-desiredscreenx /2 +1;
+            IF( screeny < desiredscreeny )
+                screeny += desiredscreeny-screeny /2 +1;
+            ELSE IF( screeny > desiredscreeny )
+                screeny -= screeny-desiredscreeny /2 +1;
+            screenoffset = screeny*160 + screenx;
+            @ WAITVSYNC();
+            SETSCREENOFFSET( ,screenoffset);
+            @ WAITVSYNC();
+            IF( mousemoved == TRUE )
+                updatemouse();
+            }  
+        }
+    IF( setbeep == TRUE )
+        {SOUND(beepfrequency);
+        setbeep = FALSE;}
+    ELSE{IF( beepcount > 0 )
+            {beepcount--; 
+            IF( beepcount == 0 )
+                NOSOUND();
+            }
+        }
+    busy = FALSE;
+    }
+$ POPA
+$ POP DS
+$ POP ES
+}
+
+/************************ START of keyboard int ***************************/
+
+byte lowerASCII[s_space] = 
+                   { 27,'1','2','3','4','5','6','7','8','9','0','-','=',
+                     8,  9,'q','w','e','r','t','y','u','i','o','p',
+                    '[',']',13, 0,'a','s','d','f','g',
+                    'h','j','k','l',';','\'','`', 0,
+                    '\\','z','x','c','v','b','n','m',',','.','/',
+                     0, '*', 0,' '};    // up to s_space
+byte upperASCII[s_space] = 
+                    { 27,'!','@','#','$','%','^','&','*','(',')','_','+',
+                     8,  9,'Q','W','E','R','T','Y','U','I','O','P',
+                    '{','}',13, 0,'A','S','D','F','G',
+                    'H','J','K','L',':','"','~', 0,
+                    '|','Z','X','C','V','B','N','M','<','>','?',
+                     0, 0, 0,' '};    // up to s_space
+
+?define  LEFTSHIFT  0b00001
+?define  RIGHTSHIFT 0b00010
+?define  CTRL       0b00100
+?define  ALT        0b01000 
+?define  CTRLALT    CTRL | ALT
+?define  BOTHSHIFT  LEFTSHIFT | RIGHTSHIFT
+?define  ALLSHIFT   CTRLALT | BOTHSHIFT
+?define  SHIFTCTRL  CTRL | BOTHSHIFT
+
+word oldkeyboardhandle[2];
+byte shiftbyte=0;
+
+interrupt keyboardhandle()
+{
+$ PUSH DS
+$ PUSHA
+
+DS = 0x0000;
+BL = DSBYTE[0x417];    /* get shift status */
+DS = CS;
+
+blankcount = 0;
+IF( blanked == BLANKER_BLACK )
+    {@ UNBLANKVGA();
+    blanked = BLANKER_OFF;
+    $ IN AL,KEYBOARD_PORT 
+    EATKEY();      
+    @ EOI();  
+    $ POPA
+    $ POP DS
+    return; 
+    } 
+ELSE IF( blanked != BLANKER_OFF )
+    {@ WAITVSYNC();
+    @ SETVGADAC(0, ,256*3, , ,#palette);
+    blanked = BLANKER_OFF;
+    $ IN AL,KEYBOARD_PORT 
+    EATKEY();      
+    @ EOI();  
+    $ POPA
+    $ POP DS
+    return; 
+    } 
+
+$ PUSH ES
+
+$ IN AL,KEYBOARD_PORT
+IF( AL < 128 )
+    {IF( AL == s_leftshift )
+        shiftbyte |= LEFTSHIFT;
+    ELSE IF( AL == s_rightshift )
+        shiftbyte |= RIGHTSHIFT;
+    ELSE IF( AL == s_ctrl )
+        shiftbyte |= CTRL;
+    ELSE IF( AL == s_alt )
+        shiftbyte |= ALT;
+    ELSE handlekeys();
+    } 
+ELSE{AL -= 128;
+    IF( AL == s_leftshift )
+        shiftbyte &= 254;
+    ELSE IF( AL == s_rightshift )
+        shiftbyte &= 253;
+    ELSE IF( AL == s_ctrl )
+        shiftbyte &= 251;
+    ELSE IF( AL == s_alt )
+        shiftbyte &= 247;
+    }
+
+EATKEY();
+@ EOI();
+$ POP ES
+$ POPA
+$ POP DS
+}
+
+
+?define  MOUSEFASTMOVE  8  // distance to move cursor with <CTRL><CURSOR KEYS>
+
+
+void handlekeys ()
+byte scancode;
+{scancode = AL;
+BL = shiftbyte;
+IF( byte BL & CTRLALT == CTRLALT )
+    {AL = scancode;
+    IF( AL == s_insert )
+        {EATKEY();
+        @ EOI();
+        @ WARMBOOT();}
+    ELSE IF( AL == s_esc )
+        {EATKEY();
+        @ EOI();
+        @ COLDBOOT();}
+    ELSE IF( AL == s_delete )
+        {EATKEY();
+        @ EOI();
+        IF( DOSavailable == TRUE )
+            getout( vid_text80c );   // abort fundos
+        }
+    } 
+else if( byte BL & CTRL == CTRL )
+    {IF( scancode == s_esc )
+        {wanttoquit = TRUE;
+        return;
+        }
+    else IF( scancode == s_up )
+        {IF( mousey > 0 )
+            setmousexy(mousex,mousey-1,TRUE);
+        return();}
+    else IF( scancode == s_down )
+        {IF( mousey < 399 )
+            setmousexy(mousex,mousey+1,TRUE);
+        return();}
+    else IF( scancode == s_left )
+        {IF( mousex > 0 )
+            setmousexy(mousex-1,mousey,TRUE);
+        doingmouse();
+        return();}
+    ELSE IF( scancode == s_right )
+        {IF( mousex < 639 )
+            setmousexy(mousex+1,mousey,TRUE);
+        return();}
+    }
+
+AL = scancode;
+IF( AL == s_printscreen )
+    resetfundos = TRUE;
+else IF( AL == s_scrolllock )
+    {iconlock = 1 - iconlock;
+    configchanged = TRUE;
+    }
+else IF( scancode == s_space )
+    {mouseevent = e_leftpressed;
+    doingmouse();}
+else IF( scancode == s_return )
+    {mouseevent = e_rightpressed;
+    doingmouse();}
+else IF( scancode == s_up )
+    {IF( mousey >= MOUSEFASTMOVE )
+        setmousexy(mousex,mousey-MOUSEFASTMOVE,TRUE);
+    ELSE setmousexy(mousex,0,TRUE);}
+else IF( scancode == s_down )
+    {IF( mousey <= 399-MOUSEFASTMOVE )
+        setmousexy(mousex,mousey+MOUSEFASTMOVE,TRUE);
+    ELSE setmousexy(mousex,399,TRUE);}
+else IF( scancode == s_left )
+    {IF( mousex >= MOUSEFASTMOVE )
+        setmousexy(mousex-MOUSEFASTMOVE,mousey,TRUE);
+    ELSE setmousexy(0,mousey,TRUE);
+    doingmouse();}
+else IF( scancode == s_right )
+    {IF( mousex <= 639-MOUSEFASTMOVE )
+        setmousexy(mousex+MOUSEFASTMOVE,mousey,TRUE);
+    ELSE setmousexy(639,mousey,TRUE);}
+ELSE IF( scancode == s_space )
+    {mouseevent = e_leftpressed;
+    doingmouse();}
+ELSE IF( scancode == s_camma )
+    {mouseevent = e_leftpressed;
+    doingmouse();}
+ELSE IF( scancode == s_period )
+    {mouseevent = e_rightpressed;
+    doingmouse();}
+ELSE IF( AL < s_f1 )
+    doeditorkeys(AL);
+ELSE IF( AL <= s_f10 )
+    dofunctionkeys(); 
+ELSE IF( AL == s_f11 )
+    dofunctionkeys();
+ELSE IF( AL == s_f12 )
+    dofunctionkeys();
+ELSE doeditorkeys(AL);
+}
+
+
+void doeditorkeys (byte scancode)
+{
+// do nothing right now.  but all non function like keys get sent here.
+BACKGROUNDBEEP(500);
+}
+
+
+
+void dofunctionkeys ()
+byte scancode;
+{scancode = AL;
+BL = shiftbyte;
+if( byte BL & ALLSHIFT == 0 )   /* NO shift keys DOWN */
+    {AL = scancode;
+    IF( AL == s_f1 )
+        gotohelpscreen = TRUE;
+    else IF( AL == s_f2 )
+        savepalette = TRUE;
+    else IF( AL == s_f4 )
+        {cycleloops = TRUE - cycleloops;
+        configchanged = TRUE;}
+    else IF( AL == s_f5 )
+        {IF( cycledir == 0 )
+            {palette[PALSIZE-3] = RAND()&63;
+            palette[PALSIZE-2] = RAND()&63;
+            palette[PALSIZE-1] = RAND()&63;}
+        ELSE{palette[CYCLEFRONT] = RAND()&63;
+            palette[CYCLEFRONT+1] = RAND()&63;
+            palette[CYCLEFRONT+2] = RAND()&63;}
+        }
+    else IF( AL == s_f6 )
+        {cycledir = 1 - cycledir;
+        configchanged = TRUE;}
+    else IF( AL == s_f8 )
+        {IF( backgroundcolor != 64 )
+            {backgroundcolor = 64;
+            IF( backgroundtype == b_solid )
+                updatebackground = TRUE;
+            configchanged = TRUE;}
+        } 
+    else IF( AL == s_f9 )
+        {IF( backgroundcolor < MAXBACKGROUNDCOLOR )
+            backgroundcolor = backgroundcolor+MAXBACKGROUNDCOLOR-1 % MAXBACKGROUNDCOLOR;
+        ELSE backgroundcolor = 0;
+        IF( backgroundtype == b_solid )
+            updatebackground = TRUE;
+        configchanged = TRUE;}
+    ELSE IF( AL == s_f10 )
+        {IF( backgroundcolor < MAXBACKGROUNDCOLOR )
+            backgroundcolor = backgroundcolor+1 % MAXBACKGROUNDCOLOR;
+        ELSE backgroundcolor = 0;
+        IF( backgroundtype == b_solid )
+            updatebackground = TRUE;
+        configchanged = TRUE;}
+    ELSE IF( AL == s_f11 )
+        {IF( backgroundtype != b_solid )
+            {backgroundtype = b_solid;
+            updatebackground = TRUE;
+            configchanged = TRUE;}
+        }
+    ELSE IF( AL == s_f12 )
+        {IF( backgroundtype != b_load640 )
+            {backgroundtype = b_load640;
+            updatebackground = TRUE;
+            configchanged = TRUE;}
+        }
+    }
+else if( byte BL & CTRL == CTRL )
+    {AL = scancode;
+    IF( AL >= s_f1 )
+        IF( AL <= s_f5 )
+            {cyclespeed = AL - s_f1 + 1;
+            configchanged = TRUE;
+            return;}
+    IF( AL == s_f6 )
+        {cyclespeed = 0;
+        configchanged = TRUE;}
+    ELSE IF( AL == s_f9 )
+        {IF( fundosvidmode != fvm_320x200 )
+            {fundosvidmode = fvm_320x200;
+            configchanged = TRUE;
+            resetfundos = TRUE;
+            }
+        }
+    ELSE IF( AL == s_f10 )
+        {IF( fundosvidmode != fvm_320x240 )
+            {fundosvidmode = fvm_320x240;
+            configchanged = TRUE;
+            resetfundos = TRUE;
+            }
+        }
+    ELSE IF( AL == s_f11 )
+        {IF( autoload != 0 )
+            {autoload = 0;
+            configchanged = TRUE;}
+        }
+    ELSE IF( AL == s_f12 )
+        {IF( autoload != 1 )
+            {autoload = 1;
+            configchanged = TRUE;}
+        }
+    ELSE BACKGROUNDBEEP(500);
+    }
+}
+
+
+/************************** START of mouse int ****************************/
+
+?define  e_leftorrightpressed  e_leftpressed|e_rightpressed
+
+byte pan = TRUE;   /* OFF/ON control flag for panning the screen */
+
+void mousehandle()
+{
+$ PUSHF
+$ CLI
+$ PUSH DS
+$ PUSH ES
+$ PUSHA 
+CSWORD[#mouseevent] = AX;
+DS = CS;
+doingmouse();
+$ POPA 
+$ POP ES
+$ POP DS
+$ POPF
+$ RETF
+}
+
+
+void doingmouse ()
+{mousebuttons = BX;
+IF( mouseevent & e_moved == e_moved )
+    {CX >>= 1;      /* adjust Xlocation (divide by two) */
+    setmousexy(CX,DX,FALSE);
+    }
+
+blankcount = 0;
+IF( blanked == BLANKER_BLACK )
+    {@ UNBLANKVGA();
+    blanked = BLANKER_OFF;
+    } 
+ELSE IF( blanked != BLANKER_OFF )
+    {@ WAITVSYNC();
+    @ SETVGADAC(0, ,256*3, , ,#palette);
+    blanked = BLANKER_OFF;
+    } 
+
+if( mousebusy == FALSE )
+    {mousebusy = TRUE;
+    if( mousemode == m_normal )
+        {if( mouseevent & e_rightpressed == e_rightpressed )
+            {if( icons > 0 )
+                {if( iconlock != LOCK_ALL )
+                    {mousehold = grabicon(mousex,mousey);
+                    if( mousehold < icons )
+                        {mousemode = m_moveicon;
+                        togglemouse();
+                        movetotop(mousehold,TRUE);
+                        AX = icons-1*6;
+                        SI = AX;
+                        BX = iconxyz[SI];
+                        IF( BX < MAXICONS )
+                            {BX += BX;
+                            mouseiconseg = iconloc[BX];
+                            mouseiconoff = 0;}
+                        ELSE{BX -= i_exit;
+                            BX += BX;
+                            mouseiconseg = DS;
+                            mouseiconoff = iconinternal[BX];
+                            }
+                        ES = mouseiconseg;
+                        DI = mouseiconoff;
+                        mousemaxx = 160 - ESBYTE[DI] * 4;   
+                        mousemaxy = 400 - ESBYTE[DI+1];   
+                        IF( mousex > mousemaxx )
+                            mousex = mousemaxx;
+                        IF( mousey > mousemaxy )
+                            mousey = mousemaxy;
+                        swapicon_x(iconxyz[SI+2],iconxyz[SI+4],mouseiconseg,mouseiconoff); 
+                        holdmousex = mousex;
+                        holdmousey = mousey;
+                        togglemouse();
+                        }
+                    } 
+                ELSE{/* issue error beep since icons are locked */
+                    BACKGROUNDBEEP(300);
+                    } 
+                }
+            }
+        else if( mouseevent & e_leftpressed == e_leftpressed )
+            {if( icons > 0 )
+                {mousehold = grabicon(mousex,mousey);
+                if( mousehold < icons )
+                    {togglemouse();
+                    AX = mousehold*6;
+                    DI = AX;
+                    IF( iconxyz[DI] == i_exit )
+                        {mouseiconoff = #mouseexiting;
+                        togglemouse();
+                        wanttoquit = TRUE;
+                        mousemode = m_exiting;}
+                    else IF( iconxyz[DI] == i_edit )
+                        {mouseiconoff = #mouseedit;
+                        togglemouse(); 
+                        mousemode = m_edit;}
+                    else IF( iconxyz[DI] == i_delete )
+                        {mouseiconoff = #mousedelete;
+                        togglemouse(); 
+                        mousemode = m_delete;}
+                    else IF( iconxyz[DI] == i_add )
+                        {IF( gotoaddscreen == FALSE )
+                            {gotoaddscreenmode = TRUE;
+                            gotoaddscreen = TRUE;}
+                        togglemouse();
+                        }  
+                    else IF( iconxyz[DI] == i_settings )
+                        {gotosettingsscreen = TRUE;
+                        togglemouse();
+                        }  
+                    else IF( iconxyz[DI] == i_help )
+                        {gotohelpscreen = TRUE;
+                        togglemouse();
+                        }  
+                    ELSE{mouseiconoff = #mousespawning;
+                        togglemouse();
+                        mousemode = m_spawning;
+                        AX = mousehold*6;
+                        DI = AX;
+                        icontorun = iconxyz[DI];
+                        runicon = TRUE;
+                        }
+                    }
+                }
+            }
+        }
+    else if( mousemode == m_moveicon )
+        {if(  mouseevent & e_leftorrightpressed <> 0 )
+            {IF( mouseevent & e_leftpressed == e_leftpressed )
+                {AX = icons-1*6;
+                SI = AX;
+                iconxyz[SI+2] = holdmousex;
+                iconxyz[SI+4] = holdmousey;
+                xyzchanged = TRUE;}
+            ELSE{togglemouse();
+                AX = icons-1*6;
+                SI = AX;
+                swapicon_x(iconxyz[SI+2],iconxyz[SI+4],mouseiconseg,mouseiconoff);
+                }
+            mousemode = m_normal;
+            mouseiconseg = DS;
+            mouseiconoff = #mousenormal; 
+            mousemaxx = 640;   
+            mousemaxy = 400;   
+            holdmousex = mousex;
+            holdmousey = mousey;
+            togglemouse();
+            }
+        }
+    else if( mousemode == m_edit )
+        {if( mouseevent & e_leftorrightpressed <> 0 )
+            {togglemouse();
+            if( mouseevent & e_leftpressed == e_leftpressed )
+                {
+                IF( iconlock != LOCK_ALL )
+                    {mousehold = grabicon(mousex,mousey);
+                    IF( mousehold < icons )
+                        {AX = mousehold * 6;
+                        SI = AX;
+                        IF( iconxyz[SI] < progicons )
+                            {editiconnumber = iconxyz[SI];
+                            AX = iconxyz[SI]*ICONBUFSIZE;
+                            SI = AX;
+                            COPYFAR(DS,#spawnpushkeys,iconbuf,SI,ICONBUFSIZE);
+                            movetotop(mousehold,TRUE);
+                            IF( gotoaddscreen == FALSE )
+                                {gotoaddscreenmode = FALSE;
+                                gotoaddscreen = TRUE;
+                                }
+                            mousemode = m_normal;
+                            mouseiconoff = #mousenormal;
+                            }
+                        }  
+                    }
+                ELSE BACKGROUNDBEEP(400);
+                }
+            ELSE{mousemode = m_normal;
+                mouseiconoff = #mousenormal;}
+            holdmousex = mousex;
+            holdmousey = mousey;
+            togglemouse();
+            }
+        }
+    ELSE IF( mousemode == m_delete )
+        {IF( mouseevent & e_leftorrightpressed <> 0 )
+            {togglemouse();
+            IF( mouseevent & e_leftpressed == e_leftpressed )
+                {
+                IF( iconlock != LOCK_ALL )
+                    {mousehold = grabicon(mousex,mousey);
+                    IF( mousehold < icons )
+                        deleteicon( mousehold,TRUE );
+                    }
+                ELSE BACKGROUNDBEEP(500); 
+                }
+            ELSE{mousemode = m_normal;
+                mouseiconoff = #mousenormal; 
+                }
+            holdmousex = mousex;
+            holdmousey = mousey;
+            togglemouse();
+            }
+        }
+    mousebusy = FALSE;
+    }
+}
+
+byte mbusy= FALSE;
+
+void updatemouse ()
+{$ PUSHF
+$ CLI
+IF( mbusy == FALSE)
+    {mbusy = TRUE;
+    IF( showmouse == TRUE )
+        {IF( mousemoved == TRUE )  
+            {mousemoved = FALSE;
+            IF( mousex > mousemaxx )
+                mousex = mousemaxx;
+            IF( mousey > mousemaxy )
+                mousey = mousemaxy;
+            togglemouse();
+            holdmousex = mousex;
+            holdmousey = mousey;
+            togglemouse();
+            }
+        }
+    mbusy = FALSE;
+    }
+$ POPF
+}
+
+
+void togglemouse ()
+{swapicon_x(holdmousex,holdmousey,mouseiconseg,mouseiconoff);
+}
+
+
+void hidemouse ()
+{showmouse = FALSE;
+swapicon_x(holdmousex,holdmousey,mouseiconseg,mouseiconoff);
+}
+
+
+void unhidemouse ()
+{swapicon_x(holdmousex,holdmousey,mouseiconseg,mouseiconoff);
+showmouse = TRUE;
+}
+
+
+void setmousexy (int newx,newy; byte inform)
+{
+mousex = newx;
+mousey = newy;
+IF( pan == TRUE )
+    {IF( mousey < 100 )
+        desiredscreeny = 0;
+    ELSE IF( mousey >= mouseyboundary )     
+        desiredscreeny = screenyadjust;
+    ELSE desiredscreeny = mousey - 99;
+    IF( mousex < 159 )
+        desiredscreenx = 0;
+    ELSE IF( mousex >= 480 )
+        desiredscreenx = 480-159 /4;
+    ELSE desiredscreenx = mousex-159 /4;
+    setscreen = TRUE;     
+    }
+mousemoved = TRUE;
+IF( inform == TRUE )
+    SETMOUSEXY( , ,mousex+CX,mousey);
+}
+
+
+/**************************** START of main() ****************************/
+
+byte quit = FALSE;
+word errorstate;
+
+
+main ()           
+word count;
+{
+IF( byte calldriver(0) == FALSE )   /* check if SPHINX driver installed */
+    {WRITESTR("Run FUNDOS.COM!");
+    EXIT(1);} 
+IF( byte GETCPU() < 2 )             /* check if 286 codes OK */
+    {WRITESTR("80286 or greater CPU required.");
+    EXIT(1);}
+
+IF( byte getbuffers() <> 0 )
+    {WRITESTR("ERROR>  Not enough low memory.\n");
+    EXIT(1);}
+
+loadfirstconfig();
+
+errorstate = getdrivererrorstate();
+
+@ MAXKEYRATE();        // set the keyboard repeat rate to maximum 
+ES = 0x0000;
+ESBYTE[0x417] &= 0xDF;     // turn off NUM LOCK 
+BIOSPUSHKEY(k_return);
+do {BIOSEREADKEY();
+    } while ( KBHIT() != 0 );
+
+IF( errorstate & 0x8000 == 0x8000 )  // if this is the first run after reset
+    {errorstate &= 0x7FFF;
+    setdrivererrorstate(errorstate);
+    IF( SHIFTSTATUS() & BOTHSHIFT == 0 )
+        IF( autoload == 2 )
+            {setspawnprog(DS,#spawnprog);
+            setdriverstate( ds_spawnthenfundos );
+            SETVIDEOMODE( spawnvidmode );
+            IF( spawnkeysindex > 0 )
+                {count = 0;
+                do {SI = count + SI;
+                    BIOSPUSHKEY(spawnpushkeys[SI]);
+                    count++;
+                    } while( count < spawnkeysindex );
+                }
+            EXIT( 0 );
+            }
+    }
+
+IF( errorstate & error_drive == error_drive )
+    WRITESTR("Invalid Drive Specified.\n");
+IF( errorstate & error_dir == error_dir )
+    WRITESTR("Invalid Directory Specified.\n");
+IF( errorstate & error_spawning == error_spawning )
+    WRITESTR("Unable to Spawn Program.\n");
+IF( errorstate != error_none )
+    {WRITESTR("Press any key to continue.");
+    BIOSEREADKEY();}
+setdrivererrorstate( error_none );
+
+IF( autoload != 0 )
+    IF( autoload != 1 )
+        {autoload = 1;
+        configchanged = TRUE;
+        }
+
+@ RANDOMIZE();
+
+IF( byte setupvideomode() == FALSE )
+    {WRITESTR("Unable to enter 256 colour video mode.");
+    EXIT(1);}
+
+ES = 0x0000;
+ESBYTE[0x417] &= 0xD8;     // turn off NUM LOCK and CTRL and SHIFT keys 
+GETINTVECT(#oldkeyboardhandle,KEYBOARD_INT);
+SETINTVECT( ,KEYBOARD_INT,CS,#keyboardhandle);
+fillscreen(backgroundcolor);
+displaycreditline();
+
+IF( backgroundtype != b_solid )
+    doupdatebackground();
+loadsecondconfig();
+displaycreditline();   // display credit line a second time, to be sure 
+placeicons(0);         // display all icons
+SETTICKINTERVAL( ,0xFFFF/2);    // double timer interrupt frequency
+GETINTVECT(#oldtimerhandle,TIMERINT);
+SETINTVECT( ,TIMERINT,CS,#timerhandle);
+startupmouse();
+
+do {doit();
+    } while( quit == FALSE );
+
+filestuff();       // give main save processes one last chance to save
+getout( vid_text80c );
+}
+
+
+void startupmouse ()
+{SETMOUSEYLIMIT( , ,0,399);
+SETMOUSEXLIMIT( , ,0,LOGICALSCREENWIDTH*2-1);
+SETMOUSEHANDLE(CS,#mousehandle,0b0011111);
+mousemode = m_normal;
+swapicon_x(holdmousex,holdmousey,DS,#mousenormal);
+mouseiconseg = DS;
+mouseiconoff = #mousenormal;
+showmouse = TRUE;
+}
+
+
+byte setupvideomode ()
+{IF( fundosvidmode == fvm_320x240 )
+    {IF( set320x240mode(1) == FALSE )
+        return(FALSE);
+    mouseyboundary = 308-40; 
+    screenyadjust = 308-99-40;
+    }
+ELSE{fundosvidmode = fvm_320x200;
+    IF( set320x200mode(1) == FALSE )
+        return(FALSE);
+    mouseyboundary = 308; 
+    screenyadjust = 308-99;
+    }
+@ WAITVSYNC();
+@ SETVGADAC(0, ,256*3, , ,#palette);
+return(TRUE);
+}
+
+
+getout (word vidmode)
+{DOSavailable = FALSE;
+SETMOUSEHANDLE(CS,#mousehandle,0);  /* disable handle */
+SETINTVECT( ,TIMERINT,oldtimerhandle[2],oldtimerhandle[0]);
+SETTICKINTERVAL( ,0xFFFF);
+NOSOUND();
+SETINTVECT( ,KEYBOARD_INT,oldkeyboardhandle[2],oldkeyboardhandle[0]);
+/* 
+SETSCREENOFFSET( ,0);
+SETPANREG( ,0);
+*/
+@ SETVIDEOMODE( vidmode );
+EXIT(0);
+}
+
+
+/**************** Start of Screen and Palette management *******************/
+
+void fillscreen (byte colour)  
+{SETWRITEMASK( ,0b1111);
+ES = 0xA000;
+AH = colour;
+AL = AH;
+CX = 32000;
+DI = 0;
+$ REPZ
+$ STOSW
+}
+
+
+byte TRANSFER_PALETTE () /* AX = source filename */
+/*
+Copies from one palette file to another, by use of the palettebuf buffer.
+Returns TRUE if successful, else FALSE.
+*/
+{
+IF( readfile(AX,DS,#palettebuf,PALSIZE) <> PALSIZE )
+    return(FALSE);
+IF( writefile(#palettefilename,DS,#palettebuf,PALSIZE) <> PALSIZE )
+    return(FALSE);
+}
+
+
+byte loadscreen ()
+word filehandle;
+byte hold;
+{IF( readfile(#palettefilename,DS,#palettebuf,PALSIZE) <> PALSIZE)
+    return(FALSE);
+ELSE{hold = cycleit;
+    cycleit = FALSE;
+    COPYFAR(DS,#palette[64*3],DS,#palettebuf[64*3],192*3);
+    @ WAITVSYNC();
+    @ SETVGADAC(DACSTART, ,DACS, , ,#palette[CYCLESTART]);
+    cycleit = hold;}
+filehandle = FOPEN(0, , ,#screenfilename);   /* open file to read */
+IF(filehandle == 0)                    /* if file did not open */
+    return(FALSE);
+$ PUSH DS
+DS = screenbuf;   
+IF( FREAD( ,filehandle,64000,0) != 64000)
+    {$ POP DS
+    return(FALSE);}
+$ POP DS
+SETWRITEMASK( ,1);
+COPYFARW(VGA_SEG,0,screenbuf,0,32000);
+$ PUSH DS
+DS = screenbuf;   
+IF( FREAD( ,filehandle,64000,0) != 64000)
+    {$ POP DS
+    return(FALSE);}
+$ POP DS
+SETWRITEMASK( ,2);
+COPYFARW(VGA_SEG,0,screenbuf,0,32000);
+$ PUSH DS
+DS = screenbuf;   
+IF( FREAD( ,filehandle,64000,0) != 64000)
+    {$ POP DS
+    return(FALSE);}
+$ POP DS
+SETWRITEMASK( ,4);
+COPYFARW(VGA_SEG,0,screenbuf,0,32000);
+$ PUSH DS
+DS = screenbuf;   
+IF( FREAD( ,filehandle,64000,0) != 64000)
+    {$ POP DS
+    return(FALSE);}
+$ POP DS
+SETWRITEMASK( ,8);
+COPYFARW(VGA_SEG,0,screenbuf,0,32000);
+FCLOSE( ,filehandle);  /* close the file */
+return(TRUE);
+}
+
+
+void putscreen (word offset,wordsizeperplane)
+{SETWRITEMASK( ,1);
+COPYFARW(VGA_SEG,offset,screenbuf,0,wordsizeperplane);
+SETWRITEMASK( ,2);
+COPYFARW(VGA_SEG,offset,screenbuf,16000,wordsizeperplane);
+SETWRITEMASK( ,4);
+COPYFARW(VGA_SEG,offset,screenbuf,32000,wordsizeperplane);
+SETWRITEMASK( ,8);
+COPYFARW(VGA_SEG,offset,screenbuf,48000,wordsizeperplane);
+}
+
+
+void getscreen (word offset,wordsizeperplane)
+{SETREADMASK( ,1);
+COPYFARW(screenbuf,0,VGA_SEG,offset,wordsizeperplane);
+SETREADMASK( ,2);
+COPYFARW(screenbuf,16000,VGA_SEG,offset,wordsizeperplane);
+SETREADMASK( ,4);
+COPYFARW(screenbuf,32000,VGA_SEG,offset,wordsizeperplane);
+SETREADMASK( ,8);
+COPYFARW(screenbuf,48000,VGA_SEG,offset,wordsizeperplane);
+}
+
+
+byte credit1 = FROM "CREDIT1.III";   // left part of credit line
+byte credit2 = FROM "CREDIT2.III";   // right part of credit line
+
+void displaycreditline ()
+{puticon_x(0,400,DS,#credit1);
+puticon_x(320,400,DS,#credit2);
+}
+
+
+void doupdatebackground ()
+{IF( backgroundtype == b_solid )
+    fillscreen( backgroundcolor );
+ELSE IF( backgroundtype == b_load640 )
+    {DOSavailable = FALSE;
+    AL = loadscreen();
+    DOSavailable = TRUE;
+    IF( AL == FALSE )
+        {BACKGROUNDBEEP(550);
+        backgroundtype = b_solid;
+        backgroundcolor = 1;
+        configchanged = TRUE;
+        fillscreen(backgroundcolor);
+        }
+    }
+ELSE IF( backgroundtype <> b_solid )
+    {BACKGROUNDBEEP(650);
+    backgroundtype = b_solid;
+    backgroundcolor = 1;
+    hidemouse();
+    fillscreen(backgroundcolor);
+    unhidemouse();
+    configchanged = TRUE;
+    }
+}  
+
+
+/********************** Start of driver interface **************************/
+/*
+  SPHINX driver state values:
+     0 = exit to DOS
+     1 = spawn FUNDOS
+     2 = spawn program then enter state 0
+     3 = spawn program then enter state 1
+     4 = FUNDOS application is now being run
+  SPHINX driver function values (passed in DH):
+     0 = check if installed
+     1 = set driver state value
+     2 = get driver state value
+     3 = get spawn program buffer address
+     4 = set driver error state value
+     5 = get driver error state value
+*/
+
+?define  SPHINXINT  0x18
+
+byte calldriver (byte functionnum)
+{
+AH = 'S';
+AL = 'P';
+BH = 'H';
+BL = 'I';
+CH = 'N';
+CL = 'X';
+DH = functionnum;
+$INT SPHINXINT
+IF( AL == 's' )
+    IF( AH == 'p' )
+        IF( BL == 'h' )
+            IF( BH == 'i' )
+                IF( CL == 'n' )
+                    IF( CH == 'x' )
+                        return(TRUE);
+return(FALSE);
+}
+
+
+void setdriverstate (byte state)
+{DL = state;
+calldriver(1);
+}
+
+
+byte getdriverstate ()
+{calldriver(2);
+return(DL);
+}
+
+
+void setdrivererrorstate (word state)
+{DI = state;
+calldriver(4);
+}
+
+
+word getdrivererrorstate ()
+{calldriver(5);
+return(DX);
+}
+
+
+void setspawnprog (word strseg,stroff)
+{calldriver(3);
+COPYFAR(ES,DI,strseg,stroff,TRANSFERLENGTH);
+}
+
+
+/************************ MAIN system processes ***************************/
+
+
+void doit ()  // this procedure is called over and over until quit = TRUE
+word holdmousemode;
+{IF( wanttoquit == TRUE )
+    quit = TRUE;
+filestuff();
+IF( updatebackground == TRUE )
+    {updatebackground = FALSE;
+    @ DISABLE();
+    holdmousemode = mousemode;
+    mousemode = m_loading;
+    hidemouse();
+    @ ENABLE();
+    pickupicons(0);        // erase all icons
+    doupdatebackground();
+    placeicons(0);         // display all icons
+    @ DISABLE();
+    unhidemouse();
+    @ ENABLE();
+    mousemode = holdmousemode;
+    }
+IF( runicon == TRUE )
+    dorunicon();
+IF( gotoaddscreen == TRUE )
+    {gototextscreen();
+    doaddscreen(gotoaddscreenmode);
+    gotoaddscreen = FALSE;
+    returnfromtextscreen();
+    }
+IF( gotohelpscreen == TRUE )
+    {gototextscreen();
+    dohelpscreen();
+    gotohelpscreen = FALSE;
+    returnfromtextscreen();
+    }
+IF( gotosettingsscreen == TRUE )
+    {gototextscreen();
+    dosettingsscreen();
+    gotosettingsscreen = FALSE;
+    returnfromtextscreen();
+    }
+IF( resetfundos == TRUE )
+    {filestuff();  // make sure everything is saved up
+    setdriverstate( ds_spawnfundos );
+    getout( vid_text80c );
+    }
+}
+
+
+void filestuff ()
+{doloadstuff();
+saveicons();
+doloadstuff();
+saveconfig();
+doloadstuff();
+savexyz();
+doloadstuff();
+savepal();
+}
+
+
+void doloadstuff ()
+{IF( addiconfrombuf == TRUE )
+    {addiconfrombuf = FALSE;
+    hidemouse();
+    doloadiconfrombuf();
+    unhidemouse();
+    mousemode = m_normal;
+    }
+}
+
+
+void saveicons ()
+word writesize;
+{$ CLI
+IF( iconschanged == TRUE )
+    {iconschanged = FALSE;
+    writesize = ICONBUFSIZE*progicons;
+    COPYFAR(generalbuf,0,iconbuf,0,writesize);     
+    $ STI
+    DOSavailable = FALSE;
+    IF( writefile(#configfile2,generalbuf,0,writesize) <> writesize )
+        {BACKGROUNDBEEP(600);
+        iconschanged = TRUE;}
+    DOSavailable = TRUE;
+    }
+$ STI
+}
+
+
+void saveconfig ()
+{$ CLI
+IF( configchanged == TRUE )
+    {configchanged = FALSE;
+    COPYFAR(generalbuf,0,DS,CONFIGADDRESS,CONFIGLEN);     
+    $ STI
+    DOSavailable = FALSE;
+    IF( writefile(#configfile,generalbuf,0,CONFIGLEN) <> CONFIGLEN )
+        {BACKGROUNDBEEP(600);
+        configchanged = TRUE;
+        }
+    DOSavailable = TRUE;
+    }
+$ STI
+}
+
+
+void savexyz ()
+word writesize;
+{$ CLI
+IF( xyzchanged == TRUE )
+    {xyzchanged = FALSE;
+    writesize = 6*icons;
+    COPYFAR(generalbuf,0,DS,#iconxyz,writesize);     
+    $ STI
+    DOSavailable = FALSE;
+    IF( writefile(#configfile3,generalbuf,0,writesize) <> writesize )
+        {BACKGROUNDBEEP(600);
+        xyzchanged = TRUE;
+        }
+    DOSavailable = TRUE;
+    }
+$ STI
+}
+
+
+savepal()
+{$ CLI
+IF( savepalette == TRUE )
+    {savepalette = FALSE;
+    cycleit = FALSE;
+    COPYFAR(generalbuf,0,DS,#palette,PALSIZE);
+    cycleit = TRUE;
+    $ STI
+    DOSavailable = FALSE;
+    IF( writefile(#palettefilename,generalbuf,0,PALSIZE) <> PALSIZE)
+        BACKGROUNDBEEP(300);
+    DOSavailable = TRUE;
+    }
+$ STI
+}
+
+
+void dorunicon ()
+word count;
+byte holdstr[STRLENGTH];
+{filestuff();  // ensure everything is saved up
+IF( icontorun < icons )
+    {AX = icontorun*ICONBUFSIZE;
+    SI = AX;
+    COPYFAR(DS,#spawnpushkeys,iconbuf,SI,ICONBUFSIZE);
+        // ^^^ copy from big buffer into local working buffer ^^^
+    }
+COPYNEAR(#holdstr,#spawnparam,STRLENGTH);
+
+AX = STRLEN(#spawnprog);
+BX = AX;
+IF( BX > 4 )
+    IF( spawnprog[BX-4] == '.' )
+        IF( spawnprog[BX-3] == 'B' )
+            IF( spawnprog[BX-2] == 'A' )
+                IF( spawnprog[BX-1] == 'T' )  // support BATCH files
+                    {
+                    spawnparam[1] = ' ';
+                    spawnparam[2] = '/';
+                    spawnparam[3] = 'c';
+                    spawnparam[4] = ' ';
+                    DI = 5;
+                    SI = 0;
+                    do {
+                        spawnparam[DI] = spawnprog[SI];
+                        DI++;
+                        SI++;
+                        } while( spawnprog[SI] != 0 );
+                    SI = 0;
+                    do {SI++;
+                        spawnparam[DI] = holdstr[SI];
+                        DI++;
+                        } while( holdstr[SI] != 13 );
+                    AX = DI-2;
+                    spawnparam[0] = AL;
+                           // ^^^^^^ NO RANGE CHECKING YET!!!
+                    strcpy(#spawnprog,"?COMSPEC");
+                    }
+
+IF( spawnprog[0] == '?' )
+    {ENVSTR(#spawnprog[1]);  /* string returned in ES:DI */
+    BX = 0;
+    do {spawnprog[BX] = ESBYTE[DI];
+        DI++;
+        BX++;
+        } while( ESBYTE[DI-1] != 0 );
+    }
+
+IF( autoload == 1 )
+    {autoload = 2;
+    configchanged = TRUE;
+    saveconfig();
+    }
+setspawnprog(DS,#spawnprog);
+setdriverstate( ds_spawnthenfundos );
+SETINTVECT( ,KEYBOARD_INT,oldkeyboardhandle[2],oldkeyboardhandle[0]);
+
+IF( spawnkeysindex > 0 )
+    {count = 0;
+    do {SI = count + SI;
+        BIOSPUSHKEY(spawnpushkeys[SI]);
+        count++;
+        } while( count < spawnkeysindex );
+    }
+getout(spawnvidmode);   // quit FD.COM
+}
+
+
+?include "FDTEXT.C--"
+
+
+/* end of FD.C-- */

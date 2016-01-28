@@ -1,0 +1,243 @@
+//
+//  NAME: CLOCK.C--
+//
+//  This program is an example of a **REMOVABLE** TSR
+//  that use a particular interrupt to communicate within the resident
+//  portion and the other
+//
+//  Written by Gerardo MAIORANO with the SPHINX C-- 0.190A in SALERNO (Italy)
+//  E-mail :    germai@ischia.dia.unisa.it || giufer@udsab.dia.unisa.it
+//
+
+?resize TRUE
+?assumeDSSS TRUE
+?parsecommandline TRUE
+?include "WRITE.H--"
+?include "DOS.H--"
+?include "TSR.H--"
+?include "GWRITE.H--"
+?include "STRING.H--"
+?define HI        0x5453    /* High TSR signature */
+?define LO        0x5230    /* Low TSR signature  */
+?define TSRINT    0x15      /* Interrupt used to communicate between TSR */
+?define TIMERINT  0x1C      /* User Timer Tick    */
+
+word oldtimerhandle[2]={};  /* Old Interrupt address handler for INT 1C */
+word oldtsrhandle[2]={};    /* Old Interrupt address handler for INT 15 */
+byte display="[00.00.00]";
+word cursor=0,pos=0;
+
+//
+//  This function was called 18.2 time/sec and read the system time and
+//  display it on the upper right corner.
+//
+interrupt timerhandle()   
+{
+$ PUSHF                     //
+$ CS:                       //   Simulates the call to the old handler
+$ CALL FAR oldtimerhandle;  //
+$ PUSH DS                   //
+$ PUSH SI                   //  Preserve all the necessary
+$ PUSH AX                   //  Registers
+$ PUSH BX                   //
+$ PUSH CX                   //
+$ PUSH DX                   //
+DS = CS;
+AH=2;                       // get current status of led
+$ INT 0x16
+if(AL&16!=16){              // if scroll lock is not active show the clock
+  AH=2;                     // get current time from bios
+  $INT 0x1A
+  BL=CL;                    //
+  SI=#display;              //
+  CL=4;                     //  Transform the time which is
+  AL=CH;                    //  in BCD format into the ASCII format
+  $SAR AL,CL                //
+  IF(ZEROFLAG){             //
+    AL+=32;
+  }
+  ELSE{
+    AL+=48;
+  }
+  DSBYTE[SI+1]=AL;
+  AH=CH;
+  AH&=0x0F;
+  AH+=48;
+  DSBYTE[SI+2]=AH;
+  AL=BL;
+  $SAR AL,CL
+  AL+=48;
+  DSBYTE[SI+4]=AL;
+  AH=BL;
+  AH&=0x0F;
+  AH+=48;
+  DSBYTE[SI+5]=AH;
+  AL=DH;
+  $SAR AL,CL
+  AL+=48;
+  DSBYTE[SI+7]=AL;
+  AH=DH;
+  AH&=0x0F;
+  AH+=48;
+  DSBYTE[SI+8]=AH;
+
+  AH=3;                 // get cursor position and size
+  BH=0;
+  $INT 0x10;
+  cursor=CX;
+  pos=DX;
+  CX=0x2000;
+  AH=1;
+  $INT 0x10             // and then hide it
+  AH=0x0F;
+  $INT 0x10             // tell me how many columns are on the screen
+  DH=0;
+  DL=AH-10;
+  AH=2;
+  $INT 0x10                 // display the cursor in the upper right corner
+  @GWRITESTR(#display,15);  // display the time
+  DX=pos;
+  AH=2;
+  $INT 0x10                 // reset the old saved cursor position
+  CX=cursor;
+  AH=1;
+  $INT 0x10                 // reset the old saved cursor size
+}
+$ POP DX                    //
+$ POP CX                    //
+$ POP BX                    // Restore the original Register's state
+$ POP AX                    //
+$ POP SI                    //
+$ POP DS                    //
+}
+
+//
+// This function tell me if the resident portion is installed or NOT,
+// and in case of removing the resident portion, restore the old handler
+//
+interrupt comtsrhandle() 
+{
+IF(AX==0x5200){
+  IF(CX==HI){
+    IF(DX==LO){
+      BX=CS;
+      CX><DX;
+    }
+    ELSE{
+      $JMP NEXT
+    }
+  }
+  ELSE{
+    $JMP NEXT
+  }
+}
+ELSE IF(AX==0X5201){
+  IF(CX==HI){
+    IF(DX==LO){
+      $PUSH DS
+      DX=CSWORD[#oldtimerhandle];
+      DS=CSWORD[#oldtimerhandle+2];
+      @SETINTVECT( ,TIMERINT,DS,DX);
+      DX=CSWORD[#oldtsrhandle];
+      DS=CSWORD[#oldtsrhandle+2];
+      @SETINTVECT( ,TSRINT,DS,DX);
+      BX=CS;
+      $POP DS
+    }
+    ELSE{
+      $JMP NEXT
+    }
+  }
+  ELSE{
+    $JMP NEXT
+  }
+}
+ELSE {
+  NEXT:
+  $ CS:
+  $ JMP FAR oldtsrhandle;
+}
+}
+
+//
+//
+//
+main ()
+{
+WRITESTR("RESIDENT CLOCK 1.0 - CopyLeft by Gerardo Maiorano.\n");
+if(@PARAMCOUNT()==0){   // process the command line and if there aren't
+  AX=0x5200;            // check if we have already installed CLOCK
+  CX=HI;                // sometime
+  DX=LO;
+  $INT 0X15
+  IF(CX==LO){
+    IF(DX==HI){
+      WRITESTR("Resident portion of CLOCK already installed\007.\n");
+      EXIT(0);
+    }
+  }
+  GETINTVECT(#oldtsrhandle,TSRINT);        // This is the heart of the
+  SETINTVECT( ,TSRINT,CS,#comtsrhandle);   // program, performing the
+  GETINTVECT(#oldtimerhandle,TIMERINT);    // necessary work to do make TSR
+  SETINTVECT( ,TIMERINT,CS,#timerhandle);
+  WRITESTR("Resident portions of CLOCK installed.\n");
+  ES=CSWORD[0x2C];
+  AH=0x49;
+  $INT 0x21                 // Free the environment block
+  @ KEEP( , , ,#main+1);
+}
+else{                       // If there are parameters of the command line
+  @STR_UP(PARAMSTR(0));     // parse it and see if is REMOVE
+  AL=@STRCMP(PARAMSTR(0),"REMOVE");
+  if(AL==0){
+    AX=0x5200;
+    CX=HI;
+    DX=LO;
+    $INT 0X15               // Check if the CLOCK is really installed
+    IF(CX==LO){             // If YES, check that if after CLOCK there are
+      IF(DX==HI){           // other TSR proggy
+	AX=BX;
+	$DEC AX
+	ES=AX;
+	DX=CS;
+    P1:                      // Scan for next entry in MCB chain
+	AX+=ESWORD[3];       // looking for themself
+	$INC AX              // Go to next MCB entry
+	ES=AX;
+	$CMP DX,ESWORD[1]
+	$JZ A1
+	IF(ESWORD[1]!=0){   // If there are other TSR installed after CLOCK
+	  WRITESTR("Can't remove resident portion !\007\n");  // Exit whit error
+	  EXIT(1);
+	}
+	$JMP P1             // Otherwise remove it
+    A1:
+	$PUSH AX            //
+	$INC AX             //
+	$CMP AX,DX          // If the CS of the stand-alone copy is egual
+	$POP AX             // to that the last MCB checked then we are
+	$JNZ P1             // sure that there aren't ANY other TSR proggy
+	AX=0x5201;          //
+	CX=HI;              //
+	DX=LO;              //
+	$INT 0x15           //
+	ES=BX;
+	AH=0x49;
+	$INT 0x21           // Free the resident portion of CLOCK
+	WRITESTR("CLOCK removed from memory !!!\n");
+	EXIT(0);
+      }
+    }
+    WRITESTR("CLOCK not installed.\007\n");
+    EXIT(0);
+  }
+  else{
+    WRITESTR("Usage:\nCLOCK : Install the resident portion \n");
+    WRITESTR("CLOCK ?       : Show this help\n");
+    WRITESTR("CLOCK REMOVE  : Try to remove CLOCK from memory.\n");
+    EXIT(0);
+  }
+}
+}
+
+/* end of CLOCK.C-- */

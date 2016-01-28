@@ -1,0 +1,48 @@
+/*
+    NAME:  DPMI.C--
+    DESCRIPTION:  This program detects whether or not the DOS Protected Mode
+                  Interface is installed on the host machine.
+*/
+
+
+?include "WRITE.H--"
+?include "DPMI.H--"
+
+
+void main ()
+word di,si,bx,es;   //  used to hold register return values
+byte cl,dh,dl;      //           ------ " ------
+{
+WRITELN();
+if( CHECK_DPMI() == 0 )   // check if DPMI is available
+    {bx = BX;
+    cl = CL;
+    dh = DH;
+    dl = DL;
+    di = DI;
+    si = SI;
+    es = ES;
+    WRITESTR("DPMI available!\n");
+    IF( bx & 1 == 1 )
+        WRITESTR("32 bit programs are supported.\n");
+    WRITESTR("Processor type:  80");
+    WRITEWORD(cl);
+    WRITESTR("86\n");
+    WRITESTR("DPMI Version:  ");
+    WRITEWORD(dh);
+    WRITESTR(".");
+    WRITEWORD(dl);
+    WRITELN();
+    WRITESTR("Number of paragraphs reserved for DPMI host private data:  ");
+    WRITEWORD(si);
+    WRITELN();
+    WRITESTR("Protected mode entry procedure address:  ");
+    WRITEHEX(es);
+    WRITE(':');
+    WRITEHEX(di);
+    WRITELN();
+    }
+ELSE WRITESTR("DPMI not available.\n");
+}
+
+/* end of DPMI.C-- */

@@ -1,0 +1,313 @@
+/*
+    SPHINX Programming (C) 1994.
+    NAME:  DOS.H--
+    DESCRIPTION:  This file defines several DOS related procedures and
+                  functions.
+    LAST MODIFIED:  21 Apr 1994
+    PROCEDURES DEFINED IN THIS FILE:
+        : void ABORT()
+        : void ALLOCBESTFIT()
+        : void ALLOCFIRSTFIT()
+        : void ALLOCLASTFIT()
+        : word ALLOCSTRATEGY()
+        : byte DOSGETDATE()
+        : void DOSGETTIME()
+        : byte DOSsetdate(byte day,byte month,year)
+        : byte DOSsettime(byte hour,byte minute,byte second)
+        : void DOSWRITESTR(stringoffset)
+        : void ENVSTR(environ_string)
+        : void EXIT(byte returnvalue)
+        : byte GETBOOTDRIVE()
+        : byte GETCH()
+        : byte GETCHE()
+        : word GETDTA()
+        : void setDTA(DTAsegment,DTAoffset)
+        : word spawn(filename,commandline,environment)
+*/
+
+
+// default offset address of Disk Transfer Area:
+
+?define  DTA_ADDRESS  0x80
+
+
+// Procedure Definitions:
+
+
+: void ABORT ()
+{
+?DOSrequired 0x0100
+$INT 0x20
+}
+
+
+: void ENVSTR ()  /* AX = offset of string of environment variable name */
+                  /* DS must equal the segment address of the PSP, in other
+                     words, the same value it had when the program started
+                     executing, this should be the same as CS. 
+                  */
+/*
+    attempts to retrive an environmental variable 
+*/
+{BX = AX;
+ES = DSWORD[0x2C];
+DI = 0;
+TOP: SI = BX;
+$ CMP ESBYTE[DI],0
+$ JE FINISHED
+CX = 100;
+$ REPZ
+$ CMPSB
+SI--;
+$ CMP DSBYTE[SI],0
+$ JNE HERE
+$ CMP ESBYTE[DI-1],'='
+$ JE PREFINISHED
+HERE: DI++;
+$ CMP ESBYTE[DI],0
+$ JNE HERE
+DI++;
+$ JMP TOP
+PREFINISHED:
+// DI++;
+FINISHED:
+}
+/*  RETURNS:   AX,BX,CX,SI = undefined
+               ES:DI = environment string
+*/
+
+
+
+: word spawn (word filenameaddress,commandlineaddress,environmentaddress)
+{$ PUSH CS
+AX = 0x6C;
+$ PUSH AX
+$ PUSH CS
+AX = 0x5C;
+$ PUSH AX
+$ PUSH DS
+$ PUSH commandlineaddress
+$ PUSH environmentaddress
+ES = SS;
+BX = SP;
+DX = filenameaddress;
+AX = 0x4B00;
+$ INT 0x21
+?DOSrequired 0x0300
+IF( NOTCARRYFLAG )
+    $ XOR AX,AX
+SP += 14;
+}
+/*  RETURNS:  BX,DX,ES = undefined
+              If successful:
+                  AX = 0
+              If unsuccessful:
+                  AX = error code 
+*/
+
+
+: void ALLOCBESTFIT ()
+{
+?DOSrequired 0x300
+AX = 0x5801;
+BX = 1;
+$ INT 0x21
+}
+
+
+: void ALLOCFIRSTFIT ()
+{
+?DOSrequired 0x300
+AX = 0x5801;
+BX = 0;
+$ INT 0x21
+}
+
+
+: void ALLOCLASTFIT ()
+{
+?DOSrequired 0x300
+AX = 0x5801;
+BX = 2;
+$ INT 0x21
+}
+
+
+: word ALLOCSTRATEGY ()
+{
+?DOSrequired 0x300
+AX = 0x5800;
+$ INT 0x21
+IF( CARRYFLAG )
+    AX = -1;
+}
+
+
+: void EXIT ()  /* AL = value to return */
+{
+AH = 0x4C;
+$ INT 0x21
+}
+
+
+: word GETDTA ()
+/*
+GET DISK TRANSFER AREA ADDRESS
+Returns:  ES:BX -> address DTA
+          AH = 2Fh
+*/
+{
+?DOSrequired 0x200
+AH = 0x2F;
+$INT 0x21
+}
+
+
+: word setDTA (word DTAsegment, DTAoffset)
+/*
+SET DISK TRANSFER AREA ADDRESS
+Returns:  DX = DTAoffset
+          AH = 1Ah
+*/
+{
+?DOSrequired 0x100  // I think...
+DX = DTAoffset; 
+$PUSH DS
+DS = DTAsegment;
+AH = 0x1A;
+$INT 0x21
+$POP DS
+}
+
+
+: void DOSWRITESTR ()  /*  AX = address of string to write */
+/*
+Prints a string to the screen using a DOS interrupt.
+Returns:  DX = address of string to write
+          AH = 0x9
+*/
+{
+?DOSrequired 0x100
+DX = AX;
+AH = 0x9;
+$INT 0x21
+}
+
+
+: void DOSGETTIME ()
+/*
+Gets the current system time from DOS.
+Returns:  CH = hours
+          CL = minutes
+          DH = seconds
+          DL = hundredths of seconds (updated approx every 5/100 second)
+          AH = 0x2C
+*/
+{
+?DOSrequired 0x100
+AH = 0x2C;
+$INT 0x21
+}
+
+
+: byte DOSsettime (byte hour,minute,second)
+/*
+Sets the DOS system time.
+Returns:  AL = 0 if no error, else 0xFF if bad time value given
+          CH = hours
+          CL = minutes
+          DH = seconds
+          DL = 0
+          AH = 0x2D
+*/
+{
+?DOSrequired 0x100
+CH = hour;
+CL = minute;
+DH = second;
+DL = 0;  // hundredths of seconds
+AH = 0x2D;
+$INT 0x21
+}
+
+
+: byte GETBOOTDRIVE ()
+/*
+Gets the drive letter of the boot drive.
+Returns:  AL = boot drive (1=A:,2=B:,...)
+          AH = 0x33;
+          DL = AL
+*/
+{
+?DOSrequired 0x400
+AX = 0x3305;
+$INT 0x21
+AL = DL;
+}
+
+
+
+: byte DOSGETDATE ()
+/*
+Gets the current system date from DOS.
+Returns:  DL = day
+          DH = month
+          CX = year
+          AL = day of the week (0=Sunday, 1=Monday, ...)
+          AH = 0x2A
+*/
+{
+?DOSrequired 0x100
+AH = 0x2A;
+$INT 0x21
+}
+
+
+: byte DOSsetdate (byte day,month; word year)
+/*
+Sets the DOS system date.
+Returns:  AL = 0 if no error, else 0xFF if bad date value given
+          DL = day
+          DH = month
+          CX = year
+          CH = hours
+          AH = 0x2B
+*/
+{
+?DOSrequired 0x100
+DL = day;
+DH = month;
+CX = year;
+AH = 0x2B;
+$INT 0x21
+}
+
+
+: byte GETCH ()
+/*
+Reads a key from the keyboard via DOS interrupt.  The key is not echoed to
+the screen.
+Returns:  AL = key code read
+          AH = 0x8;
+*/
+{
+?DOSrequired 0x100
+AH = 0x8;
+$INT 0x21
+}
+
+: byte GETCHE ()
+/*
+Reads a key from the keyboard via DOS interrupt.  The key is echoed to the
+screen.
+Returns:  AL = key code read
+          AH = 0x8;
+*/
+{
+?DOSrequired 0x100
+AH = 0x1;
+$INT 0x21
+}
+
+
+/* end of DOS.H-- */

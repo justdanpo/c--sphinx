@@ -1,0 +1,228 @@
+/*
+    Mikael Nilsson/Purple Prophet (C)opyright 1999.
+    TITLE:  ELLIPSE.H--
+    DESCRIPTION:  This file contains a collection of procedures for
+                  drawing circles and ellipses.
+
+    LAST UPDATED: 7 april 2000
+    PROCEDURES DEFINED IN THIS FILE:
+
+	void brescircleVESA(int xc, yc, r; byte c)
+	void circleVESA(int centerX,centerY,radius; byte color)
+	void ellipseVESA(int xc,yc,xradius,yradius;byte col)
+	void fatcircleVESA(int xc, yc, r,size; byte c)
+	void fatellipseVESA(int xc,yc,xradius,yradius,size;byte col)
+	void fillcircleVESA(int centerX,centerY,radius; byte color)
+
+*/
+
+#ifndef _ELLIPSE_
+#define _ELLIPSE_ TRUE
+#warning FALSE
+
+#ifndef ASPECTRATIO
+#define ASPECTRATIO 2*640/480
+#endif
+
+:void brescircleVESA(int xc, yc, r; byte c)
+int x,d;
+{
+	x=0;
+	d=1-r*2;
+	do{
+		putpixelVESA(xc + x, yc + r, c);
+		putpixelVESA(xc + x, yc - r, c);
+		putpixelVESA(xc - x, yc + r, c);
+		putpixelVESA(xc - x, yc - r, c);
+		IF (d + r > 0){
+			r--;
+			AX=r*ASPECTRATIO+1;
+			d-=AX;
+		}
+		IF (x > d){
+			x++;
+			AX=x*2+1;
+			d+=AX;
+		}
+	}while(r>=0);
+}
+
+:void circleVESA(int centerX,centerY,radius; byte color)
+int x,y;
+int slop;
+{
+	x=0;
+	y=radius;
+	slop=1-radius;
+	putpixelVESA(centerX+x,centerY+y ,color);
+	putpixelVESA(centerX+x,centerY-y ,color);
+	putpixelVESA(centerX-x,centerY+y ,color);
+	putpixelVESA(centerX-x,centerY-y ,color);
+	putpixelVESA(centerX+y,centerY+x ,color);
+	putpixelVESA(centerX+y,centerY-x ,color);
+	putpixelVESA(centerX-y,centerY+x ,color);
+	putpixelVESA(centerX-y,centerY-x ,color);
+	do{
+		IF(slop<0)slop+=2*x+1;
+		ELSE{
+			AX=x-y*2+1;
+			slop+=AX;
+			y--;
+		}
+		x++;
+		putpixelVESA(centerX+x,centerY+y ,color);
+		putpixelVESA(centerX+x,centerY-y ,color);
+		putpixelVESA(centerX-x,centerY+y ,color);
+		putpixelVESA(centerX-x,centerY-y ,color);
+		putpixelVESA(centerX+y,centerY+x ,color);
+		putpixelVESA(centerX+y,centerY-x ,color);
+		putpixelVESA(centerX-y,centerY+x ,color);
+		putpixelVESA(centerX-y,centerY-x ,color);
+	}while(x<y);
+}
+
+:void ellipseVESA(int xc,yc,xradius,yradius;byte col)
+int x,y;
+long asq,twoasq,bsq,twobsq,d,dx,dy;
+
+{
+	x=0;
+	y=yradius;
+	asq=long xradius*xradius;
+	twoasq=EAX*2;
+	bsq=long yradius*yradius;
+	twobsq=EAX*2;
+	EBX=long yradius*asq;
+	ECX=asq>>2;
+	d=bsq-EBX+ECX;
+	dx=0;
+	dy=yradius*twoasq;
+	do{
+		putpixelVESA(xc+x, yc+y, col);
+		putpixelVESA(xc-x, yc+y, col);
+		putpixelVESA(xc+x, yc-y, col);
+		putpixelVESA(xc-x, yc-y, col);
+		IF(d > 0){
+			y--;
+			dy-=twoasq;
+			d-=dy;
+		};
+		x++;
+		dx+=bsq;
+		d+=bsq+dx;
+	}while(dx < dy);
+	EBX=dx+dy;
+	d+=asq-bsq*3/2-EBX/2;
+	do{
+		putpixelVESA(xc+x, yc+y, col);
+		putpixelVESA(xc-x, yc+y, col);
+		putpixelVESA(xc+x, yc-y, col);
+		putpixelVESA(xc-x, yc-y, col);
+		IF(d < 0){
+			x++;
+			dx+=twobsq;
+			d+=dx;
+		};
+		y--;
+		dy-=twoasq;
+		d+=asq-dy;
+	}while(y >=0);
+}
+
+:void fatcircleVESA(int xc, yc, r,size; byte c)
+int x,d;
+{
+	x=0;
+	d=1-r*2;
+	do{
+		fillcircleVESA(xc + x, yc + r, size, c);
+		fillcircleVESA(xc + x, yc - r, size, c);
+		fillcircleVESA(xc - x, yc + r, size, c);
+		fillcircleVESA(xc - x, yc - r, size, c);
+		IF (d + r > 0){
+			r--;
+			AX=r*ASPECTRATIO+1;
+			d-=AX;
+		}
+		IF (x > d){
+			x++;
+			AX=x*2+1;
+			d+=AX;
+		}
+	}while(r>=0);
+}
+
+:void fatellipseVESA(int xc,yc,xradius,yradius,size;byte col)
+int x,y;
+long asq,twoasq,bsq,twobsq,d,dx,dy;
+{
+	x=0;
+	y=yradius;
+	asq=xradius*xradius;
+	twoasq=EAX*2;
+	bsq=yradius*yradius;
+	twobsq=EAX*2;
+	EBX=long yradius*asq;
+	ECX=long asq>>2;
+	d=bsq-EBX+ECX;
+	dx=0;
+	dy=yradius*twoasq;
+	do{
+		fillcircleVESA(xc+x, yc+y, size, col);
+		fillcircleVESA(xc-x, yc+y, size, col);
+		fillcircleVESA(xc+x, yc-y, size, col);
+		fillcircleVESA(xc-x, yc-y, size, col);
+		IF(d > 0){
+			y--;
+			dy-=twoasq;
+			d-=dy;
+		};
+		x++;
+		dx+=bsq;
+		d+=bsq+dx;
+	}while(dx < dy);
+	EBX=dx+dy;
+	d+=asq-bsq*3/2-EBX/2;
+	do{
+		fillcircleVESA(xc+x, yc+y, size, col);
+		fillcircleVESA(xc-x, yc+y, size, col);
+		fillcircleVESA(xc+x, yc-y, size, col);
+		fillcircleVESA(xc-x, yc-y, size, col);
+		IF(d < 0){
+			x++;
+			dx+=twobsq;
+			d+=dx;
+		};
+		y--;
+		dy-=twoasq;
+		d+=asq-dy;
+	}while(y >=0);
+}
+
+:void fillcircleVESA(int centerX,centerY,radius; byte color)
+int x,y;
+int slop;
+{
+	x=0;
+	y=radius;
+	slop=1-radius;
+	xlineVESA(centerX-x,centerY-y, x*2,color);
+	xlineVESA(centerX-y,centerY-x,y*2,color);
+	xlineVESA(centerX-y,centerY+x,y*2,color);
+	xlineVESA(centerX-x,centerY+y,x*2,color);
+	do{
+		IF(slop<0)slop+=2*x+1;
+		ELSE{
+			AX=x-y*2+1;
+			slop+=AX;
+			y--;
+		}
+		x++;
+		xlineVESA(centerX-x,centerY-y, x*2,color);
+		xlineVESA(centerX-y,centerY-x,y*2,color);
+		xlineVESA(centerX-y,centerY+x,y*2,color);
+		xlineVESA(centerX-x,centerY+y,x*2,color);
+	}while(x<y);
+}
+
+#endif

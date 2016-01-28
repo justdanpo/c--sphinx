@@ -1,0 +1,22 @@
+?warning FALSE
+/*****************************************************************************
+* .NAME   : VertLine
+* .TITLE  : Вертикальная линия.
+*****************************************************************************/
+void VertLine(int wrow,wcol,height,attr)
+{
+	mshidecur();
+	FOR(SI=0;SI<height;SI++)wprintc(wrow+SI,wcol,attr,'│');
+	msshowcur();
+}
+
+/*****************************************************************************
+* .NAME   : HorLine
+* .TITLE  : Горизонтальная линия.
+*****************************************************************************/
+void HorLine(int wrow,wcol,width,attr)
+{
+	mshidecur();
+	FOR(SI=0;SI<width;SI++)wprintc(wrow,wcol+SI,attr,'─');
+	msshowcur();
+}

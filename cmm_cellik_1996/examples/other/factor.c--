@@ -1,0 +1,22 @@
+/*
+    SPHINX C-- example program of procedure declaration and recursion. 
+*/
+
+?include "WRITE.H--"
+
+
+word factorial( word number )    /* range of 1 to 8 before overflow */
+{
+IF( number == 1 )
+    return( 1 );
+ELSE return( factorial( number-1 ) * number );
+}
+
+
+main ()
+{
+WRITESTR("The factorial of 8 is ");
+WRITEWORD( factorial(8) );
+}
+
+/* end of FACTOR.C-- */

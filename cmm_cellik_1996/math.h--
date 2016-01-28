@@ -1,0 +1,73 @@
+/*
+    SPHINX Programming (C) 1993.
+    NAME:  MATH.H--
+    DESCRIPTION:  This file contains some math procedure definitions.
+    PROCEDURES DEFINED IN THIS FILE ARE:
+        : int ABS(number)
+        : word SQRT(number)
+        : dword SQRT_386(number)   // NOT YET TESTED!!!  :-)
+*/
+
+
+: int ABS ()  /* AX = signed number to get absolute value of */
+{
+IF( int AX < 0 )
+    -AX;
+}
+/* Returns:  AX = absolute value
+*/
+
+
+: word SQRT ()  /* AX = number to root */
+{$ MOV BX,128   // initial guess
+$ MOV DI,BX
+$ MOV CX,AX
+TOP:
+$ MOV AX,CX
+$ XOR DX,DX
+$ DIV BX
+$ ADD AX,BX
+$ SHR AX,1
+$ CMP AX,BX
+$ JE FINISHED
+$ CMP AX,DI
+$ MOV DI,BX
+$ MOV BX,AX
+$ JNE TOP
+$ CMP AX,DI
+$ JL FINISHED
+$ MOV AX,DI
+FINISHED:
+}
+/* returns:  AX = square root
+             BX,CX,DX,DI = undefined
+*/
+    
+
+: dword SQRT_386 ()  /* EAX = number to root */
+{$ MOV EBX,32768  // initial guess
+$ MOV EDI,EBX
+$ MOV ECX,EAX
+TOP:
+$ MOV EAX,ECX
+$ XOR EDX,EDX
+$ DIV EBX
+$ ADD EAX,EBX
+$ SHR EAX,1
+$ CMP EAX,EBX
+$ JE FINISHED
+$ CMP EAX,EDI
+$ MOV EDI,EBX
+$ MOV EBX,EAX
+$ JNE TOP
+$ CMP EAX,EDI
+$ JL FINISHED
+$ MOV EAX,EDI
+FINISHED:
+}
+/* returns:  EAX = square root
+             EBX,ECX,EDX,EDI = undefined
+*/
+    
+
+/* end of MATH.H-- */

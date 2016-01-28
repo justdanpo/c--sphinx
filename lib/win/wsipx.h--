@@ -1,0 +1,13 @@
+struct sockaddr_ipx {
+    short sa_family;
+    char  sa_netnum[4];
+    char  sa_nodenum[6];
+    unsigned short sa_socket;
+};
+
+#define SOCKADDR_IPX sockaddr_ipx
+
+?define NSPROTO_IPX      1000
+?define NSPROTO_SPX      1256
+?define NSPROTO_SPXII    1257
+

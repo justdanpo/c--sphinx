@@ -1,0 +1,124 @@
+/*
+    Mikael Nilsson/Purple Prophet  (C)opyright 1999.
+    TITLE:  VESALIB.H--
+    DESCRIPTION:  This file contains a collection of procedures initialize
+                  VESAmodes (640x480x256, 800x600x256, 1024x768x256)
+
+    LAST UPDATED: 7 april 2000
+    PROCEDURES DEFINED IN THIS FILE:
+
+	void setwritewinVESA(word whichwin)
+	void setreadwinVESA(word whichwin)
+
+	byte set640x480VESA( byte clearmem)
+	byte set800x600VESA( byte clearmem)
+	byte set1024x768VESA( byte clearmem)
+
+	void scrollVESA(word x,y)
+	byte fastcall setVESAvideomode()
+*/
+
+#ifndef _VESALIB_
+#define _VESALIB_ TRUE
+#warning FALSE
+
+#include "ellipse.h--"
+#include "image.h--"
+#include "line.h--"
+#include "pixel.h--"
+#include "polygon.h--"
+#include "text.h--"
+
+:word readwin,writewin,screenwidth,screenheight;
+:word vesa_win_gran;
+
+:byte fastcall setVESAvideomode()
+byte vesabuf[256];
+{
+	AX = 0x4F02;
+	$ INT 0x10      // set vesa video mode
+	IF(AX!=0x004F)return(1);  // error return
+	AX=0x4f06;	// set 1024pix scanline
+	BL=0x00;
+	CX=1024;
+	$ INT 0x10
+	IF( AX != 0x004F )return(2);  // error return
+	ES = SS;
+	DI = #vesabuf;
+	CX = 0x101;	//VESAmode;
+	AX = 0x4F01;
+	$ INT 0x10      // get vesa video mode information
+	IF( AX != 0x004F )return(3);  // error return
+	vesa_win_gran = SSWORD[#vesabuf[4]];
+	$test vesabuf[2],2
+	IF(NOTZEROFLAG)
+// winA readable
+		readwin=0;
+	$test vesabuf[2],4
+	IF(NOTZEROFLAG)
+// winA writeable
+		writewin=0;
+	$test vesabuf[3],2
+	IF(NOTZEROFLAG)
+// winB readable
+		readwin=1;
+	$test vesabuf[3],4
+	IF(NOTZEROFLAG)
+// winB writeable
+		writewin=1;
+	return(0);
+}
+
+:byte set640x480VESA(byte clearmem)
+{
+	screenwidth=640;
+	screenheight=480;
+	BX=0x101;
+	IF(clearmem!=0)BH+=0x80;
+	return setVESAvideomode();
+}
+
+:byte set800x600VESA(byte clearmem)
+{
+	screenwidth=800;
+	screenheight=600;
+	BX=0x103;
+	IF(clearmem!=0)BH+=0x80;
+	return setVESAvideomode();
+}
+
+:byte set1024x768VESA(byte clearmem)
+{
+	screenwidth=1024;
+	screenheight=768;
+	BX=0x105;
+	IF(clearmem!=0)BH+=0x80;
+	return setVESAvideomode();
+}
+
+:void setwritewinVESA(word whichwin)
+{
+	DX=whichwin;
+	BX=writewin;
+	AX = 0x4F05;
+	$INT 0x10
+}
+
+:void setreadwinVESA(word whichwin)
+{
+	DX=whichwin;
+	BX=readwin;
+	AX = 0x4F05;
+	$INT 0x10
+}
+
+:void scrollVESA(word x,y)
+{
+	AX=0x4F07;
+	BX=0;
+	CX=x;
+	DX=y;
+	$ INT 0x10
+}
+
+#endif

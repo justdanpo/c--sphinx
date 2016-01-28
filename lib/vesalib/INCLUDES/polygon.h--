@@ -1,0 +1,190 @@
+/*
+    Mikael Nilsson/Purple Prophet (C)opyright 1999.
+    TITLE:  POLYGON.H--
+    DESCRIPTION:  This file contains a collection of procedures for drawing
+                  polygons.
+
+    LAST UPDATED: 7 april 2000
+    PROCEDURES DEFINED IN THIS FILE:
+
+	void barVESA(word x,y,xsize,ysize; byte color)
+	void boxVESA(word x,y,width,height; byte color)
+	void drawpolyVESA(word number,xvar,yvar; byte color)
+	void trigonclipVESA(int x1,y1,x2,y2,x3,y3; byte col)
+	void xorbarVESA(word x,y,xsize,ysize; byte color)
+	void xorboxVESA(word x,y,width,height; byte color)
+	void xordrawpolyVESA(word number,xvar,yvar; byte color)
+
+*/
+
+#ifndef _POLYGON_
+#define _POLYGON_ TRUE
+
+:void barVESA(word x,y,xsize,ysize; byte color)
+{
+	$push DI
+	ES=0xA000;
+	$cld
+	loop(ysize){
+		AX=y/vesa_win_gran;
+		$push AX
+		setwritewinVESA(AX);
+		$pop BX
+		BX=BX*vesa_win_gran;
+		DI=y-BX*1024+x;
+		CX=xsize;
+		AL=color;
+		$rep $stosb
+		y++;
+	}
+	$pop DI
+}
+
+:void boxVESA(word x,y,width,height; byte color)
+{
+	xlineVESA(x,y,width,color);
+	xlineVESA(x,y+height,width,color);
+	ylineVESA(x,y,height,color);
+	ylineVESA(x+width,y,height,color);
+}
+
+:void drawpolyVESA(word number,xvar,yvar; byte color)
+word tempvar,p2;
+{
+	$push SI
+	number=number*2-2;
+	tempvar=0;
+	do{
+		p2=tempvar+2;
+		IF(AX>number)p2=0;
+		linedrawVESA(DSWORD[xvar+tempvar],DSWORD[yvar+tempvar],DSWORD[xvar+p2],
+			DSWORD[yvar+p2],byte color);
+		tempvar+=2;
+	}while(tempvar<=number);
+	$pop SI
+}
+
+:long left[768],rigth[768];
+
+:void trigonclipVESA(int x1,y1,x2,y2,x3,y3; byte col)
+int count;
+long x,m,scrapa,scrapb;
+{
+	IF(y1>y2){
+		y1><y2;
+		x1><x2;
+	}
+	IF(y2>y3){
+		y2><y3;
+		x2><x3;
+	}
+	IF(y1>y2){
+		y1><y2;
+		x1><x2;
+	}
+//------------------Long scan line--------------
+	AX=x3-x1;
+	m=AX<<16;
+	CX=y3-y1;
+	IF(ZEROFLAG)CX++;
+	m=m/CX;
+	x=x1<<16;
+	count=y1;
+	do{
+		BX=count*4;
+		IF(BX<=3068)left[BX]=x>>16;
+		x+=m;
+		count++;
+	}while(count<y3);
+//------------------Short scan line1--------------
+	AX=x2-x1;
+	m=AX<<16;
+	CX=y2-y1;
+	IF(ZEROFLAG)CX++;
+	m=m/CX;
+	x=x1<<16;
+	count=y1;
+	do{
+		BX=count*4;
+		IF(BX<=3068)rigth[BX]=x>>16;
+		x+=m;
+		count++;
+	}while(count<y2);
+//------------------Short scan line2--------------
+	AX=x3-x2;
+	m=AX<<16;
+	CX=y3-y2;
+	IF(ZEROFLAG)CX++;
+	m=m/CX;
+	x=x2<<16;
+	count=y2;
+	do{
+		BX=count*4;
+		IF(BX<=3068)rigth[BX]=x>>16;
+		x+=m;
+		count++;
+	}while(count<y3);
+//-------------Draw horizontal line--------------------
+	count=y1;
+	do{
+		BX=count*4;
+		scrapa=0;
+		scrapb=0;
+		IF(BX<=3068)scrapa=left[BX];
+		BX=count*4;
+		IF(BX<=3068)scrapb=rigth[BX];
+		hlineclipVESA(scrapa,scrapb,count,col);
+	// if you want xortrigonclipVESA() replace hlineclipVESA() above
+	// with xorhlineclipVESA()
+		count++;
+	}while(count<y3);
+}
+
+:void xorbarVESA(word x,y,xsize,ysize,color)
+word loopx;
+{
+	ES=0xA000;
+	loop(ysize){
+		AX=y/vesa_win_gran;
+		$push AX,AX
+		setreadwinVESA(AX);
+		$pop AX
+		setwritewinVESA(AX);
+		$pop AX
+		AX=AX*vesa_win_gran;
+		BX=y-AX*1024+x;
+		loopx=xsize;
+		AL=color;
+		loop(loopx){
+			ESBYTE[BX] ^= AL;
+			BX++;
+		}
+		y++;
+	}
+}
+
+:void xorboxVESA(word x,y,width,height; byte color)
+{
+	xorxlineVESA(x,y,width,color);
+	xorxlineVESA(x,y+height,width,color);
+	xorylineVESA(x,y,height,color);
+	xorylineVESA(x+width,y,height,color);
+}
+
+:void xordrawpolyVESA(word number,xvar,yvar; byte color)
+word tempvar,p2;
+{
+	$push SI
+	number=number*2-2;
+	tempvar=0;
+	do{
+		p2=tempvar+2;
+		IF(p2>number)p2=0;
+		xorlinedrawVESA(DSWORD[xvar+tempvar],DSWORD[yvar+tempvar],DSWORD[xvar+p2],
+			DSWORD[yvar+p2],byte color);
+		tempvar=tempvar+2;
+	}while(tempvar<=number);
+	$pop SI
+}
+
+#endif

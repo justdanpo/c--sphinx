@@ -1,0 +1,27 @@
+/*
+    NAME:  CPUTEST.C--
+    DESCRIPTION:  C-- program that determines the CPU type of the machine
+                  and prints a little comment about it. 
+    RUN FILE SIZE:  428 bytes.
+*/
+
+
+?include "WRITE.H--"
+
+main ()
+byte cpu;
+{
+WRITESTR("\nYOUR CPU TYPE IS:\n");
+cpu = @ GETCPU();
+IF( cpu == 0 )
+    WRITESTR("An 8086?  Get with the times buddy!\n");
+ELSE IF( cpu == 1 )
+    WRITESTR("80186.  Different.\n");
+ELSE IF( cpu == 2 )
+    WRITESTR("80286.  Time to up grade, your falling behind.\n");
+ELSE IF( cpu == 3 )
+    WRITESTR("80386.  Don't you wish you had a 486?\n");
+ELSE WRITESTR("80486!  Now that's class, be proud.\n");
+}
+
+/* end of CPUTEST.C-- */

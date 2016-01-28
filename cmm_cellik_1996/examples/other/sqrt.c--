@@ -1,0 +1,27 @@
+/*
+   NAME:  SQRT.C--
+   DESCRIPTION:  Small test program for SQRT(/*wordvalue*/) that displays
+                 all of the complete squares by running through all the
+                 values from 1 to 65535.
+*/
+
+?include "MATH.H--"      /* SQRT defined in this file */
+?include "WRITE.H--"     /* procedure to write to screen */
+
+?define count SI   // use SI as the word count value 
+
+main ()
+word root;
+{
+count=1;
+do {root = SQRT(count);
+    IF( root*root == count )
+        {WRITEWORD(count);
+        WRITE('|');
+        WRITEWORD(root);
+        WRITE(' ');}
+    count++;
+    } while( count );
+}
+
+/* end of SQRT.C-- */

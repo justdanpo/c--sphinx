@@ -1,0 +1,78 @@
+/*---------------------- Математические функции ------------------------------
+:float sqrt(float val)
+:float sing(float val)
+:float cosg(float val)
+:float tgg(float val)
+-----------------------------------------------------------------------------*/
+?ifndef _FPUMATH_
+?define _FPUMATH_ TRUE
+?warning FALSE
+
+:float sqrt(float val)
+//извлечь квадратный корень
+{
+	asm{
+		fld val
+		fsqrt
+		fstp val
+		fwait
+	}
+	EAX=val;
+}
+
+:float sing(float val)
+//получить синус угла в градусах
+int c180;
+{
+	c180=180;
+	asm{
+		fld val
+		fldpi
+		fmulp st(1)
+		fild c180
+		fdivp st(1)
+		fsin
+		fstp val
+		fwait
+	}
+	EAX=val;
+}
+
+:float cosg(float val)
+//получить косинус угла в градусах
+int c180;
+{
+	c180=180;
+	asm{
+		fld val
+		fldpi
+		fmulp st(1)
+		fild c180
+		fdivp st(1)
+		fcos
+		fstp val
+		fwait
+	}
+	EAX=val;
+}
+
+:float tgg(float val)
+//получить тангенс угла в градусах
+int c180;
+{
+	c180=180;
+	asm{
+		fld val
+		fldpi
+		fmulp st(1)
+		fild c180
+		fdivp st(1)
+		fsincos
+		fdivp st(1)
+		fstp val
+		fwait
+	}
+	EAX=val;
+}
+
+?endif

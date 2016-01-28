@@ -1,0 +1,96 @@
+?warning FALSE
+?define VIDEOS TRUE
+
+?ifndef LOW
+?include "low.h--"
+?endif
+
+?ifndef VIDEO
+?include "video.h--"
+?endif
+
+?ifndef MOUSE2
+?include "mouse2.h--"
+?endif
+
+?ifndef WRITE_INCL
+?include "write.h--"
+?endif
+
+byte vidtype()
+{
+	AX=0x1a00;
+	$int 0x10
+	IF(AL==0x1a)AL=BL;
+}
+
+void videoinit()
+{
+/* set up video information record */
+	IF(GETVIDEOMODE()==7)AX=0XB000;
+	ELSE AX=0XB800;
+	_vinfo.videoseg=AX;
+	ES=0;
+	AL=ESBYTE[0X484]+1;
+	IF((AL!=50)&&(AL!=25)AL=25;
+	_vinfo.numrows=AL;
+	_vinfo.numcols=ESBYTE[0X44A];
+	_vinfo.mwidth=8;
+	_vinfo.mheight=8;
+/* return current video adapter type */
+	_vinfo.adapter=vidtype();
+}
+
+void setlines(int numlines)
+{
+	AL=_vinfo.adapter;
+	IF(numlines==25){
+		BL=0;
+		SWITCH(AL) {
+			case V_EGA:
+			CASE V_EGAMONO:
+				AX=0x1111;         /*  load 8x14 character set  */
+				BREAK;
+			CASE V_VGA:
+			CASE V_VGAMONO:
+				AX=0x1114;       /* load 8x16 character set */
+				BREAK;
+			default:
+				AL=_vinfo.adapter;
+				IF(AL==V_MDA)||(AL==V_MCGAMONO)AL=7;
+				ELSE AL=3;
+				AH=0;
+		}
+		$int 0x10
+		_vinfo.numrows=25;
+	}
+	ELSE{
+		IF(AL==V_VGA)||(AL==V_VGAMONO){
+			BL=0;
+			AX=0x1112;         /*  load 8x8 character set  */
+			$int 0x10
+			_vinfo.numrows=50;
+		}
+	}
+}
+
+void SetBlink(int mode)
+{
+	AX=0x1003;
+	BX=mode;
+	asm int 0x10
+}
+
+void cclrscrn(int attr)
+{
+	GOTOXY(0,0);
+	AL=_vinfo.numrows;
+	CL=_vinfo.numcols;
+	$MUL CL
+	AX><CX;
+	AL='°';
+	BL=attr;
+	BH=0;
+	AH=9;
+	$INT 0X10
+}

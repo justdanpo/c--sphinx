@@ -1,0 +1,313 @@
+/*-----------------31.01.99 19:14-------------------
+          Процедура sprintf - упрощеный аналог процедуры языка C sprintf.
+    Формат вызова:
+ sprintf(buf,string,item1,item2,...);
+          buf      - адрес буфера в который будет осуществлен вывод
+          string   - адрес строки
+          item1... - операнды строки.
+
+ Вывод осуществляется в буфер адрес которого передается при вызове процедуры
+    Формат контрольной строки:
+      "%s^cnf" где:
+                  s = -
+                  n = десятичное выравнивание
+                  ^c = символ заполнения
+                  f = тип представления переменных
+
+Если s = - то будет производится выравнивание слева, а свободные места будут
+  заполнены символом ' ' или символом определеным в ^c
+  f может принимать одно из следующих значений
+           d - вывод знакового слова в десятичном виде
+           i - вывод знакового слова в десятичном виде
+           x - вывод слова в 16-ричном виде
+           h - вывод байта в 16-ричном виде
+           u - вывод беззнакового слова в десятичном виде
+           c - вывод символа
+           s - вывод строки
+
+           ld- вывод знакового длинного слова в десятичном виде
+           li- вывод знакового длинного слова в десятичном виде
+           lx- вывод длинного слова в 16-ричном виде
+           lu- вывод беззнакового длинного слова в десятичном виде
+                 (C) Copyright M.Sheker 1999.
+	--------------------------------------------------*/
+?ifndef _SPRINTF_
+?define _SPRINTF_ TRUE
+
+?include "s-printf.h--"
+
+int cdecl sprintf(word buf,str,param)
+{
+	SI=str;
+	DI=buf;
+	ES=DS;
+	BP+=8;
+	for(;;){
+		$lodsb
+		IF(AL=='%')GetItem();
+		ELSE IF(AL==0){
+			$stosb
+			BREAK;
+		}
+		ELSE $stosb
+	}
+}
+
+GetItem()
+{
+	CSWITCH();
+	switch(byte AL&0X5F){
+		case 'D':
+		CASE 'I':
+			GetPtr();
+			ISIZE();
+			CX-=AX;
+			AX><BX;
+			$js	NOPADDEC
+			IF(DL==0){
+				PrintPad();
+NOPADDEC:
+				ITOA();
+				return;
+			}
+			ITOA();
+			PrintPad();
+			return;
+		CASE 'C':
+			GetPtr();
+			CX--;
+			$js	NOPADCHAR
+			IF(DL==0){
+				PrintPad();
+NOPADCHAR:
+				$stosb
+				return;
+			}
+			$stosb
+			PrintPad();
+			return;
+		CASE 'X':
+			GetPtr();
+			CX-=4;
+			$js	NOPADHEXW
+			IF(DL==0){
+				PrintPad();
+NOPADHEXW:
+				WTOA();
+				return;
+			}
+			WTOA();
+			PrintPad();
+			return;
+		CASE 'H':
+			GetPtr();
+			CX-=2;
+			$js	NOPADHEXB
+			IF(DL==0){
+				PrintPad();
+NOPADHEXB:
+				HTOA();
+				return;
+			}
+			HTOA();
+			PrintPad();
+			return;
+		CASE 'U':
+			GetPtr();
+			USIZE();
+			CX-=AX;
+			AX><BX;
+			$js	NOPADUDEC
+			IF(DL==0){
+				PrintPad();
+NOPADUDEC:
+				UTOA();
+				return;
+			}
+			UTOA();
+			PrintPad();
+			return;
+		case 'S':
+			GetPtr();
+			$push	DI
+			$push	CX
+			CX=-1;
+			DI><AX;
+			AL=0;
+			$repne
+			$scasb
+			AX=CX;
+			$not AX
+			AX--;
+			$pop CX
+			$pop DI
+			$jz NOPADSTR
+			CX-=AX;
+			$js NOPADSTR
+			IF(DL==0){
+				PrintPad();
+NOPADSTR:
+				for(;;){
+					AL=DSBYTE[BX];
+					IF(AL==0)BREAK;
+					$stosb
+					BX++;
+				}
+				$ret
+			}
+			$call NOPADSTR
+			PrintPad();
+			return;
+		case 'L':
+			$lodsb
+			SWITCH(AL&0x5f){
+				case 'D':
+				CASE 'I':
+					GetPtrL();
+					LSIZE();
+					CX-=AX;
+					EAX><EBX;
+					$js	NOPADLONG
+					IF(DL==0){
+						PrintPad();
+NOPADLONG:
+						LTOA();
+						return;
+					}
+					LTOA();
+					PrintPad();
+					return;
+				CASE 'U':
+					GetPtrL();
+					ULSIZE();
+					CX-=AX;
+					EAX><EBX;
+					$js	NOPADULONG
+					IF(DL==0){
+						PrintPad();
+NOPADULONG:
+						ULTOA();
+						return;
+					}
+					ULTOA();
+					PrintPad();
+					return;
+				CASE 'X':
+					GetPtrL();
+					$push EBX
+					CX-=8;
+					$js	NOPADXLONG
+					IF(DL==0){
+						PrintPad();
+NOPADXLONG:
+						$pop CX
+						$pop AX
+						WTOA();
+						AX><CX;
+						WTOA();
+						return;
+					}
+					$pop CX
+					$pop AX
+					WTOA();
+					AX><CX;
+					WTOA();
+					PrintPad();
+			}
+	}
+}
+
+WTOA()
+inline
+{
+	AL><AH;
+	HTOA();
+	AL><AH;
+}
+
+HTOA()
+{
+	$push	AX
+	AH=AL;
+	$shr AL,4
+	AL+=0x90;
+	$daa
+	$adc AL,0x40;
+	$daa
+	$stosb
+	AL=AH&0xf+0x90;
+	$daa
+	$adc AL,0x40;
+	$daa
+	$stosb
+	$pop AX
+}
+
+ITOA()
+inline
+{
+	IF(int AX<0){
+		$push	AX
+		AL='-';
+		$stosb
+		$pop AX
+		$neg AX
+	}
+}
+
+UTOA()
+{
+	$push DX
+	PUTI2();
+	$pop DX
+}
+
+PUTI2()
+{
+	BX=10;
+	DX=0;
+	$div BX
+	IF(AX!=0){
+		$push	DX
+		PUTI2();
+		$pop DX
+	}
+	AL=DL|'0';
+	$stosb
+}
+
+LTOA()
+inline
+{
+	IF(long EAX<0){
+		$push	AX
+		AL='-';
+		$stosb
+		$pop AX
+		$neg EAX
+	}
+}
+
+ULTOA()
+{
+	$push DX
+	PUTI2L();
+	$pop DX
+}
+
+PUTI2L()
+{
+	EBX=10;
+	EDX=0;
+	$div EBX
+	EAX|=EAX;
+	$jz DONE
+	$push	DX
+	PUTI2L();
+	$pop DX
+DONE:
+	AL=DL|'0';
+	$stosb
+}
+
+?endif

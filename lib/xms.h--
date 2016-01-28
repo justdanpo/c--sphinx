@@ -1,0 +1,202 @@
+/*-----------------07.02.99 19:58-------------------
+XMSallocateEMB(sizeinK);  Получить блок расширенной памяти
+XMSfreeEMB(EMBhandle);    Освободить блок расширенной памяти
+XMSgetEMBinfo(EMBhandle); Получить дополнительную информацию о блоке расширенной памяти
+XMSgetversion();          Получить версию драйвера XMS
+XMSglobaldisableA20();    Отключить линию A20
+XMSglobalenableA20();     Включить линию A20
+XMSlocaldisableA20();     Отключить линию A20
+XMSlocalenableA20();      Включить линию A20
+XMSlockEMB(EMBhandle);    Заблокировать блок расширенной памяти
+XMSmoveEMB(destoffsethigh,destoffsetlow,desthandle,sourceoffsethigh,sourceoffsetlow,sourcehandle,
+           lenghthigh,lengthlow); Копировать блоки расширенной памяти
+XMSqueryA20();            Доступность линии A20
+XMSqueryfreeEMB();        Размер свободной расширенной памяти
+XMSreallocateEMB(newsize,EMBhandle); Изменить размер блока расширенной памяти
+XMSreleaseHMA();          Освободить HMA
+XMSreleaseUMB(segmentofUMB); Освободить блок UMB
+XMSrequestHMA(spaceinbyte);  Получить доступ к HMA
+XMSrequestUMB(sizeinparagraphs); Получить блок в UMB памяти
+XMSunlockEMB(EMBhandle);     Разблокировать блок расширенной памяти
+	--------------------------------------------------*/
+
+?ifndef _XMS_
+?define _XMS_ TRUE
+
+dword INPOINT=0;
+
+:word XMSallocateEMB()
+{
+	asm{
+		pop AX
+		pop DX
+		push AX
+		mov AH,9
+		call FAR DSDWORD[#INPOINT]
+	}
+}
+
+:word XMSfreeEMB()
+{
+	asm{
+		pop AX
+		pop DX
+		push AX
+		mov AH,10
+		call FAR DSDWORD[#INPOINT]
+	}
+}
+
+:word XMSgetEMBinfo()
+{
+	asm{
+		pop AX
+		pop DX
+		push AX
+		mov AH,14
+		call FAR DSDWORD[#INPOINT]
+	}
+}
+
+:word XMSgetversion()
+{
+	AX=0x4300;
+	$int 0x2F
+	IF(AL!=0x80){
+		AX=0;
+		return;
+	}
+	AX=0x4310;
+	$int 0x2F
+	DSWORD[#INPOINT+2]=ES;
+	DSWORD[#INPOINT]=BX;
+	AH=0;
+	$call FAR DSDWORD[#INPOINT]
+}
+
+:word XMSglobaldisableA20()
+{
+	AH=4;
+	$call FAR DSDWORD[#INPOINT]
+}
+
+:word XMSglobalenableA20()
+{
+	AH=3;
+	$call FAR DSDWORD[#INPOINT]
+}
+
+:word XMSlocaldisableA20()
+{
+	AH=6;
+	$call FAR DSDWORD[#INPOINT]
+}
+
+:word XMSlocalenableA20()
+{
+	AH=5;
+	$call FAR DSDWORD[#INPOINT]
+}
+
+:word XMSlockEMB()
+{
+	asm{
+		pop AX
+		pop DX
+		push AX
+		mov AH,12
+		call FAR DSDWORD[#INPOINT]
+	}
+}
+
+:word XMSmoveEMB()
+inline
+{
+	asm{
+		push DS
+		push SI
+	}
+	SI=SP+6;
+	DS=SS;
+	AH=11;
+	$call FAR DSDWORD[#INPOINT]
+	$pop SI
+	$pop DS
+	$ret 0x10
+}
+
+:word XMSqueryA20()
+{
+	AH=7;
+	$call FAR DSDWORD[#INPOINT]
+}
+
+:word XMSqueryfreeEMB()
+{
+	AH=8;
+	$call FAR DSDWORD[#INPOINT]
+}
+
+:word XMSreallocateEMB()
+{
+	asm{
+		pop AX
+		pop BX
+		pop DX
+		push AX
+		mov AH,15
+		call FAR DSDWORD[#INPOINT]
+	}
+}
+
+:word XMSreleaseHMA()
+{
+	AH=2;
+	$call FAR DSDWORD[#INPOINT]
+}
+
+:word XMSreleaseUMB()
+{
+	asm{
+		pop AX
+		pop DX
+		push AX
+		mov AH,0x11
+		call FAR DSDWORD[#INPOINT]
+	}
+}
+
+:word XMSrequestHMA()
+{
+	asm{
+		pop AX
+		pop DX
+		push AX
+		mov AH,1
+		call FAR DSDWORD[#INPOINT]
+	}
+}
+
+:word XMSrequestUMB()
+{
+	asm{
+		pop AX
+		pop DX
+		push AX
+		mov AH,0x10
+		call FAR DSDWORD[#INPOINT]
+	}
+}
+
+:word XMSunlockEMB()
+{
+	asm{
+		pop AX
+		pop DX
+		push AX
+		mov AH,13
+		call FAR DSDWORD[#INPOINT]
+	}
+}
+
+?endif

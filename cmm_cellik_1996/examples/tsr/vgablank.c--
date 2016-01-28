@@ -1,0 +1,94 @@
+/*                                                        
+     SPHINX C-- source file for VGABLANK.COM
+
+     DESCRIPTION:  A very small screen saver.
+                   VGA or higher required.
+*/
+
+
+?resize FALSE   /* turn off auto memory resizing */
+
+?include "WRITE.H--"
+?include "VGA.H--"
+?include "DOS.H--"
+?include "TSR.H--"
+
+?define MAXCOUNT  3*1092     /* minutes * (18.2 * 60 seconds) */
+
+?define KEYINT    0x9
+?define TIMERINT  0x8
+
+word oldtimerhandle[2]={};    /* address holder for old INT 0x8 handle */
+word oldkeyboardhandle[2]={}; /* address holder for old INT 0x9 handle */
+
+word counter=0;  /* tick counter of idle time without keystroke */
+byte blanked=0;  /* flag used to indicate whether screen has been blanked */       
+
+/* 
+   Assignment '=' required for all variables to force the compiler to
+   create them as initialized types, therefore they will be located at
+   the location declared, not between the program code segment and 
+   stack segment, where uninitialized variables are stored.
+*/
+
+
+interrupt timerhandle()   
+{
+$ PUSHF
+$ CS:
+$ CALL FAR oldtimerhandle;   /* chain to old interrupt handle */
+
+$ PUSH DS
+$ PUSH AX
+DS = CS;                     /* make memory variable addressable */
+IF( blanked == 0 )
+    {counter++;
+    IF( counter > MAXCOUNT )
+        {$ PUSH DX
+        blanked = 1;
+        @ BLANKVGA();   /* blank display on VGA using port 0x3C6 */
+        $ POP DX
+        }
+    }
+$ POP AX
+$ POP DS
+}
+
+
+interrupt keyboardhandle()
+{
+$ PUSHF
+$ CS:
+$ CALL FAR oldkeyboardhandle;   /* chain to old interrupt handle */
+
+$ PUSH DS
+$ PUSH AX
+DS = CS;                  /* make memory variables addressable */
+IF( blanked == 1 )
+    {$ PUSH DX
+    @ UNBLANKVGA();    /* unblank VGA display */
+    $ POP DX
+    blanked = 0;
+    }
+counter = 0;
+$ POP AX
+$ POP DS
+}
+
+
+main ()
+{
+GETINTVECT(#oldkeyboardhandle,KEYINT); /* get old keyboard interrupt handle */
+SETINTVECT( ,KEYINT,CS,#keyboardhandle); /* attach to keyboard interrupt */
+
+GETINTVECT(#oldtimerhandle,TIMERINT);   /* get old timer interrupt handle */
+SETINTVECT( ,TIMERINT,CS,#timerhandle); /* attach to timer interrupt */
+
+WRITESTR("VGA SCREEN BLANKER INSTALLED.\n");
+WRITESTR("Screen will blank after 3 minutes of keyboard inactivity.\n");
+WRITESTR("Program created using SPHINX C--.  Resident code 688 bytes.\n");
+
+@ KEEP( , , ,#main+1);   /* TSR, memory saved up to start of main() */
+}
+
+/* end of VGABLANK.C-- */

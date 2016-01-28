@@ -1,0 +1,89 @@
+/*
+   Copyright (C) 1994  Michael B. Martin
+
+   Demo to show how to access the SB Pro mixer chip.
+
+   30 Mar 1994:  Small modifications by SPHINX.
+*/
+
+?resize FALSE
+
+?include "WRITE.H--"
+?include "DOS.H--"
+?include "SYSTEM.H--"
+
+?include "SB.H--"
+
+
+int main()
+byte vol;
+word left, right;
+{
+    IF (SB_GET_PARAMS() != 0)    // maybe use SB_DETECT() instead?
+    {
+       WRITESTR("Couldn't parse BLASTER environment variable\n");
+       return(1);
+    }
+    IF (SB_INIT() != 0)
+    {
+       WRITESTR("Couldn't reset Sound Blaster!\n");
+       return(1);
+    }
+
+    vol = READMIXER(MASTER_VOL);
+
+    left = vol >> 4;
+    right = vol & 0x0f;
+
+    WRITESTR("Master volume is ");
+    WRITEWORD(left);
+    WRITE(',');
+    WRITEWORD(right);
+    WRITELN();
+
+    vol = READMIXER(VOC_VOL);
+
+    left = vol >> 4;
+    right = vol & 0x0f;
+
+    WRITESTR("VOC volume is ");
+    WRITEWORD(left);
+    WRITE(',');
+    WRITEWORD(right);
+    WRITELN();
+
+    vol = READMIXER(LINE_VOL);
+
+    left = vol >> 4;
+    right = vol & 0x0f;
+
+    WRITESTR("Line volume is ");
+    WRITEWORD(left);
+    WRITE(',');
+    WRITEWORD(right);
+    WRITELN();
+
+    vol = READMIXER(FM_VOL);
+
+    left = vol >> 4;
+    right = vol & 0x0f;
+
+    WRITESTR("FM volume is ");
+    WRITEWORD(left);
+    WRITE(',');
+    WRITEWORD(right);
+    WRITELN();
+
+    vol = READMIXER(CD_VOL);
+
+    left = vol & 0x0f;
+    WRITESTR("CD volume is ");
+    WRITEWORD(left);
+    WRITELN();
+
+    vol = READMIXER(RECORD_SRC);
+
+    WRITESTR("Recording source is ");
+    WRITEWORD(left);
+    WRITELN();
+}

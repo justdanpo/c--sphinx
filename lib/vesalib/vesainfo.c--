@@ -1,0 +1,109 @@
+?include "VIDEO.H--"
+?include "VESA.H--"
+?include "WRITE.H--"
+
+byte flagga;
+byte infobuffer[256];
+word tempord;
+
+main()
+{
+flagga=setVESAvideomode(VESA_1024x768_256);
+IF(flagga!=0){
+	 SETVIDEOMODE(vid_text80bw);
+	WRITESTR("VESA mode failure");
+	}
+ES = SS;
+DI = #infobuffer;
+AX = 0x4F00;
+$ INT 0x10      // get vesa video mode information
+
+/*
+ 00h  4 BYTEs	signature ('VESA')
+ 04h	WORD	VESA version number
+ 06h	DWORD	pointer to OEM name
+		"761295520" for ATI
+ 0Ah  4 BYTEs	capabilities
+ 0Eh	DWORD	pointer to list of supported VESA and OEM video modes
+		(list of words terminated with FFFFh)
+ 12h	WORD	total amount of video memory in 64K blocks
+*/
+
+tempord=0;
+SETVIDEOMODE(vid_text80bw);
+WRITESTR("VESA Diagnostics by PurpleProphet");
+WRITELN();
+WRITELN();
+WRITESTR("VESA version number: ");
+tempord=SSBYTE[#infobuffer[5]];
+WRITEWORD(tempord);
+WRITESTR(".");
+tempord=SSBYTE[#infobuffer[4]];
+WRITEWORD(tempord);
+
+WRITELN();
+
+WRITESTR("Total 64K blocks video memory: ");
+tempord=SSWORD[#infobuffer[18]];
+WRITEWORD(tempord);
+WRITELN();
+WRITESTR("Total video memory in K: ");
+tempord=tempord*64;
+WRITEWORD(tempord);
+WRITELN();
+
+CL=1;
+$SHR vesa_win_a_info,CL
+
+IF(CARRYFLAG){
+	WRITESTR("Window A exists");
+	WRITELN();}
+CL=1;
+$SHR vesa_win_a_info,CL
+
+IF(CARRYFLAG){
+	WRITESTR("Window A readable");
+	WRITELN();}
+CL=1;
+$SHR vesa_win_a_info,CL
+
+IF(CARRYFLAG){
+	WRITESTR("Window A writeable");
+	WRITELN();}
+
+CL=1;
+$SHR vesa_win_b_info,CL
+
+IF(CARRYFLAG){
+	WRITESTR("Window B exists");
+	WRITELN();}
+CL=1;
+$SHR vesa_win_b_info,CL
+
+IF(CARRYFLAG){
+	WRITESTR("Window B readable");
+	WRITELN();}
+CL=1;
+$SHR vesa_win_b_info,CL
+
+IF(CARRYFLAG){
+	WRITESTR("Window B writeable");
+	WRITELN();}
+
+WRITESTR("Window granularity ");
+WRITEWORD(vesa_win_gran);
+WRITESTR(" KB");
+WRITELN();
+
+WRITESTR("Window size ");
+WRITEWORD(vesa_win_size);
+WRITESTR(" KB");
+WRITELN();
+
+WRITESTR("Number of bytes per scan line: ");
+WRITEWORD(vesa_bytes_scan);
+WRITELN();
+
+}
+
+

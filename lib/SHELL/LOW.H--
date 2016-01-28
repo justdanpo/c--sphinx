@@ -1,0 +1,208 @@
+?warning FALSE
+?define LOW TRUE
+
+// типы дисплейных адаптеров
+enum {V_NONE,V_MDA,V_CGA,V_EGA,V_EGA2,V_EGAMONO,V_VGAMONO=7,V_VGA,V_MCGA,V_MCGAMONO};
+enum {NO,YES};
+enum {OFF,ON};
+enum {ERROR,SUCCESS};
+
+// типы рамок
+enum {brdSingle,brdDouble,brdPopup,brdNorton1,brdNorton2,brdNone};
+
+// идентификаторы цветовых схем (для окон)
+enum{
+	idNormal,
+	idAccent,
+	idDialog,
+	idHelp,
+	idBlack};
+
+?define modeCenter 999
+
+struct _VINFO_
+{
+	int videoseg;   /* video buffer segment address */
+	byte adapter;	  /* video adapter type           */
+	byte numrows;   /* number of displayed rows     */
+	byte numcols;   /* number of displayed columns  */
+	byte mheight;   // делитель для мыши по Y
+	byte mwidth;    // по X
+}_vinfo={0xB800,V_VGA,25,80,8,8};
+
+struct _WINFO_
+{
+	byte hidden;    /* pointer to head hidden window    */
+	byte total;      /* total number of open windows     */
+}_winfo=0;
+
+struct _Window_
+{
+	int wbuf;              /* address of window's buffer        */
+	int wsbuf;             /* address of window shadow's buffer */
+	byte srow;             /* start row of window               */
+	byte scol;             /* start column of window            */
+	byte erow;             /* end row of window                 */
+	byte ecol;             /* end column of window              */
+	byte btype;            /* window's box type                 */
+	byte border;           /* has border?  0 = no, 1 = yes      */
+	byte row;              /* window's current cursor row       */
+	byte column;           /* window's current cursor column    */
+	byte attr;             /* window's current text attribute   */
+	byte scheme;            /* цветовая схема окна (номер)       */
+	byte lmargin;           /* отступ слева                      */
+	byte shadow;            // есть тень или нет ее
+}Window;
+
+struct _CHARS_
+{
+	byte window1;
+	byte window2;
+	byte field1;
+	byte rightShadow1;
+	byte rightShadow3;
+}_chars={
+          '[', ']',      // "close window" symbols
+          ' ',           // field fill char
+          '▄',
+					'▀'  // правая тень в кнопке (верх и ниже)
+         };
+
+// цветовые схемы
+struct _CSHEE
+{
+	byte schNormalText[5];
+	byte schAccentText[5];
+	byte schActiveTitle[5];
+	byte schInactiveTitle[5];
+	byte schDarkLine[5];
+	byte schShadow[5];
+	byte schActiveGet[5];
+	byte schInactiveGet[5];
+	byte schHotKey[5];
+	byte schActiveRadio[5];
+}_scheme={
+//│Norm││Acce││Proc││Good││Blac│
+   0x9F, 0x4F, 0x6F, 0x2F, 0x8A,
+   0x9E, 0x4E, 0x6E, 0x2E, 0x8E,
+   0xF1, 0xF1, 0xF1, 0xF1, 0xF1,
+   0x70, 0x70, 0x70, 0x70, 0x70,
+   0x90, 0x40, 0x60, 0x20, 0x07,
+   0x06, 0x06, 0x06, 0x06, 0x06,
+   0x0A, 0x0A, 0x0A, 0x0A, 0x0A,
+   0x02, 0x02, 0x02, 0x02, 0x02,
+   0xF4, 0xFe, 0xF4, 0xF4, 0xF4,
+   0x9B, 0x4C, 0x6C, 0x2B, 0x8C};
+
+// к чему относится событие (what)
+enum {
+ evNothing,  // событие обработано
+ evKeyboard, // нажатие клавиши
+ evMouse,    // что-то с мышью
+ evMessage,  // пользовательское сообщение
+ evCloseWin // нажата кнопка закрыть окно
+};
+
+// структура события Event
+struct _EVENT
+{
+	byte what;          // к чему относится событие (мышь, клавиатура, просто сообщение)
+// по поводу клавиатуры
+	word keyCode;      // код нажатой клавиши
+// по поводу мыши
+	int buttons;      // состояние кнопок
+	int doubleClick;  // doubleClick произошел
+	int mrow,mcol;   // абсолютная позиция указателя мыши
+	int mwrow,mwcol; // относительно окна
+	int mouseWhat;    // че с мышью произошло
+}Event={evNothing};
+
+// события мыши
+?define evMousePress    1 // нажатие кнопки
+?define evMouseRelease  2 // отпускание кнопки
+?define evMouseAuto     3 // автогенерируется при нажатой кнопке
+?define evMouseNothing  4 // ничего
+
+?define ON_KEYS 10
+//привязка горячих клавиш
+struct _ONKEY
+{
+	word xch;
+	word func;
+}onKey[ON_KEYS]=0;
+
+struct _BOX_TABL_
+{
+	byte ch[8];
+}_box_table[6]={'┌','─','┐','│','│','└','─','┘',
+                '╔','═','╗','║','║','╚','═','╝',
+                '┌','─','┐','│','│','└','─','┘',
+                '╔','═','╗','║','║','╚','═','╝',
+                '╔','═','╗','║','║','╚','═','╝',
+                ' ',' ',' ',' ',' ',' ',' ',' '};
+
+/*****************************************************************************
+		 Число знакосимволов до поз следующей табуляции
+*****************************************************************************/
+:int TABSTOP()
+/* AX - column
+   BX - tabwidth */
+{
+	AX+=BX;
+	CX=AX;
+	DX=0;
+	$DIV BX
+	CX-=DX;
+	AX><CX;
+}
+
+int wcols()
+{
+	AL=Window.ecol-Window.scol-Window.border-Window.border;
+	AH=0;
+	AX++;
+}
+
+int wlrow()
+{
+	AL=Window.srow+Window.border;
+	AH=0;
+}
+
+int wlcol()
+{
+	AL=Window.scol+Window.border;
+	AH=0;
+}
+
+:int wrows()
+{
+	AL=Window.erow-Window.srow-Window.border-Window.border;
+	AH=0;
+	AX++;
+}
+
+:int _XPOS()
+/* BX - curr
+   CX - total */
+{
+	CX++;
+	AX=wcols()/CX*BX-1;
+}
+
+int MAX()	//определит большее из 2 чисел
+{
+	IF(int AX<BX)AX=BX;
+}
+
+SEGDS()
+inline
+{
+	$DW 0
+}
+
+long timer()
+{
+	ES=0;
+	EAX=ESDWORD[0x46c];
+}

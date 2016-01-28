@@ -1,0 +1,162 @@
+/*
+    SPHINX Programming (c) 1994
+    SPHINX C-- Example Program
+    NAME:  ENCRYPT.C--
+    Description:  The encryption and decryption program.
+                  This program also has the option to emulate an older C
+                  version of the same program that had a bug that would
+                  slightly change the code.
+    Run File Size:  1497 bytes.
+*/
+
+?parsecommandline  TRUE
+
+?include "FILE.H--"
+?include "KEYCODES.H--"
+?include "DOS.H--"
+?include "WRITE.H--"
+
+
+word readhandle,writehandle;     /* file handles */
+
+?define MAXCODE 3000
+byte code[MAXCODE];
+byte buffer[MAXCODE];
+
+word codelen=0,linelen;
+word i,level=0;
+byte dir,key;
+
+main ()
+{
+WRITESTR("SPHINX Programming 1994 -- FILE ENCRYPTER -- Version 1.0\n");
+IF( PARAMCOUNT() < 2 )
+    {WRITESTR("USAGE> encrypt <INPUT FILENAME> <OUTPUT FILENAME> [OLD FLAG]\n");
+    EXIT(1);
+    }
+
+WRITESTR("PRESS:  [0] for positive encrypt\n");
+WRITESTR("        [1] for negative encrypt\n");
+WRITESTR("        [anything else] to exit.\n");
+AL = GETCH();
+IF( AL == '0' )
+    dir = 0;
+ELSE IF( AL == '1' )
+    dir = 1;
+ELSE EXIT(2);
+
+readhandle = open(PARAMSTR(0),F_READ);  /* open file for reading */
+IF(readhandle == 0)                    /* if file did not open */
+    {WRITESTR("Unable to open input file "); /* display error message */
+    WRITESTR(PARAMSTR(0));
+    WRITELN();
+    EXIT(3);
+    }
+writehandle = create(PARAMSTR(1),FA_NORMAL);  /* create file with normal attrib's */
+IF(writehandle == 0)                    /* if file did not open */
+    {WRITESTR("Unable to create output file.\n"); /* display error message */
+    WRITESTR(PARAMSTR(1));
+    WRITELN();
+    EXIT(4);
+    }
+
+ES = DS;
+DI = #code;
+CX = MAXCODE;
+AL = 0;
+$ REPZ
+$ STOSB       /* initialize code to all zeros */
+
+do {
+    WRITESTR("\nENTER CODE STRING LEVEL ");
+    WRITEWORD(level);
+    WRITESTR(" (<RETURN> to stop):\n");
+    i = 0;
+    do {
+        key = GETCH();
+        IF( key == ascii_backspace )
+            {IF( i > 0 )
+                {i--;
+                WRITESTR("\b \b");
+                }
+            ELSE BEEP();
+            }
+        ELSE IF( key >= ' ' )
+            IF( key <= '~' )
+                {IF( i < MAXCODE )
+                    {DI = i;
+                    buffer[DI] = key;
+                    i++;
+                    WRITE(key);
+                    }
+                ELSE BEEP();
+                }
+        } while( key != ascii_return );
+    IF( i > 0 )
+        {DI = 0;
+        do {code[DI] += buffer[DI];
+            DI++;
+            } while( DI < i );
+        IF( i > codelen )
+            codelen = i;
+        }
+    level++;
+    } while( i > 0 );
+
+IF( codelen == 0 )
+    {WRITESTR("Error:  No code!\n");
+    EXIT(5);
+    }
+
+WRITELN();
+
+IF( PARAMCOUNT() >= 3 )
+    {WRITESTR("Modifying Code to emulate bug in old C encryption program.\n");
+    DI = codelen;
+    code[DI] = code[0];    
+    DI = 0;
+    IF( codelen > 1 )
+        {
+        do {code[DI] = code[DI+1];
+            DI++;
+            } while( DI+1 < codelen );
+        }
+    code[DI] = 0;
+    codelen++;
+    }
+
+WRITESTR("Code Length: ");
+WRITEWORD(codelen);
+WRITELN();
+WRITESTR("\n*** CONVERTING ***");
+
+linelen = read(readhandle,#buffer,codelen);
+IF( linelen > 0 )
+    {do {
+        DI = 0;
+        IF( dir == 0 )
+            {do {buffer[DI] += code[DI];
+                DI++;
+                } while( DI < linelen );
+            }
+        ELSE{
+            do {buffer[DI] -= code[DI];
+                DI++;
+                } while( DI < linelen );
+            }
+        IF( write(writehandle,#buffer,linelen) != linelen )
+            {WRITESTR("\nError writing to output file.\n");
+            close(writehandle);
+            EXIT(6);
+            }
+        IF( linelen == codelen )
+            linelen = read(readhandle,#buffer,codelen);
+        ELSE linelen = 0;
+        } while( linelen > 0 );
+    }
+close(writehandle);
+close(readhandle);
+WRITESTR("\ndone.");
+}
+
+/* end of ENCRYPT.C-- */

@@ -1,0 +1,23 @@
+?warning FALSE
+/*****************************************************************************
+* .NAME   : hOK2
+* .TITLE  : Выводит на экран кнопку <OK> посередине в нижней строке окна
+*****************************************************************************/
+:void hOK2(int act,pres)
+{
+	Button(wrows()-2,_XPOS(,1,1)-4,"   `OK   ",act,pres);
+#ifdef BACKGROUND
+	FootMessage="Нажмите Enter или Esc для продолжения";
+#endif
+}
+
+:int hOKPress()
+{
+	IF(Event.what==evMouse)&&(Event.buttons==1)&&(wrows()-2==Event.mwrow)&&
+          (_XPOS(,1,1)-5<Event.mwcol)&&(_XPOS(,1,1)+5>=Event.mwcol){
+		MoClear();
+		return TRUE;
+	}
+	IF(Event.what==evKeyboard)&&(Event.keyCode&0xff00==s_o*256)return TRUE;
+	return FALSE;
+}

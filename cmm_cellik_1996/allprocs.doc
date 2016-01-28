@@ -1,0 +1,478 @@
+
+LIST OF ALL REG, MACRO and STACK PROCEDURES OF SPHINX C--
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Last Updated:  5 July 1994
+
+Below is a list of all REG, MACRO and STACK procedures defined in C-- with
+their required include header file name.  They are listed categorically,
+along with all interal procedures being listed at the very end.
+
+
+CYBERMAN.H--  ===  Logitech Cyberman interface.
+	: void CYBERMAN_FEEDBACK(byte motor_on_time,byte motor_off_time,
+                                 byte duration)
+	: byte cyberman_installed()
+        : void GET_CYBERMAN()
+
+
+DOS.H--  ===  DOS access.
+        : void ABORT()
+        : void ALLOCBESTFIT()
+        : void ALLOCFIRSTFIT()
+        : void ALLOCLASTFIT()
+        : word ALLOCSTRATEGY()
+        : byte DOSGETDATE()
+        : void DOSGETTIME()
+        : byte DOSsetdate(byte day,byte month,year)
+        : byte DOSsettime(byte hour,byte minute,byte second)
+        : void DOSWRITESTR(stringoffset)
+        : void ENVSTR(environ_string)
+        : void EXIT(byte returnvalue)
+        : byte GETBOOTDRIVE()
+        : byte GETCH()
+        : byte GETCHE()
+        : word GETDTA()
+        : void setDTA(DTAsegment,DTAoffset)
+        : word spawn(filename,commandline,environment)
+
+
+DPMI.H--  ===  DPMI access.
+        : word CHECK_DPMI()
+
+
+FILE.H--  ===  File control.
+        : word appendfile(filename,bufsegment,bufoffset,bytes)
+        : word close(filehandle)
+        : word create(filename,attribute)
+        : word open(filename,byte mode)
+        : word read(filehandle,bufferoffset,bytes)
+        : word readfar(filehandle,bufferseg,bufferoffset,bytes)
+        : word readfile(filename,bufseg,bufoff,bytes)
+        : word write(filehandle,bufferoffset,bytes)
+        : word writefar(filehandle,bufferseg,bufferoffset,bytes)
+        : word writefile(filename,bufseg,bufoff,bytes)
+
+
+GUS.H--  ===  Gravis Ultra Sound.
+        : word GUSGETPOSITION(voice)
+        : word GUSGETVOLUME(voice)
+        : void GUSload(dataformat, flag16bit, bytes_to_send, buf_segment,
+                       buf_offset, dram_high, dram_low)
+        : void GUSplay(voice, flag16bit, looptype, begin_high, begin_low,
+                       loop_start_high, loop_start_low,
+                       loop_end_high, loop_end_low)
+        : void GUSrampvolume(voice,loopmode, start_volume,end_volume,
+                                               time_high,time_low)
+        : void GUSRESET(active_voices)
+        : void GUSrestartvoice(voice, flag16bit, looptype)
+        : void GUSsave(dataformat, flag16bit, bytes_to_get, buf_segment,
+                       buf_offset, dram_high, dram_low)
+        : void GUSsetbalance(voice,balance)
+        : void GUSsetfrequency(voice,frequency)
+        : void GUSsetvoiceend(voice,end_high,end_low)
+        : void GUSsetvolume(voice,volume)
+        : word GUSSTATUS()
+        : void GUSSTOP(voice)
+
+
+GUSMOD.H--  ===  Gravis Ultra Sound *.MOD player.
+	: void GUS_MOD_INIT()
+	: void GUS_MOD_LOAD(filename)
+	: void GUS_MOD_PLAY()
+	: void GUS_MOD_STOP()
+	: void GUS_MOD_SHUTDOWN()
+
+
+GWRITE.H--  ===  Graphics mode text output.
+        : void GWRITE(character,colour)
+        : void GWRITEDIGITS(word_value,colour)
+        : void GWRITEINT(int_value,colour)
+        : void GWRITELN()  
+        : void GWRITESTR(string,colour)
+        : void GWRITEWORD(word_value,colour)
+
+
+KEYCODES.H--  ===  BIOS keyboard access.
+        : word BIOSEKEYCHECK()
+        : word BIOSEREADKEY()
+        : word BIOSKEYCHECK()
+        : byte BIOSPUSHKEY(keycode)
+        : word BIOSREADKEY()
+        : byte BIOSSHIFT()
+
+
+MATH.H--  ===  Math related.
+        : int ABS(number)
+        : word SQRT(number)
+        : dword SQRT_386(number)   
+
+
+MOUSE.H--  ===  Mouse control.
+        : word GETMOUSEPRESS( ,button)
+        : word GETMOUSERELEASE( ,button)
+        : void GETMOUSEXY()
+        : void HIDEMOUSE()
+        : word RESETMOUSE()
+        : void SETMOUSEHANDLE(segmentofhandle,offsetofhandle,eventmask)
+        : void SETMOUSEXLIMIT( , ,minimum,maximum)
+        : void SETMOUSEXY( , ,xloc,yloc)
+        : void SETMOUSEYLIMIT( , ,minimum,maximum)
+        : void SHOWMOUSE()
+
+
+PCX.H--  ===  PCX graphic file format I/O.
+	byte readPCX(filename,bufseg,bufoffset,bufsize,buftype)
+	byte readPCXpalette(filename,palsegment,paloffset)
+        byte savePCX(filename,bufseg,bufoffset,xsize,ysize,palseg,paloffset)
+
+
+PORTS.H--  ===  Low level port control.
+        : byte  INPORTB( , , ,port)
+        : word  INPORTW( , , ,port)
+        : dword INPORTD( , , ,port)
+        : void  OUTPORTB(bytevalue, , ,port)
+        : void  OUTPORTW(wordvalue, , ,port)
+        : void  OUTPORTD(dword dwordvalue, , ,port)
+
+
+RANDOM.H--  ===  Random number generation.
+        : int  RAND()
+        : void RANDOMIZE()
+        : void srand(seedlow,seedhigh)
+
+
+SB.H--  ===  Sound blaster routines (not fully tested).
+
+
+SBDMA.H--  ===  More sound blaster routines (not fully tested).
+
+
+SOUND.H--  ===  Internal speaker control.
+        : void NOSOUND()
+        : void SOUND(frequency)
+
+
+STRING.H--  ===  C style string manipulation.
+        : word passtr(cstring_address,passtring_address)
+        : word PASSTR( , , , ,cstringoffset,passtringoffset)
+        : void strcat(deststring,sourcestring)
+        : void STRCAT( , , , ,deststring,sourcestring)
+        : char strcmp(string1,string2)
+        : char STRCMP(string1,string2)
+        : void strcpy(dest_string,source_string)
+        : void STRCPY( , , , ,dest_string,source_string)
+        : void STR_DOWN(string_address)
+        : word STRLEN(string_address)
+        : void strpas(passtring_address,cstring_address)
+        : void STRPAS( , , , ,passtring_address,cstring_address)
+        : void STR_UP(string_address)
+
+
+SYSTEM.H--  ===  Low level system.
+        : void COLDBOOT()
+        : void DELAY(time)
+        : void DISABLE()
+        : void EATKEY()
+        : void ENABLE()
+        : void EOI()
+        : void REBOOT()
+        : void ROMBASIC()
+        : void WAIT(ticks)
+        : void WARMBOOT()
+
+
+TRIG.H--  ===  Trig look up arrays.
+
+
+TSR.H--  ===  Routines useful to TSR programs.
+        : word instcheck(name,length)
+        : void KEEP( , , ,offset_of_end_of_program)
+        : void RELEASEENV()
+
+
+VGA.H--  ===  VGA and video mode 19 graphics.
+        : void ANDPIXEL19( ,x,byte colour,y)
+        : void _ANDPIXEL19( ,x,byte colour,y)
+        : void bar19(x,y,xsize,ysize,byte colour)
+        : void _bar19(x,y,xsize,ysize,byte colour)
+        : void BLANKVGA()
+        : void box19(x,y,xsize,ysize,byte colour)
+        : void _box19(x,y,xsize,ysize,byte colour)
+        : void CLEARSCREEN19()
+        : void _CLEARSCREEN19()
+        : void FILLSCREEN19(byte colour)
+        : void _FILLSCREEN19(byte colour)
+        : void getimage19(x,y,xsize,ysize,bufseg,bufoff)
+        : byte getpixel19(x,y)
+        : byte _getpixel19(x,y)
+        : byte GETPIXEL19( ,x, ,y)
+        : byte _GETPIXEL19( ,x, ,y)
+        : void line19(x1,y1,x2,y2,byte colour)
+        : void _line19(x1,y1,x2,y2,byte colour)
+        : void negpixel19(x,y)
+        : void _negpixel19(x,y)
+        : void NEGPIXEL19( ,x, ,y)
+        : void _NEGPIXEL19( ,x, ,y)
+        : void notbar19(x,y,xsize,ysize)
+        : void _notbar19(x,y,xsize,ysize)
+        : void notbox19(x,y,xsize,ysize)
+        : void _notbox19(x,y,xsize,ysize)
+        : void notpixel19(x,y)
+        : void _notpixel19(x,y)
+        : void NOTPIXEL19( ,x, ,y)
+        : void _NOTPIXEL19( ,x, ,y)
+        : void ORPIXEL19( ,x,byte colour,y)
+        : void _ORPIXEL19( ,x,byte colour,y)
+        : void overimage19(x,y,imageloc,byte clearcolour)
+        : void _overimage19(x,y,imageloc,byte clearcolour)
+        : void putimage19(x,y,imageloc)
+        : void _putimage19(x,y,imageloc)
+        : void putpixel19(x,y,byte color)
+        : void _putpixel19(x,y,byte color)
+        : void PUTPIXEL19( ,x,byte colour,y)
+        : void _PUTPIXEL19( ,x,byte colour,y)
+        : void putresized19(x,y,newxsize,newysize,imageloc)
+        : void _putresized19(x,y,newxsize,newysize,imageloc)
+        : void SETVGAPALETTE( ,first,numbertoset,buffer);
+        : void trans19(x,y,xsize,ysize)
+        : void _trans19(x,y,xsize,ysize)
+        : void UNBLANKVGA()
+        : void XLINE19(xloc,yloc,length,byte colour)
+        : void _XLINE19(xloc,yloc,length,byte colour)
+        : void xorbar19(x,y,xsize,ysize,byte colour)
+        : void _xorbar19(x,y,xsize,ysize,byte colour)
+        : void xorbox19(x,y,xsize,ysize,byte colour)
+        : void _xorbox19(x,y,xsize,ysize,byte colour)
+        : void xorimage19(x,y,imageloc)
+        : void _xorimage19(x,y,imageloc)
+        : void xorline19(x1,y1,x2,y2,byte colour)
+        : void _xorline19(x1,y1,x2,y2,byte colour)
+        : void xorpixel19(x,y,byte color)
+        : void _xorpixel19(x,y,byte color)
+        : void XORPIXEL19( ,x,byte colour,y)
+        : void _XORPIXEL19( ,x,byte colour,y)
+        : void xorxline19(x,y,length,byte colour)
+        : void _xorxline19(x,y,length,byte colour)
+        : void xoryline19(x,y,length,byte colour)
+        : void _xoryline19(x,y,length,byte colour)
+        : void YLINE19(xloc,yloc,length,byte colour)
+        : void _YLINE19(xloc,yloc,length,byte colour)
+
+
+VGA286.H--  ===  VGA mode 19 graphics with 286+ optimizations.
+        : void PUTPIXEL19_286(xloc,yloc,byte colour)
+        : void _PUTPIXEL19_286(xloc,yloc,byte colour)
+        : void XORPIXEL19_286(xloc,yloc,byte colour)
+        : void _XORPIXEL19_286(xloc,yloc,byte colour)
+
+
+VGA386.H--  ===  VGA mode 19 graphics with 386+ optimizations.
+        : void CLEARSCREEN19_386()
+        : void _CLEARSCREEN19_386()
+        : void ellipse19_386(int x,y,xsize,ysize; byte colour)
+        : void _ellipse19_386(int x,y,xsize,ysize; byte colour)
+        : void UPDATESCREEN19_386(oldbuf,newbuf)
+
+
+VGAFILL.H--  ===  Flood file for VGA mode 19.
+        void fill19(x_origin,y_origin,byte new_color)
+        void _fill19(x_origin,y_origin,byte new_color)
+
+
+VGAFONT.H--  ===  Small 5x5 font for VGA mode 19.
+        : void _over5x5letter19(x,y,letter,byte colour);
+        : void over5x5letter19(x,y,letter,byte colour);
+        : void _over5x5str19(x,y,straddr,byte colour);
+        : void over5x5str19(x,y,straddr,byte colour);
+        : void _put5x5letter19(x,y,letter,byte fg,byte bg);
+        : void put5x5letter19(x,y,letter,byte fg,byte bg);
+        : void _put5x5str19(x,y,straddr,byte fg,byte bg);
+        : void put5x5str19(x,y,straddr,byte fg,byte bg);
+
+
+VGAX.H--  ===  VGA's X graphics mode.
+        : void box_x(x1,y1,x2,y2,byte color)
+        : void CLEARSCREEN_X(pagenum)
+        : byte getpixel_x(x,y)
+        : void line_x(x1,y1,x2,y2,byte color)
+        : void xorline_x(x1,y1,x2,y2,byte color)
+        : void overicon_x(x,y,imageseg,imageoff)
+        : void puticon_x(x,y,bufseg,bufoff)
+        : void putletter_x(x,y,charbuf_off,byte fgc,byte bgc)
+        : void putpixel_x(x,y,byte color)
+        : byte set320x200mode(byte resetmouse)
+        : byte set320x240mode(byte resetmouse)
+        : void swapicon_x(x,y,bufseg,bufoff)
+        : void xorline_x(x1,y1,x2,y2,byte color)
+
+
+VCPI.H--  ===  VCPI control.
+        : word CHECK_VCPI()
+
+
+VESA.H--  ===  VESA video mode interface.
+	byte setVESAvideomode(VESAmode)
+	: byte SETVESA_MEMPOS(window_address,window_num)
+
+
+VIDEO.H--  ===  Video mode setting and getting.
+        : byte GETVIDEOMODE()
+        : void SETVIDEOMODE(byte videomode)
+
+
+WRITE.H--  ===  Text output.
+        : void BEEP()
+        : word GETXY()
+        : word GETXYZ(byte page)
+        : void GOTOXY(byte xloc,byte yloc)
+        : void GOTOXYZ(byte xloc,byte yloc,byte page)
+        : void WINDOWDOWN(numoflines,attribute,upperleftloc,lowerrightloc)
+        : void WINDOWUP(numoflines,attribute,upperleftloc,lowerrightloc)
+        : void WRITE(byte character)
+        : void WRITEDIGITS(word_value)
+        : void WRITEDWORD(dword dword_value)
+        : void WRITEHEX(word_value)
+        : void WRITEINT(int int_value)
+        : void WRITELN()
+        : void WRITELONG(long long_value)
+        : void WRITESTR(string)
+        : void WRITEWORD(word_value)
+
+
+=== INTERNAL LIBRARY ROUTINES (no include file required) ===
+=== In the future, I wish to move all of these to specific include files. ===
+
+void BYTETODIGITS(number,stringloc);
+void BYTETOHEX(number,stringloc);
+
+void CLEARSCREEN0();
+void CLEARSCREEN1();
+void CLEARSCREEN2();
+void CLEARSCREEN3();
+void CLEARSCREEN4();
+void CLEARSCREEN5();
+void CLEARSCREEN6();
+void CLEARSCREEN7();
+void CLEARSCREEN17();
+void CLEARWINDOW( ,attribute,upperleftloc,lowerrightloc);
+void CLICKOFF();
+void CLICKON();
+void copybackwardfar(destseg,destoff,sourceseg,sourceoff,bytes);  // description do
+void COPYBACKWARDFAR(destseg,destoff,sourceseg,sourceoff,bytes);  // description do
+void copybackwardfard(destseg,destoff,sourceseg,sourceoff,words);  // description do
+void COPYBACKWARDFARD(destseg,destoff,sourceseg,sourceoff,words);  // description do
+void copybackwardfarw(destseg,destoff,sourceseg,sourceoff,dwords);  // description do
+void COPYBACKWARDFARW(destseg,destoff,sourceseg,sourceoff,dwords);  // description do
+void copybackwardnear(destoffset,sourceoffset,bytes);   // description do 
+void COPYBACKWARDNEAR(destoffset,sourceoffset,bytes);   // description do 
+void copybackwardneard(destoffset,sourceoffset,dwords); // description do
+void COPYBACKWARDNEARD(destoffset,sourceoffset,dwords); // description do
+void copybackwardnearw(destoffset,sourceoffset,words);  // description do
+void COPYBACKWARDNEARW(destoffset,sourceoffset,words);  // description do
+void copyfar(destseg,destoff,sourceseg,sourceoff,bytes);  // description do
+void COPYFAR(destseg,destoff,sourceseg,sourceoff,bytes);  // description do
+void copyfard(destseg,destoff,sourceseg,sourceoff,words);  // description do
+void COPYFARD(destseg,destoff,sourceseg,sourceoff,words);  // description do
+void copyfarw(destseg,destoff,sourceseg,sourceoff,dwords);  // description do
+void COPYFARW(destseg,destoff,sourceseg,sourceoff,dwords);  // description do
+void copynear(destoffset,sourceoffset,bytes);   // description do 
+void COPYNEAR(destoffset,sourceoffset,bytes);   // description do 
+void copyneard(destoffset,sourceoffset,dwords); // description do
+void COPYNEARD(destoffset,sourceoffset,dwords); // description do
+void copynearw(destoffset,sourceoffset,words);  // description do
+void COPYNEARW(destoffset,sourceoffset,words);  // description do
+
+
+word FCLOSE( ,handle);
+word FCREATE( , ,attribute,filename);
+word FDELETE( , , ,filename);
+??   FHANDLE(??);                  //description to do     
+word FINDFIRSTFILE( , ,attribute,pathname);
+word FREEMEM(segmentaddress);    // description to do
+word FINDNEXTFILE();
+word FHANDLE( ,handle);
+word FOPEN(mode, , ,filename);
+word FREAD( ,handle,count,buffer);
+word FWRITE( ,handle,count,buffer);
+
+byte GETBORDERCOLOR();
+??   GETCOLORPAGESTATE(??)         //description to do
+word GETCONFIG();
+byte GETCPU();
+??   GETDEFAULTDRIVE();           //description to do
+??   GETDEFAULTINFO();            //description to do
+word GETDOSVERSION();
+void GETINTVECT(addressbuf,intnum);
+word GETMEM(paragraphsize);   
+word GETMEMSIZE();
+word GETRETURNCODE();
+     GETTEXTPOSITION( ,page);
+byte GETVERIFYFLAG();
+void GETVGAPALETTE( ,first,numbertoget,buffer);
+
+void HALT();
+
+word KBHIT();
+byte KEYCHECK();
+
+void LOAD8X8FONT();
+void LOAD8X14FONT();
+void LOAD8X16FONT();
+
+void MAXKEYRATE();
+
+word PARAMCOUNT();          // description to do
+word PARAMSTR(strnumber);   // description to do remember BX = AX;
+void PUTPIXEL(byte colour,page,x,y);
+void putpixel_320(x,y,byte colour);    // description to do
+void putpixel_640(x,y,byte colour);    // description to do
+
+     READSTRING( , , ,string);
+     RESIZEMEM(segmentaddress,newparagraphsize);    // description to do
+
+void SETATIMASK( ,readwritemask);
+void SETBORDERCOLOR(color);
+word SETCURRENTDIR(stringpath);
+word SETCURRENTDRIVE(drivecode);
+void SETDISPLAYPAGE(page);
+void SETINTVECT( ,intnum,segmentvalue,offsetvalue);
+void SETPANREG( ,value);           // description to do
+void SETREADMASK( ,maskvalue);     // description to do   
+void SETSCREENOFFSET( ,offset);
+void SETSCREENOFFSETM( ,offset);
+void SETSCREENWIDTH( ,width/8);    // description to do
+void SETTEXTPOSITION( ,page, ,loc);
+void SETTICKINTERVAL( ,intervalsize);
+void SETVGADAC(first, ,numbertoset, , ,buf);
+void SETWRITEMASK( ,maskvalue);     // description to do   
+word SHIFTSTATUS();
+
+byte TEXTROWS();
+void TURNOFFCHAIN4();
+
+void WAITVSYNC();
+void WORDTODIGITS(number,stringloc);
+
+word XMSallocateEMB(sizeinK);
+word XMSfreeEMB(EMBhandle);
+word XMSgetEMBinfo(EMBhandle);
+word XMSgetversion();
+word XMSglobaldisableA20();
+word XMSglobalenableA20();
+word XMSlocaldisableA20();
+word XMSlocalenableA20();
+word XMSlockEMB(EMBhandle);
+word XMSmoveEMB(destofshigh,destofslow,desthandle,sourceofshigh,
+                sourceofslow,sourcehandle,lengthhigh,lenghtlow);
+word XMSqueryA20();
+word XMSqueryfreeEMB();
+word XMSreallocateEMB(newsize,EMBhandle);
+word XMSreleaseHMA();
+word XMSreleaseUMB(segmentofUMB);
+word XMSrequestHMA(spaceinbytes);
+word XMSrequestUMB(sizeinparagraphs);
+word XMSunlockEMB(EMBhandle);
+
+
+/* end of ALLPROCS.DOC */

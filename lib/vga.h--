@@ -1,0 +1,1649 @@
+/*
+    SPHINX Programming (C) 1993.
+    TITLE:  VGA.H--
+    DESCRIPTION:  This file contains a collection of procedures for writing
+                  to VGA mode 19 (320x200, 256 colour) screens.
+    LAST UPDATED: 26 Dec 1993
+    PROCEDURES DEFINED IN THIS FILE:
+        : void ANDPIXEL19( ,x,byte colour,y)
+        : void _ANDPIXEL19( ,x,byte colour,y)
+        : void bar19(x,y,xsize,ysize,byte colour)
+        : void _bar19(x,y,xsize,ysize,byte colour)
+        : void BLANKVGA()
+        : void box19(x,y,xsize,ysize,byte colour)
+        : void _box19(x,y,xsize,ysize,byte colour)
+        : void CLEARSCREEN19()
+        : void _CLEARSCREEN19()
+        : void FILLSCREEN19(byte colour)
+        : void _FILLSCREEN19(byte colour)
+        : void getimage19(x,y,xsize,ysize,bufseg,bufoff)
+        : byte getpixel19(x,y)
+        : byte _getpixel19(x,y)
+        : byte GETPIXEL19( ,x, ,y)
+        : byte _GETPIXEL19( ,x, ,y)
+        : void line19(x1,y1,x2,y2,byte colour)
+        : void _line19(x1,y1,x2,y2,byte colour)
+        : void negpixel19(x,y)
+        : void _negpixel19(x,y)
+        : void NEGPIXEL19( ,x, ,y)
+        : void _NEGPIXEL19( ,x, ,y)
+        : void notbar19(x,y,xsize,ysize)
+        : void _notbar19(x,y,xsize,ysize)
+        : void notbox19(x,y,xsize,ysize)
+        : void _notbox19(x,y,xsize,ysize)
+        : void notpixel19(x,y)
+        : void _notpixel19(x,y)
+        : void NOTPIXEL19( ,x, ,y)
+        : void _NOTPIXEL19( ,x, ,y)
+        : void ORPIXEL19( ,x,byte colour,y)
+        : void _ORPIXEL19( ,x,byte colour,y)
+        : void overimage19(x,y,imageloc,byte clearcolour)
+        : void _overimage19(x,y,imageloc,byte clearcolour)
+        : void putimage19(x,y,imageloc)
+        : void _putimage19(x,y,imageloc)
+        : void putpixel19(x,y,byte color)
+        : void _putpixel19(x,y,byte color)
+        : void PUTPIXEL19( ,x,byte colour,y)
+        : void _PUTPIXEL19( ,x,byte colour,y)
+        : void putresized19(x,y,newxsize,newysize,imageloc)
+        : void _putresized19(x,y,newxsize,newysize,imageloc)
+        : void SETVGAPALETTE( ,first,numbertoset,buffer);
+        : void trans19(x,y,xsize,ysize)
+        : void _trans19(x,y,xsize,ysize)
+        : void UNBLANKVGA()
+        : void XLINE19(xloc,yloc,length,byte colour)
+        : void _XLINE19(xloc,yloc,length,byte colour)
+        : void xorbar19(x,y,xsize,ysize,byte colour)
+        : void _xorbar19(x,y,xsize,ysize,byte colour)
+        : void xorbox19(x,y,xsize,ysize,byte colour)
+        : void _xorbox19(x,y,xsize,ysize,byte colour)
+        : void xorimage19(x,y,imageloc)
+        : void _xorimage19(x,y,imageloc)
+        : void xorline19(x1,y1,x2,y2,byte colour)
+        : void _xorline19(x1,y1,x2,y2,byte colour)
+        : void xorpixel19(x,y,byte color)
+        : void _xorpixel19(x,y,byte color)
+        : void XORPIXEL19( ,x,byte colour,y)
+        : void _XORPIXEL19( ,x,byte colour,y)
+        : void xorxline19(x,y,length,byte colour)
+        : void _xorxline19(x,y,length,byte colour)
+        : void xoryline19(x,y,length,byte colour)
+        : void _xoryline19(x,y,length,byte colour)
+        : void YLINE19(xloc,yloc,length,byte colour)
+        : void _YLINE19(xloc,yloc,length,byte colour)
+*/
+?ifndef _VGA_
+?define _VGA_ TRUE
+?warning FALSE
+
+:void CLEARSCREEN19()
+{
+	DI=0;
+	CX=64000/2;
+	ES=0xA000;
+	AX=DI;
+	$REPZ
+	$STOSW
+}
+
+:void _CLEARSCREEN19()
+{
+	DI=0;
+	CX=64000/2;
+	AX=0;
+	$REPZ
+	$STOSW
+}
+
+:void FILLSCREEN19()   // AL = colour to fill screen
+{
+	DI=0;
+	CX=0xA000;
+	ES=CX;
+	CX=64000/2;
+	AH=AL;
+	$REPZ
+	$STOSW
+}
+
+:void _FILLSCREEN19()   // AL = colour to fill screen
+{
+	DI=0;
+	CX=64000/2;
+	AH=AL;
+	$REPZ
+	$STOSW
+}
+
+:void putpixel19(word x,y;byte color)
+{
+	ES=0xA000;
+?ifdef codesize
+	AX=320*y+x;
+	BX><AX;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	BX=AX;
+?endif
+	ESBYTE[BX]=color;
+}
+
+:void _putpixel19(word x,y;byte color)
+{
+?ifdef codesize
+	AX=320*y+x;
+	BX><AX;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	BX=AX;
+?endif
+	ESBYTE[BX]=color;
+}
+
+:void xorpixel19(word x,y;byte color)
+{
+	ES=0xA000;
+?ifdef codesize
+	AX=320*y+x;
+	BX><AX;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	BX=AX;
+?endif
+	ESBYTE[BX]^=color;
+}
+
+:void _xorpixel19(word x,y;byte color)
+{
+?ifdef codesize
+	AX=320*y+x;
+	BX><AX;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	BX=AX;
+?endif
+	ESBYTE[BX]^=color;
+}
+
+:void negpixel19(word x,y)
+{
+	ES=0xA000;
+?ifdef codesize
+	AX=320*y+x;
+	BX><AX;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	BX=AX;
+?endif
+	-ESBYTE[BX];
+}
+
+:void _negpixel19(word x,y)
+{
+?ifdef codesize
+	AX=320*y+x;
+	BX><AX;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	BX=AX;
+?endif
+	-ESBYTE[BX];
+}
+
+:void notpixel19(word x,y)
+{
+	ES=0xA000;
+?ifdef codesize
+	AX=320*y+x;
+	BX><AX;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	BX=AX;
+?endif
+	!ESBYTE[BX];
+}
+
+:void _notpixel19(word x,y)
+{
+?ifdef codesize
+	AX=320*y+x;
+	BX><AX;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	BX=AX;
+?endif
+	!ESBYTE[BX];
+}
+
+:byte getpixel19(word x,y)
+{
+	ES=0xA000;
+?ifdef codesize
+	AX=320*y+x;
+	BX><AX;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	BX=AX;
+?endif
+	AL=ESBYTE[BX];
+}
+
+:byte _getpixel19(word x,y)
+{
+?ifdef codesize
+	AX=320*y+x;
+	BX><AX;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	BX=AX;
+?endif
+	AL=ESBYTE[BX];
+}
+
+:void putresized19(word x,y,newxsize,newysize,imageloc)
+word ysize;
+{
+	ES=0xA000;
+	BX=imageloc;
+	SI=DSWORD[BX];
+	ysize=DSWORD[BX+2];
+	imageloc+=4;
+?ifdef codesize
+	AX=y*320;
+?else
+	AX=y; BX=AX;
+	AX=AX<<2+BX<<6;
+?endif
+	x+=AX;
+	y=0;
+	do{
+		CX=0;
+		DI=x;
+		do{
+			AX=CX*SI;
+			$DIV newxsize
+?ifdef codesize
+			BX><AX;
+?else
+			BX=AX;
+?endif
+			AX=y*ysize;
+			$DIV newysize
+			AX=AX*SI+BX+imageloc;
+?ifdef codesize
+			BX><AX;
+?else
+			BX=AX;
+?endif
+			ESBYTE[DI]=DSBYTE[BX];
+			DI++;
+			CX++;
+		}while(CX<newxsize);
+		x+=320;
+		y++;
+	}while(y<newysize);
+}
+
+:void _putresized19(word x,y,newxsize,newysize,imageloc)
+word xsize,ysize;
+{
+	BX=imageloc;
+	SI=DSWORD[BX];
+	ysize=DSWORD[BX+2];
+	imageloc+=4;
+?ifdef codesize
+	AX=y*320;
+?else
+	AX=y; BX=AX;
+	AX=AX<<2+BX<<6;
+?endif
+	x+=AX;
+	y=0;
+	do{
+		CX=0;
+		DI=x;
+		do{
+			AX=CX*SI;
+			$DIV newxsize
+?ifdef codesize
+			BX><AX;
+?else
+			BX=AX;
+?endif
+			AX=y*ysize;
+			$DIV newysize
+			AX=AX*SI+BX+imageloc;
+?ifdef codesize
+			BX><AX;
+?else
+			BX=AX;
+?endif
+			ESBYTE[DI]=DSBYTE[BX];
+			DI++;
+			CX++;
+		}while(CX<newxsize);
+		x+=320;
+		y++;
+	}while(y<newysize);
+}
+
+:void xorxline19(word x,y,length;byte colour)
+/*  XOR Draw a horizontal line starting at (x,y) going right 'length' number
+    of pixels in the colour given. */
+{
+	ES=0xA000;
+?ifdef codesize
+	AX=320*y+x;
+	BX><AX;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	BX=AX;
+?endif
+	AL=colour;
+	CX=length;
+	loop(CX){
+		ESBYTE[BX]^=AL;
+		BX++;
+	}
+}
+
+:void _xorxline19(word x,y,length;byte colour)
+/*  XOR Draw a horizontal line starting at (x,y) going right 'length' number
+    of pixels in the colour given. */
+{
+?ifdef codesize
+	AX=320*y+x;
+	BX><AX;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	BX=AX;
+?endif
+	AL=colour;
+	CX=length;
+	loop(CX){
+		ESBYTE[BX]^=AL;
+		BX++;
+	}
+}
+
+:void xoryline19(word x,y,length;byte colour)
+/*  XOR Draw a vertical line starting at (x,y) going down 'length' number
+    of pixels in the colour given. */
+{
+	ES=0xA000;
+?ifdef codesize
+	AX=320*y+x;
+	BX><AX;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	BX=AX;
+?endif
+	AL=colour;
+	CX=length;
+	loop(CX){
+		ESBYTE[BX]^=AL;
+		BX+=320;
+	}
+}
+
+:void _xoryline19(word x,y,length;byte colour)
+/*  XOR Draw a vertical line starting at (x,y) going down 'length' number
+    of pixels in the colour given. */
+{
+?ifdef codesize
+	AX=320*y+x;
+	BX><AX;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	BX=AX;
+?endif
+	AL=colour;
+	CX=length;
+	loop(CX){
+		ESBYTE[BX]^=AL;
+		BX+=320;
+	}
+}
+
+:void box19(word x,y,xsize,ysize;byte color)
+{
+	ES=0xA000;
+?ifdef codesize
+	AX=320*y+x;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+?endif
+	SI=AX;
+	AX><DI;
+	AL=color;
+	DX=xsize;
+	CX=DX;
+	$REPE $STOSB
+	SI+=320;
+	CX=ysize;
+	$CMP CX,2
+	IF(NOTZEROFLAG){
+		IF(CARRYFLAG)GOTO END;
+		BX=DX;
+		BX--;
+		CX--;
+		CX--;
+		loop(CX){
+			ESBYTE[SI]=AL;
+			ESBYTE[BX+SI]=AL;
+			SI+=320;
+		}
+	}
+	DI=SI;
+	CX=DX;
+	$REPE $STOSB
+END:
+}
+
+:void _box19(word x,y,xsize,ysize;byte color)
+{
+?ifdef codesize
+	AX=320*y+x;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+?endif
+	SI=AX;
+	AX><DI;
+	AL=color;
+	DX=xsize;
+	CX=DX;
+	$REPE $STOSB
+	SI+=320;
+	CX=ysize;
+	$CMP CX,2
+	IF(NOTZEROFLAG){
+		IF(CARRYFLAG)GOTO END;
+		BX=DX;
+		BX--;
+		CX--;
+		CX--;
+		loop(CX){
+			ESBYTE[SI]=AL;
+			ESBYTE[BX+SI]=AL;
+			SI+=320;
+		}
+	}
+	DI=SI;
+	CX=DX;
+	$REPE $STOSB
+END:
+}
+
+:void bar19(word x,y,xsize,ysize;byte color)
+{
+	ES=0xA000;
+?ifdef codesize
+	AX=320*y+x;
+	AX><SI;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	SI=AX;
+?endif
+	AL=color;
+	DX=xsize;
+	BX=ysize;
+	loop(BX){
+		DI=SI;
+		CX=DX;
+		$REPE  $STOSB
+		SI+=320;
+	}
+}
+
+:void _bar19(word x,y,xsize,ysize;byte color)
+{
+?ifdef codesize
+	AX=320*y+x;
+	AX><SI;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	SI=AX;
+?endif
+	AL=color;
+	DX=xsize;
+	BX=ysize;
+	loop(BX){
+		DI=SI;
+		CX=DX;
+		$REPE  $STOSB
+		SI+=320;
+	}
+}
+
+:void getimage19(word x,y,xsize,ysize,bufseg,bufoff)
+{
+	$PUSH DS
+	DS=0xA000;
+	$LES DI,bufoff
+?ifdef codesize
+	AX=320*y+x;
+	AX><DX;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	DX=AX;
+?endif
+	AX=xsize;
+	$STOSW
+	AX><BX;
+	AX=ysize;
+	$STOSW
+	loop(AX){
+		SI=DX;
+		CX=BX;
+		$REPE $MOVSB
+		DX+=320;
+	}
+	$POP    DS
+}
+
+:void line19(word x1,y1,x2,y2;byte color)
+{
+	ES=0xA000;
+	AX=320;
+	DI=SSWORD[#color];
+	CX=y1;
+	BX=x1;
+	DX=y2;
+	BP=x2;
+	IF(int CX>DX ){
+		CX><DX;
+		BX><BP;
+	}
+?ifdef codesize
+	$push DX
+?else
+	SI=DX;
+?endif
+	AX=AX*CX+BX;
+?ifdef codesize
+	$pop DX
+?else
+	DX=SI;
+?endif
+	AX><DI;
+	BP-=BX;
+	DX-=CX;
+	SI=1;
+	IF(int BP<=0){
+		SI--;
+		SI--;
+		-BP;
+	}
+	IF(int BP>DX){
+		CX=BP;
+		DX+=DX;
+		BX=DX;
+		BX-=BP;
+		BP+=BP;
+		ESBYTE[DI]=AL;
+		IF(CX!=0){
+			loop(CX){
+				IF(int BX>=0){
+					DI+=320;
+					BX-=BP;
+				}
+				BX+=DX;
+				DI+=SI;
+				ESBYTE[DI]=AL;
+			}
+		}
+		RETURN;
+	}
+	CX=DX;
+	BP+=BP;
+	BX=BP;
+	BX-=DX;
+	DX+=DX;
+	ESBYTE[DI]=AL;
+	IF(CX!=0){
+		loop(CX){
+			IF(int BX>=0){
+				DI+=SI;
+				BX-=DX;
+			}
+			BX+=BP;
+			DI+=320;
+			ESBYTE[DI]=AL;
+		}
+	}
+}
+
+:void _line19(word x1,y1,x2,y2;byte color)
+{
+	AX=320;
+	DI=SSWORD[#color];
+	CX=y1;
+	BX=x1;
+	DX=y2;
+	BP=x2;
+	IF(int CX>DX ){
+		CX><DX;
+		BX><BP;
+	}
+?ifdef codesize
+	$push DX
+?else
+	SI=DX;
+?endif
+	AX=AX*CX+BX;
+?ifdef codesize
+	$pop DX
+?else
+	DX=SI;
+?endif
+	AX><DI;
+	BP-=BX;
+	DX-=CX;
+	SI=1;
+	IF(int BP<=0){
+		SI--;
+		SI--;
+		-BP;
+	}
+	IF(int BP>DX){
+		CX=BP;
+		DX+=DX;
+		BX=DX;
+		BX-=BP;
+		BP+=BP;
+		ESBYTE[DI]=AL;
+		IF(CX!=0){
+			loop(CX){
+				IF(int BX>=0){
+					DI+=320;
+					BX-=BP;
+				}
+				BX+=DX;
+				DI+=SI;
+				ESBYTE[DI]=AL;
+			}
+		}
+		return;
+	}
+	CX=DX;
+	BP+=BP;
+	BX=BP;
+	BX-=DX;
+	DX+=DX;
+	ESBYTE[DI]=AL;
+	IF(CX!=0){
+		loop(CX){
+			IF(int BX>=0){
+				DI+=SI;
+				BX-=DX;
+			}
+			BX+=BP;
+			DI+=320;
+			ESBYTE[DI]=AL;
+		}
+	}
+}
+
+:void notbar19(word x,y,xsize,ysize)
+{
+	ES=0xA000;
+?ifdef codesize
+	AX=320*y+x;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+?endif
+	DX=xsize;
+	BX=ysize;
+	loop(BX){
+		DI=AX;
+		CX=DX;
+		loop(CX){
+			!ESBYTE[DI];
+			DI++;
+		}
+		AX+=320;
+	}
+}
+
+:void _notbar19(word x,y,xsize,ysize)
+{
+?ifdef codesize
+	AX=320*y+x;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+?endif
+	DX=xsize;
+	BX=ysize;
+	loop(BX){
+		DI=AX;
+		CX=DX;
+		loop(CX){
+			!ESBYTE[DI];
+			DI++;
+		}
+		AX+=320;
+	}
+}
+
+:void notbox19(word x,y,xsize,ysize)
+{
+	ES=0xA000;
+?ifdef codesize
+	AX=320*y+x;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+?endif
+	SI=AX;
+	AX><DI;
+	DX=xsize;
+	CX=DX;
+	loop(CX){
+		!ESBYTE[DI];
+		DI++;
+	}
+	SI+=320;
+	CX=ysize;
+	IF(CX!=2){
+		IF(CARRYFLAG)GOTO END;
+		BX=DX;
+		BX--;
+		CX--;
+		CX--;
+		loop(CX){
+			!ESBYTE[SI];
+			!ESBYTE[BX+SI];
+			SI+=320;
+		}
+	}
+	CX=DX;
+	loop(CX){
+		!ESBYTE[SI];
+		SI++;
+	}
+END:
+}
+
+:void _notbox19(word x,y,xsize,ysize)
+{
+?ifdef codesize
+	AX=320*y+x;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+?endif
+	SI=AX;
+	AX><DI;
+	DX=xsize;
+	CX=DX;
+	loop(CX){
+		!ESBYTE[DI];
+		DI++;
+	}
+	SI+=320;
+	CX=ysize;
+	IF(CX!=2){
+		IF(CARRYFLAG)GOTO END;
+		BX=DX;
+		BX--;
+		CX--;
+		CX--;
+		loop(CX){
+			!ESBYTE[SI];
+			!ESBYTE[BX+SI];
+			SI+=320;
+		}
+	}
+	CX=DX;
+	loop(CX){
+		!ESBYTE[SI];
+		SI++;
+	}
+END:
+}
+
+:void overimage19(word x,y,imageloc;byte clearcolor)
+{
+	ES=0xA000;
+?ifdef codesize
+	AX=320*y+x;
+	AX><BX;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	BX=AX;
+?endif
+	SI=imageloc;
+	AH=clearcolor;
+	DX=DSWORD[SI];
+	BP=DSWORD[SI+2];
+	SI+=4;
+	loop(BP){
+		CX=DX;
+		DI=BX;
+		loop(CX){
+			$LODSB
+			IF(AL!=AH)ESBYTE[DI]=AL;
+			DI++;
+		}
+		BX+=320;
+	}
+}
+
+:void _overimage19(word x,y,imageloc; byte clearcolor)
+{
+?ifdef codesize
+	AX=320*y+x;
+	AX><BX;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	BX=AX;
+?endif
+	SI=imageloc;
+	AH=clearcolor;
+	DX=DSWORD[SI];
+	BP=DSWORD[SI+2];
+	SI+=4;
+	loop(BP){
+		CX=DX;
+		DI=BX;
+		loop(CX){
+			$LODSB
+			IF(AL!=AH)ESBYTE[DI]=AL;
+			DI++;
+		}
+		BX+=320;
+	}
+}
+
+:void putimage19(word x,y,imageloc)
+{
+	ES=0xA000;
+	SI=imageloc;
+?ifdef codesize
+	AX=320*y+x;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+?endif
+	DX=DSWORD[SI];
+	BX=DSWORD[SI+02];
+	SI+=4;
+	loop(BX){
+		DI=AX;
+		CX=DX;
+		$REPE  $MOVSB
+		AX+=320;
+	}
+}
+
+:void _putimage19(word x,y,imageloc)
+{
+	SI=imageloc;
+?ifdef codesize
+	AX=320*y+x;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+?endif
+	DX=DSWORD[SI];
+	BX=DSWORD[SI+02];
+	SI+=4;
+	loop(BX){
+		DI=AX;
+		CX=DX;
+		$REPE  $MOVSB
+		AX+=320;
+	}
+}
+
+:void trans19(word x,y,xsize,ysize)
+{
+	ES=0xA000;
+?ifdef codesize
+	AX=320*y+x;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+?endif
+	DX=xsize;
+	BX=ysize;
+	loop(BX){
+		DI=AX;
+		SI=AX;
+		CX=DX;
+		$REPE  $MOVSB
+		AX+=320;
+	}
+}
+
+:void _trans19(word x,y,xsize,ysize)
+{
+?ifdef codesize
+	AX=320*y+x;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+?endif
+	DX=xsize;
+	BX=ysize;
+	loop(BX){
+		DI=AX;
+		SI=AX;
+		CX=DX;
+		$REPE  $MOVSB
+		AX+=320;
+	}
+}
+
+:void xorbar19(word x,y,xsize,ysize;byte color)
+{
+	ES=0xA000;
+?ifdef codesize
+	AX=320*y+x;
+	AX><SI;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	SI=AX;
+?endif
+	AL=color;
+	DX=xsize;
+	BX=ysize;
+	loop(BX){
+		DI=SI;
+		CX=DX;
+		loop(CX){
+			ESBYTE[DI]^=AL;
+			DI++;
+		}
+		SI+=320;
+	}
+}
+
+:void _xorbar19(word x,y,xsize,ysize;byte color)
+{
+?ifdef codesize
+	AX=320*y+x;
+	AX><SI;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	SI=AX;
+?endif
+	AL=color;
+	DX=xsize;
+	BX=ysize;
+	loop(BX){
+		DI=SI;
+		CX=DX;
+		loop(CX){
+			ESBYTE[DI]^=AL;
+			DI++;
+		}
+		SI+=320;
+	}
+}
+
+:void xorbox19(word x,y,xsize,ysize;byte color)
+{
+	ES=0xA000;
+?ifdef codesize
+	AX=320*y+x;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+?endif
+	SI=AX;
+	AX><DI;
+	AL=color;
+	DX=xsize;
+	CX=DX;
+	loop(CX){
+		ESBYTE[DI]^=AL;
+		DI++;
+	}
+	SI+=320;
+	CX=ysize;
+	IF(CX!=2){
+		IF(CARRYFLAG)GOTO END;
+		BX=DX;
+		BX--;
+		CX--;
+		CX--;
+		loop(CX){
+			ESBYTE[SI]^=AL;
+			ESBYTE[BX+SI]^=AL;
+			SI+=320;
+		}
+	}
+	CX=DX;
+	loop(CX){
+		ESBYTE[SI]^=AL;
+		SI++;
+	}
+END:
+}
+
+:void _xorbox19(word x,y,xsize,ysize;byte color)
+{
+?ifdef codesize
+	AX=320*y+x;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+?endif
+	SI=AX;
+	AX><DI;
+	AL=color;
+	DX=xsize;
+	CX=DX;
+	loop(CX){
+		ESBYTE[DI]^=AL;
+		DI++;
+	}
+	SI+=320;
+	CX=ysize;
+	IF(CX!=2){
+		IF(CARRYFLAG)GOTO END;
+		BX=DX;
+		BX--;
+		CX--;
+		CX--;
+		loop(CX){
+			ESBYTE[SI]^=AL;
+			ESBYTE[BX+SI]^=AL;
+			SI+=320;
+		}
+	}
+	CX=DX;
+	loop(CX){
+		ESBYTE[SI]^=AL;
+		SI++;
+	}
+END:
+}
+
+:void xorimage19(word x,y,imageloc)
+{
+	ES=0xA000;
+	SI=imageloc;
+?ifdef codesize
+	AX=320*y+x;
+	BP><AX;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	BP=AX;
+?endif
+	DX=DSWORD[SI];
+	BX=DSWORD[SI+2];
+	SI+=4;
+	loop(BX){
+		DI=BP;
+		CX=DX;
+		loop(CX){
+			$LODSB
+			ESBYTE[DI]^=AL;
+			DI++;
+		}
+		BP+=320;
+	}
+}
+
+:void _xorimage19(word x,y,imageloc)
+{
+	SI=imageloc;
+?ifdef codesize
+	AX=320*y+x;
+	BP><AX;
+?else
+	AX=y;
+	BX=AX;
+	AX=AX<<2+BX<<6+x;
+	BP=AX;
+?endif
+	DX=DSWORD[SI];
+	BX=DSWORD[SI+2];
+	SI+=4;
+	loop(BX){
+		DI=BP;
+		CX=DX;
+		loop(CX){
+			$LODSB
+			ESBYTE[DI]^=AL;
+			DI++;
+		}
+		BP+=320;
+	}
+}
+
+:void xorline19(word x1,y1,x2,y2;byte color)
+{
+	ES=0xA000;
+	AX=320;
+	DI=SSWORD[#color];
+	CX=y1;
+	BX=x1;
+	DX=y2;
+	BP=x2;
+	IF(int CX>DX ){
+		CX><DX;
+		BX><BP;
+	}
+?ifdef codesize
+	$push DX
+?else
+	SI=DX;
+?endif
+	AX=AX*CX+BX;
+?ifdef codesize
+	$pop DX
+?else
+	DX=SI;
+?endif
+	AX><DI;
+	BP-=BX;
+	DX-=CX;
+	SI=1;
+	IF(int BP<=0){
+		SI--;
+		SI--;
+		-BP;
+	}
+	IF(int BP>DX){
+		CX=BP;
+		DX+=DX;
+		BX=DX;
+		BX-=BP;
+		BP+=BP;
+		ESBYTE[DI]^=AL;
+		IF(CX!=0){
+			loop(CX){
+				IF(int BX>=0){
+					DI+=320;
+					BX-=BP;
+				}
+				BX+=DX;
+				DI+=SI;
+				ESBYTE[DI]^=AL;
+			}
+		}
+		RETURN;
+	}
+	CX=DX;
+	BP+=BP;
+	BX=BP;
+	BX-=DX;
+	DX+=DX;
+	ESBYTE[DI]^=AL;
+	IF(CX!=0){
+		loop(CX){
+			IF(int BX>=0){
+				DI+=SI;
+				BX-=DX;
+			}
+			BX+=BP;
+			DI+=320;
+			ESBYTE[DI]^=AL;
+		}
+	}
+}
+
+:void _xorline19(word x1,y1,x2,y2;byte color)
+{
+	AX=320;
+	DI=SSWORD[#color];
+	CX=y1;
+	BX=x1;
+	DX=y2;
+	BP=x2;
+	IF(int CX>DX ){
+		CX><DX;
+		BX><BP;
+	}
+?ifdef codesize
+	$push DX
+?else
+	SI=DX;
+?endif
+	AX=AX*CX+BX;
+?ifdef codesize
+	$pop DX
+?else
+	DX=SI;
+?endif
+	AX><DI;
+	BP-=BX;
+	DX-=CX;
+	SI=1;
+	IF(int BP<=0){
+		SI--;
+		SI--;
+		-BP;
+	}
+	IF(int BP>DX){
+		CX=BP;
+		DX+=DX;
+		BX=DX;
+		BX-=BP;
+		BP+=BP;
+		ESBYTE[DI]^=AL;
+		IF(CX!=0){
+			loop(CX){
+				IF(int BX>=0){
+					DI+=320;
+					BX-=BP;
+				}
+				BX+=DX;
+				DI+=SI;
+				ESBYTE[DI]^=AL;
+			}
+		}
+		RETURN;
+	}
+	CX=DX;
+	BP+=BP;
+	BX=BP;
+	BX-=DX;
+	DX+=DX;
+	ESBYTE[DI]^=AL;
+	IF(CX!=0){
+		loop(CX){
+			IF(int BX>=0){
+				DI+=SI;
+				BX-=DX;
+			}
+			BX+=BP;
+			DI+=320;
+			ESBYTE[DI]^=AL;
+		}
+	}
+}
+
+:void UNBLANKVGA()
+{
+	DX=0x3C6;
+	AL=0xFF;
+	$OUT DX,AL
+}
+
+:void BLANKVGA()
+{
+	DX=0x3C6;
+	AL=0;
+	$OUT DX,AL
+}
+
+:void XLINE19()   /* AX = xloc, BX = yloc, CX = length, DL = colour */
+{
+?ifdef codesize
+	DI><AX;
+?else
+	DI=AX;
+?endif
+	BX><DX;
+?ifdef codesize
+	AX=320*DX;
+?else
+?ifdef cpu==0
+	AX=320*DX;
+?else
+	AX=DX;
+	AX=AX<<2+DX<<6;
+?endif
+?endif
+	DI+=AX;
+	ES=0xA000;
+	AL=BL;
+	$REPZ
+	$STOSB
+}
+
+:void _XLINE19()   /* AX = xloc, BX = yloc, CX = length, DL = colour */
+{
+?ifdef codesize
+	DI><AX;
+?else
+	DI=AX;
+?endif
+	BX><DX;
+?ifdef codesize
+	AX=320*DX;
+?else
+?ifdef cpu==0
+	AX=320*DX;
+?else
+	AX=DX;
+	AX=AX<<2+DX<<6;
+?endif
+?endif
+	DI+=AX;
+	AL=BL;
+	$REPZ
+	$STOSB
+}
+
+:void YLINE19()   /* AX = xloc, BX = yloc, CX = length, DL = colour */
+{
+?ifdef codesize
+	DI><AX;
+?else
+	DI=AX;
+?endif
+	BX><DX;
+?ifdef codesize
+	AX=320*DX;
+?else
+?ifdef cpu==0
+	AX=320*DX;
+?else
+	AX=DX;
+	AX=AX<<2+DX<<6;
+?endif
+?endif
+	DI+=AX;
+	ES=0xA000;
+	loop(CX){
+		ESBYTE[DI]=BL;
+		DI+=320;
+	}
+}
+
+:void _YLINE19()   /* AX = xloc, BX = yloc, CX = length, DL = colour */
+{
+?ifdef codesize
+	DI><AX;
+?else
+	DI=AX;
+?endif
+	BX><DX;
+?ifdef codesize
+	AX=320*DX;
+?else
+?ifdef cpu==0
+	AX=320*DX;
+?else
+	AX=DX;
+	AX=AX<<2+DX<<6;
+?endif
+?endif
+	DI+=AX;
+	loop(CX){
+		ESBYTE[DI]=BL;
+		DI+=320;
+	}
+}
+
+:void SETVGAPALETTE()  /* BX=first, CX=numbertoset, DX=bufferoffset */
+{
+	ES=DS;
+	AX=0x1012;
+	$INT 0x10
+}
+
+:byte GETPIXEL19()  /* BX = xloc, DX = yloc */
+{
+?ifdef codesize
+	AX=320*DX;
+?else
+	AX=DX;
+	AX=AX<<2+DX<<6;
+?endif
+	BX+=AX;
+	ES=0xA000;
+	AL=ESBYTE[BX];
+}
+
+:byte _GETPIXEL19()  /* BX = xloc, DX = yloc */
+{
+?ifdef codesize
+	AX=320*DX;
+?else
+	AX=DX;
+	AX=AX<<2+DX<<6;
+?endif
+	BX+=AX;
+	AL=ESBYTE[BX];
+}
+
+:byte NOTPIXEL19()  /* BX = xloc, DX = yloc */
+{
+?ifdef codesize
+	AX=320*DX;
+?else
+	AX=DX;
+	AX=AX<<2+DX<<6;
+?endif
+	BX+=AX;
+	ES=0xA000;
+	!ESBYTE[BX];
+}
+
+:byte _NOTPIXEL19()  /* BX = xloc, DX = yloc */
+{
+?ifdef codesize
+	AX=320*DX;
+?else
+	AX=DX;
+	AX=AX<<2+DX<<6;
+?endif
+	BX+=AX;
+	!ESBYTE[BX];
+}
+
+:byte NEGPIXEL19()  /* BX = xloc, DX = yloc */
+{
+?ifdef codesize
+	AX=320*DX;
+?else
+	AX=DX;
+	AX=AX<<2+DX<<6;
+?endif
+	BX+=AX;
+	ES=0xA000;
+	-ESBYTE[BX];
+}
+
+:byte _NEGPIXEL19()  /* BX = xloc, DX = yloc */
+{
+?ifdef codesize
+	AX=320*DX;
+?else
+	AX=DX;
+	AX=AX<<2+DX<<6;
+?endif
+	BX+=AX;
+	-ESBYTE[BX];
+}
+
+:void XORPIXEL19()  /* BX = xloc, CL = colour, DX = yloc */
+{
+?ifdef codesize
+	AX=320*DX;
+?else
+?ifdef cpu==0
+	AX=320*DX;
+?else
+	AX=DX;
+	AX=AX<<2+DX<<6;
+?endif
+?endif
+	BX+=AX;
+	ES=0xA000;
+	ESBYTE[BX]^=CL;
+}
+
+:void _XORPIXEL19()  /* BX = xloc, CL = colour, DX = yloc */
+{
+?ifdef codesize
+	AX=320*DX;
+?else
+?ifdef cpu==0
+	AX=320*DX;
+?else
+	AX=DX;
+	AX=AX<<2+DX<<6;
+?endif
+?endif
+	BX+=AX;
+	ESBYTE[BX]^=CL;
+}
+
+:void ANDPIXEL19()  /* BX = xloc, CL = colour, DX = yloc */
+{
+?ifdef codesize
+	AX=320*DX;
+?else
+?ifdef cpu==0
+	AX=320*DX;
+?else
+	AX=DX;
+	AX=AX<<2+DX<<6;
+?endif
+?endif
+	BX+=AX;
+	ES=0xA000;
+	ESBYTE[BX]&=CL;
+}
+
+:void _ANDPIXEL19()  /* BX = xloc, CL = colour, DX = yloc */
+{
+?ifdef codesize
+	AX=320*DX;
+?else
+?ifdef cpu==0
+	AX=320*DX;
+?else
+	AX=DX;
+	AX=AX<<2+DX<<6;
+?endif
+?endif
+	BX+=AX;
+	ESBYTE[BX]&=CL;
+}
+
+:void ORPIXEL19()  /* BX = xloc, CL = colour, DX = yloc */
+{
+?ifdef codesize
+	AX=320*DX;
+?else
+?ifdef cpu==0
+	AX=320*DX;
+?else
+	AX=DX;
+	AX=AX<<2+DX<<6;
+?endif
+?endif
+	BX+=AX;
+	ES=0xA000;
+	ESBYTE[BX]|=CL;
+}
+
+:void _ORPIXEL19()  /* BX = xloc, CL = colour, DX = yloc */
+{
+?ifdef codesize
+	AX=320*DX;
+?else
+?ifdef cpu==0
+	AX=320*DX;
+?else
+	AX=DX;
+	AX=AX<<2+DX<<6;
+?endif
+?endif
+	BX+=AX;
+	ESBYTE[BX]|=CL;
+}
+
+:void PUTPIXEL19()  /* BX = xloc, CL = colour, DX = yloc */
+{
+?ifdef codesize
+	AX=320*DX;
+?else
+?ifdef cpu==0
+	AX=320*DX;
+?else
+	AX=DX;
+	AX=AX<<2+DX<<6;
+?endif
+?endif
+	BX+=AX;
+	ES=0xA000;
+	ESBYTE[BX]=CL;
+}
+
+:void _PUTPIXEL19()  /* BX = xloc, CL = colour, DX = yloc */
+{
+?ifdef codesize
+	AX=320*DX;
+?else
+?ifdef cpu==0
+	AX=320*DX;
+?else
+	AX=DX;
+	AX=AX<<2+DX<<6;
+?endif
+?endif
+	BX+=AX;
+	ESBYTE[BX]=CL;
+}
+
+?endif
+/* end of VGA.H-- */

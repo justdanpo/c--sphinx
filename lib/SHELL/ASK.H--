@@ -1,0 +1,110 @@
+#warning FALSE
+
+int Ask(word askmes,namewin,sxeme)
+byte SHOW;
+byte press,SELECT,select,PRESS;
+int i;
+struct _BUTONS2_
+{
+	byte ypos;
+	byte xpos;
+	byte len;	//длина кнопки
+	byte hkey;//горячая клавиша
+	word but;	//название кнопки
+}BUT2[2];
+{
+	SHOW=TRUE;
+	SELECT=0;
+	press=0;
+	i=STRLEN(askmes)+6;
+	IF(i<20)i=20;
+	IF(i>76)i=76;
+	BUT2[1].xpos=i/4-3;
+	BUT2.xpos=i/4*3-3;
+	BUT2.ypos=6;
+	BUT2[1].ypos=6;
+	BUT2.len=6;
+	BUT2[1].len=6;
+	BUT2.hkey=21;
+	BUT2[1].hkey=38;
+	BUT2.but=" `Нет ";
+	BUT2[1].but=" `Да  ";
+	hWindow (modeCenter,modeCenter,8,i,namewin,sxeme,TRUE);
+	CPRINT(3,_scheme.schAccentText[Window.scheme],askmes);
+	Box(0,1,5,i-4,0);
+	FOR(;;){
+		IF(SHOW==TRUE){
+			FOR(i=0;i<2;i++){
+				select=FALSE;
+				PRESS=FALSE;
+				IF(SELECT==i){
+					select=TRUE;
+					PRESS=press;
+				}
+				Button(BUT2[i].ypos,BUT2[i].xpos,BUT2[i].but,select,PRESS);
+				IF(select==TRUE)&&(PRESS==TRUE){
+					WAIT(9);
+					break 1;
+				}
+			}
+			SHOW=FALSE;
+		}
+		hRead(0);
+		if(AL==evKeyboard){
+			SWITCH(Event.keyCode&0xFF00){
+				case k_right:
+					GOTO RIGHT;
+				case k_left:
+					GOTO LEFT;
+				default:
+					BX=Event.keyCode;
+					IF(BX==k_return){
+						press=TRUE;
+						SHOW=TRUE;
+						BREAK;
+					}
+					FOR(i=0;i<2;i++){
+						IF(BUT2[i].hkey==BH){
+							SELECT=i;
+							press=TRUE;
+							SHOW=TRUE;
+							BREAK;
+						}
+					}
+					BREAK;
+			}
+			IF(Event.keyCode==k_esc)break;
+			ELSE IF(Event.keyCode==k_tab){
+RIGHT:
+				IF(SELECT==1)SELECT=0;
+				ELSE SELECT++;
+				SHOW=TRUE;
+			}
+			ELSE IF(Event.keyCode==k_shifttab){
+LEFT:
+				IF(SELECT==0)SELECT=1;
+				ELSE SELECT--;
+				SHOW=TRUE;
+			}
+		}
+		ELSE IF(AL==evMouse){
+			IF(Event.buttons==1){
+				FOR(i=0;i<2;i++){
+					IF(Event.mwrow==BUT2[i].ypos){
+						IF(Event.mwcol>=BUT2[i].xpos)&&(BUT2[i].xpos+BUT2[i].len>Event.mwcol){
+							SELECT=i;
+							press=TRUE;
+							SHOW=TRUE;
+							BREAK;
+						}
+					}
+				}
+			}
+		}
+		ELSE IF(AL==evCloseWin)BREAK;
+	}
+	rWindow();
+	Event.keyCode=0;
+	return SELECT;
+}
+

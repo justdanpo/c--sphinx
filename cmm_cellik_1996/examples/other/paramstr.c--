@@ -1,0 +1,33 @@
+/*
+   SPHINX C-- example program
+   NAME:  PARAMSTR.C--
+   DESCRIPTION:  Parses and displays the command line passed from DOS.
+*/
+
+? parsecommandline  TRUE   // enable installation of parameter parsing code
+
+?include "WRITE.H--"
+?include "STRING.H--"
+
+main ()
+word count,parameters;
+{
+WRITESTR("The command line is composed of ");
+parameters = @ PARAMCOUNT();
+WRITEWORD(parameters);
+WRITESTR(" string(s).\n");
+count = 0;
+IF( count < parameters )
+    {do {WRITESTR("string # ");
+         WRITEWORD(count);
+         WRITESTR(": \"");
+         WRITESTR(PARAMSTR(count)); 
+         WRITESTR("\" Length=");
+         WRITEWORD(STRLEN(PARAMSTR(count)));
+         WRITELN();
+         count++;
+         } while(count < parameters);
+    }
+}
+
+/* end of PARAMSTR.C-- */

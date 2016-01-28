@@ -1,0 +1,1079 @@
+/*
+    SPHINX Programming (C) 1993.
+    TITLE:  VGAX.H--
+    DESCRIPTION:  This file contains a collection of procedures for writing
+                  icons and pixels to VGA mode 19 when in multi-page format.
+                  The following three constants must be set before including
+                  this file:
+                   LOGICALSCREENWIDTH  // the width of the screen in pixels
+                                       // must be evenly divisable by 8.
+                   LOGICALSCREENHEIGHT // the height of the screen in pixels
+                   THECLEARCOLOR    // the colour which is not transfered to
+                                    // to the screen, for overicon_x() and
+                                    // swapicon_x().
+                  For example:
+                      ?define LOGICALSCREENWIDTH    640
+                      ?define LOGICALSCREENHEIGHT   200
+                      ?define THECLEARCOLOR        0xFF
+    LAST MODIFIED:  11 May 1994
+    PROCEDURES DEFINED IN THIS FILE:
+        : void box_x(x1,y1,x2,y2,byte color)
+        : void CLEARSCREEN_X(pagenum)
+        : byte getpixel_x(x,y)
+        : void line_x(x1,y1,x2,y2,byte color)
+        : void xorline_x(x1,y1,x2,y2,byte color)
+        : void overicon_x(x,y,imageseg,imageoff)
+        : void puticon_x(x,y,bufseg,bufoff)
+        : void putletter_x(x,y,charbuf_off,byte fgc,byte bgc)
+        : void putpixel_x(x,y,byte color)
+        : byte set320x200mode(byte resetmouse)
+        : byte set320x240mode(byte resetmouse)
+        : void swapicon_x(x,y,bufseg,bufoff)
+        : void xorline_x(x1,y1,x2,y2,byte color)
+*/
+
+
+: byte set320x200mode (byte resetmouse)
+/* Returns TRUE if successfully set video mode, else returns FALSE.
+   This procedures does not ensure that the video memory has been cleared.
+*/
+{
+AX = 19;
+$INT 0x10
+AH = 0xF;
+$INT 0x10
+IF( AL != 19 )
+    return(FALSE);
+IF( resetmouse )
+    {AX = 0;
+    $ INT 0x33 //  @ RESETMOUSE();
+    }
+@ TURNOFFCHAIN4();
+@ SETSCREENWIDTH( ,LOGICALSCREENWIDTH/8);
+return(TRUE);
+}
+
+
+
+?define SC_INDEX    0x3c4   // Sequence Controller Index
+?define CRTC_INDEX  0x3d4   // CRT Controller Index
+?define MISC_OUTPUT 0x3c2   // Miscellaneous Output register
+
+
+: byte set320x240mode (byte resetmouse)
+/* returns TRUE on success, FALSE otherwise */
+{
+AX = 19;
+$INT 0x10   // mode (320x200 linear)
+AH = 0xF;
+$INT 0x10
+IF( AL != 19 )
+    return(FALSE);
+IF( resetmouse > 0 )
+    {AX = 0;
+    $ INT 0x33 //  @ RESETMOUSE();
+    }
+DX = SC_INDEX;
+AX = 0x604;
+$ OUT DX,AX  // disable chain4 mode
+
+AX = 0x100;
+$ OUT DX,AX  // synchronous reset while setting Misc Output
+             // for safety, even though clock unchanged
+DX = MISC_OUTPUT;
+AL = 0xE3;
+$ OUT DX,AL  // select 25 MHz dot clock & 60 Hz scanning rate
+
+DX = SC_INDEX;
+AX = 0x300;
+$ OUT DX,AX  // undo reset (restart sequencer)
+
+DX = CRTC_INDEX;    // reprogram the CRT Controller
+AL = 0x11;          // VSync End reg contains register write
+$ OUT DX,AL         // protect bit
+DX++;               // CRT Controller Data register
+$ IN AL,DX          // get current VSync End register setting
+AL &= 0x7F;         // remove write protect on various
+$ OUT DX,AL         // CRTC registers
+DX--;               // CRT Controller Index
+$CLD
+AX = 0x0d06;   // vertical total
+$ OUT DX,AX
+AX = 0x3e07;   // overflow (bit 8 of vertical counts)
+$ OUT DX,AX
+AX = 0x4109;   // cell height (2 to double-scan)
+$ OUT DX,AX
+AX = 0xea10;   // v sync start
+$ OUT DX,AX
+AX = 0xac11;   // v sync end and protect cr0-cr7
+$ OUT DX,AX
+AX = 0xdf12;   // vertical displayed
+$ OUT DX,AX
+AX = 0x0014;   // turn off dword mode
+$ OUT DX,AX
+AX = 0xe715;   // v blank start
+$ OUT DX,AX
+AX = 0x0616;   // v blank end
+$ OUT DX,AX
+AX = 0xe317;   // turn on byte mode
+$ OUT DX,AX
+@ SETSCREENWIDTH( ,LOGICALSCREENWIDTH/8);
+return(TRUE);
+}
+
+
+: void CLEARSCREEN_X ()  /* AX = page number (1,2,3 or 4)  */
+/*  Clears the video page number specified by AX
+*/
+{
+CX = LOGICALSCREENWIDTH/4 * LOGICALSCREENHEIGHT;
+AX = AX * CX;
+DI = AX;
+DX = 0x3C4;                            
+AL = 2;
+$OUT DX,AL                              
+DX++;
+AL = 0xF;
+$OUT DX,AL                              
+CX >>= 1;
+ES = 0xA000;
+AX = 0;
+$REPZ	                                   
+$STOSW	                                   
+}
+
+
+: byte getpixel_x (word x,y)
+/*  Get the value of a pixel in VGA mode X.
+*/
+{
+ES = 0xA000;
+AX = LOGICALSCREENWIDTH/4 * y;
+BX = x;
+CX = BX & 3;
+BX >>= 1;
+BX >>= 1;
+BX += AX;
+DX = 0x3CE;                            
+AL = 4;
+$OUT DX,AL
+DX++;
+AL = CL;
+$OUT DX,AL                              
+AL = ESBYTE[BX];
+}
+
+
+: void putpixel_x (word x,y; byte color)
+/*  Put a pixel in VGA mode X.
+*/
+{
+ES = 0xA000;
+AX = LOGICALSCREENWIDTH/4 * y;
+BX = x;
+CL = BL & 3;
+BX >>= 1;
+BX >>= 1;
+BX += AX;
+DX = 0x3C4;                            
+AL = 2;
+$ OUT DX,AL
+DX++;
+AL = 1;
+$SHL AL,CL                              
+$OUT DX,AL
+ESBYTE[BX] = color;
+}
+
+
+: void puticon_x (word x,y,bufseg,bufoff)
+{
+$PUSH	DS                                 
+$LDS	SI,bufoff                         
+ES = 0xA000;
+AX = LOGICALSCREENWIDTH/4 *y;
+BX = x;
+$MOV	DX,BX                              
+$AND	BL,03                              
+$MOV	CL,02                              
+$SHR	DX,CL                              
+$MOV	CL,BL                              
+$ADD	AX,DX                              
+$MOV	BP,AX                              
+$MOV	DI,AX                              
+$LODSW	                                   
+$MOV	BX,AX                              
+$MOV	CH,AL                              
+$MOV	DX,0x3C4                            
+$MOV	AL,02                              
+$OUT	DX,AL                              
+DX++;
+$MOV	AL,01                              
+$SHL	AL,CL                              
+$OUT	DX,AL                              
+HERE2:
+$MOV	BL,CH                              
+HERE1:
+$MOVSB	                                   
+$DEC	BL                                 
+$JNZ	HERE1                               
+$ADD	DI,LOGICALSCREENWIDTH/4                             
+$XOR	DH,DH                              
+$MOV	DL,CH                              
+$SUB	DI,DX                              
+$DEC	BH                                 
+$JNZ	HERE2                               
+$MOV	BH,AH                              
+$INC	CL                                 
+$TEST	CL,04                              
+$JZ	HERE3                               
+$INC	BP                                 
+$MOV	CL,00                              
+HERE3:
+$MOV	DI,BP                              
+$MOV	DX,0x3C5                            
+$MOV	AL,01                              
+$SHL	AL,CL                              
+$OUT	DX,AL                              
+HERE5:
+$MOV	BL,CH                              
+HERE4:
+$MOVSB	                                   
+$DEC	BL                                 
+$JNZ	HERE4                               
+$ADD	DI,LOGICALSCREENWIDTH/4                                                          
+$XOR	DH,DH                              
+$MOV	DL,CH                              
+$SUB	DI,DX                              
+$DEC	BH                                 
+$JNZ	HERE5                               
+$MOV	BH,AH                              
+$INC	CL                                 
+$TEST	CL,04                              
+$JZ	HERE6                               
+$INC	BP                                 
+$MOV	CL,00                              
+HERE6:
+$MOV	DI,BP                              
+$MOV	DX,0x3C5                            
+$MOV	AL,01                              
+$SHL	AL,CL                              
+$OUT	DX,AL                              
+HERE8:
+$MOV	BL,CH                              
+HERE7:
+$MOVSB	                                   
+$DEC	BL                                 
+$JNZ	HERE7                               
+$ADD	DI,LOGICALSCREENWIDTH/4                             
+$XOR	DH,DH                              
+$MOV	DL,CH                              
+$SUB	DI,DX                              
+$DEC	BH                                 
+$JNZ	HERE8                               
+$MOV	BH,AH                              
+$INC	CL                                 
+$TEST	CL,04                              
+$JZ	HERE9                               
+$INC	BP                                 
+$MOV	CL,00                              
+HERE9:
+$MOV	DI,BP                              
+$MOV	DX,0x3C5                            
+$MOV	AL,01                              
+$SHL	AL,CL                              
+$OUT	DX,AL                              
+HERE11:
+$MOV	BL,CH                              
+HERE10:
+$MOVSB	                                   
+$DEC	BL                                 
+$JNZ	HERE10                               
+$ADD	DI,LOGICALSCREENWIDTH/4                             
+$XOR	DH,DH                              
+$MOV	DL,CH                              
+$SUB	DI,DX                              
+$DEC	BH                                 
+$JNZ	HERE11                               
+$POP	DS                                 
+}
+
+
+: void swapicon_x (word x,y,bufseg,bufoff)
+{
+$PUSH	DS                                 
+$LDS	SI,bufoff                         
+ES = 0xA000;
+AX = LOGICALSCREENWIDTH/4 * y;
+BX = x;
+$MOV	DX,BX                              
+$AND	BL,03                              
+$MOV	CL,02                              
+$SHR	DX,CL                              
+$MOV	CL,BL                              
+$ADD	AX,DX                              
+$MOV	BP,AX                              
+$MOV	DI,AX                              
+$LODSW	                                   
+$MOV	BX,AX                              
+$MOV	CH,AL                              
+$MOV	DX,0x3CE                            
+$MOV	AL,04                              
+$OUT	DX,AL                              
+$MOV	AL,CL                              
+$INC	DX                                 
+$OUT	DX,AL                              
+$MOV	DX,0x3C4                            
+$MOV	AL,02                              
+$OUT	DX,AL                              
+$MOV	AL,01                              
+$SHL	AL,CL                              
+$INC	DX                                 
+$OUT	DX,AL                              
+HERE3:
+$MOV	BL,CH                              
+HERE2:
+$LODSB	                                   
+$CMP	AL,THECLEARCOLOR                              
+$JZ	HERE1                               
+$XCHG	AL,ESBYTE[DI]                            
+DSBYTE[SI-1] = AL;                         
+HERE1:
+$INC	DI                                 
+$DEC	BL                                 
+$JNZ	HERE2                               
+$ADD	DI,LOGICALSCREENWIDTH/4                                                        
+$XOR	DH,DH                              
+$MOV	DL,CH                              
+$SUB	DI,DX                              
+$DEC	BH                                 
+$JNZ	HERE3                               
+$MOV	BH,AH                              
+$INC	CL                                 
+$TEST	CL,04                              
+$JZ	HERE4                               
+$INC	BP                                 
+$MOV	CL,00                              
+HERE4:
+$MOV	DI,BP                              
+$MOV	DX,0x3CE                            
+$MOV	AL,04                              
+$OUT	DX,AL                              
+$MOV	AL,CL                              
+$INC	DX                                 
+$OUT	DX,AL                              
+$MOV	DX,0x3C4                            
+$MOV	AL,02                              
+$OUT	DX,AL                              
+$MOV	AL,01                              
+$SHL	AL,CL                              
+$INC	DX                                 
+$OUT	DX,AL                              
+HERE7:
+$MOV	BL,CH                              
+HERE6:
+$LODSB	                                   
+$CMP	AL,THECLEARCOLOR                              
+$JZ	HERE5                               
+$XCHG	AL,ESBYTE[DI]                            
+DSBYTE[SI-1] = AL;                         
+HERE5:
+$INC	DI                                 
+$DEC	BL                                 
+$JNZ	HERE6                               
+$ADD	DI,LOGICALSCREENWIDTH/4                                                        
+$XOR	DH,DH                              
+$MOV	DL,CH                              
+$SUB	DI,DX                              
+$DEC	BH                                 
+$JNZ	HERE7                               
+$MOV	BH,AH                              
+$INC	CL                                 
+$TEST	CL,04                              
+$JZ	HERE8                               
+$INC	BP                                 
+$MOV	CL,00                              
+HERE8:
+$MOV	DI,BP                              
+$MOV	DX,0x3CE                            
+$MOV	AL,04                              
+$OUT	DX,AL                              
+$MOV	AL,CL                              
+$INC	DX                                 
+$OUT	DX,AL                              
+$MOV	DX,0x3C4                            
+$MOV	AL,02                              
+$OUT	DX,AL                              
+$MOV	AL,01                              
+$SHL	AL,CL                              
+$INC	DX                                 
+$OUT	DX,AL                              
+HERE11:
+$MOV	BL,CH                              
+HERE10:
+$LODSB	                                   
+$CMP	AL,THECLEARCOLOR                              
+$JZ	HERE9                               
+$XCHG	AL,ESBYTE[DI]                            
+DSBYTE[SI-1] = AL;
+HERE9:
+$INC	DI                                 
+$DEC	BL                                 
+$JNZ	HERE10                               
+$ADD	DI,LOGICALSCREENWIDTH/4                                                        
+$XOR	DH,DH                              
+$MOV	DL,CH                              
+$SUB	DI,DX                              
+$DEC	BH                                 
+$JNZ	HERE11                               
+$MOV	BH,AH                              
+$INC	CL                                 
+$TEST	CL,04                              
+$JZ	HERE12                               
+$INC	BP                                 
+$MOV	CL,00                              
+HERE12:
+$MOV	DI,BP                              
+$MOV	DX,0x3CE                            
+$MOV	AL,04                              
+$OUT	DX,AL                              
+$MOV	AL,CL                              
+$INC	DX                                 
+$OUT	DX,AL                              
+$MOV	DX,0x3C4                            
+$MOV	AL,02                              
+$OUT	DX,AL                              
+$MOV	AL,01                              
+$SHL	AL,CL                              
+$INC	DX                                 
+$OUT	DX,AL                              
+HERE15:
+$MOV	BL,CH                              
+HERE14:
+$LODSB	                                   
+$CMP	AL,THECLEARCOLOR                              
+$JZ	HERE13                               
+$XCHG	AL,ESBYTE[DI]                            
+DSBYTE[SI-1] = AL;                         
+HERE13:
+$INC	DI                                 
+$DEC	BL                                 
+$JNZ	HERE14                               
+$ADD	DI,LOGICALSCREENWIDTH/4                            
+$XOR	DH,DH                              
+$MOV	DL,CH                              
+$SUB	DI,DX                              
+$DEC	BH                                 
+$JNZ	HERE15                               
+$POP	DS                                 
+}
+
+
+: void overicon_x (word x,y,bufseg,bufoff)
+{
+$PUSH DS                                 
+$LDS SI,bufoff                        
+ES = 0xA000;
+AX = LOGICALSCREENWIDTH/4 * y;
+BX = x;
+DX = BX;                             
+BL &= 3;
+CL = 2;
+DX >>= CL;
+CL = BL;                              
+AX += DX;
+BP = AX;
+DI = AX;
+$LODSW	                                   
+BX = AX;
+CH = AL;
+DX = 0x3C4;
+AL = 2;
+$OUT DX,AL                              
+DX++;
+AL = 1;
+AL <<= CL;                              
+$OUT DX,AL                              
+HERE3:
+BL = CH;
+loop(BL)
+    {
+    $LODSB
+    IF( AL != THECLEARCOLOR )
+        ESBYTE[DI] = AL;                            
+    DI++;
+    }
+$ADD	DI,LOGICALSCREENWIDTH/4                            
+$XOR	DH,DH                              
+$MOV	DL,CH                              
+$SUB	DI,DX                              
+$DEC	BH                                 
+$JNZ	HERE3                               
+$MOV	BH,AH                              
+$INC	CL                                 
+$TEST	CL,04                              
+$JZ	HERE4                               
+$INC	BP                                 
+$MOV	CL,00                              
+HERE4:
+DI = BP;
+DX = 0x3C5;
+AL = 1;                            
+$SHL AL,CL                              
+$OUT DX,AL                              
+// HERE7:
+loop(BH) 
+    {BL = CH;
+    loop(BL)
+        {$LODSB
+        IF( AL != THECLEARCOLOR )
+            ESBYTE[DI] = AL;
+        DI++;
+        }
+    $ADD DI,LOGICALSCREENWIDTH/4                            
+    $XOR DH,DH                              
+    $MOV DL,CH                              
+    $SUB DI,DX
+    }
+//    $DEC BH
+//    $JNZ HERE7
+BH = AH;
+CL++;
+$TEST	CL,04                              
+$JZ	HERE8                               
+BP++;
+CL = 0;
+HERE8:
+DI = BP;
+DX = 0x3C5;
+AL = 1;
+AL <<= CL;
+$OUT	DX,AL                              
+HERE11:
+BL = CH;
+loop(BL)
+    {$LODSB
+    IF( AL != THECLEARCOLOR )
+        ESBYTE[DI] = AL;
+    DI++;
+    }
+$ADD	DI,LOGICALSCREENWIDTH/4                            
+$XOR	DH,DH                              
+$MOV	DL,CH                              
+$SUB	DI,DX                              
+$DEC	BH                                 
+$JNZ	HERE11                               
+$MOV	BH,AH                              
+$INC	CL                                 
+$TEST	CL,04                              
+$JZ	HERE12                               
+$INC	BP                                 
+$MOV	CL,00                              
+HERE12:
+$MOV	DI,BP                              
+$MOV	DX,0x3C5                            
+$MOV	AL,01                              
+$SHL	AL,CL                              
+$OUT	DX,AL                              
+HERE15:
+$MOV	BL,CH                              
+loop(BL)
+    {$LODSB
+    IF( AL != THECLEARCOLOR )
+        ESBYTE[DI] = AL;
+    DI++;
+    }
+$ADD	DI,LOGICALSCREENWIDTH/4                            
+$XOR	DH,DH                              
+$MOV	DL,CH                              
+$SUB	DI,DX                              
+$DEC	BH                                 
+$JNZ	HERE15                               
+$POP	DS                                 
+}
+
+
+: void putletter_x (word x,y,charbuf_off; byte fgc,bgc)
+{
+SI = charbuf_off;                         
+ES = 0xA000;
+AX = LOGICALSCREENWIDTH/4 * y;
+CX = x;
+$MOV	DX,CX                              
+$SHR	DX,1                               
+$SHR	DX,1                               
+$AND	CL,03                              
+$ADD	AX,DX                              
+BH = fgc;
+CH = bgc;
+$SUB	BH,CH                              
+$MOV	BP,AX                              
+$MOV	DI,BP                              
+$MOV	DX,0x3C4                            
+$MOV	AL,02                              
+$OUT	DX,AL                              
+$MOV	AL,01                              
+$SHL	AL,CL                              
+$INC	DX                                 
+$OUT	DX,AL                              
+$MOV	BL,08                              
+DOWN3:
+$MOV	AH,CH                              
+$LODSB	                                   
+$CMP	AL,00                              
+$JZ	DOWN1                               
+$ADD	AH,BH                              
+DOWN1:
+$MOV	AL,AH                              
+$STOSB	                                   
+$MOV	AH,CH                              
+$LODSB	                                   
+$CMP	AL,00                              
+$JZ	DOWN2                               
+$ADD	AH,BH                              
+DOWN2:
+$MOV	AL,AH                              
+$STOSB	                                   
+$ADD	DI,LOGICALSCREENWIDTH/4-2                            
+$DEC	BL                                 
+$JNZ	DOWN3                               
+$INC	CL                                 
+$TEST	CL,04                              
+$JZ	DOWN4                               
+$INC	BP                                 
+$MOV	CL,00                              
+DOWN4:
+$MOV	DI,BP                              
+$MOV	DX,0x3C4                            
+$MOV	AL,02                              
+$OUT	DX,AL                              
+$MOV	AL,01                              
+$SHL	AL,CL                              
+$INC	DX                                 
+$OUT	DX,AL                              
+$MOV	BL,08                              
+DOWN7:
+$MOV	AH,CH                              
+$LODSB	                                   
+$CMP	AL,00                              
+$JZ	DOWN5                               
+$ADD	AH,BH                              
+DOWN5:
+$MOV	AL,AH                              
+$STOSB	                                   
+$MOV	AH,CH                              
+$LODSB	                                   
+$CMP	AL,00                              
+$JZ	DOWN6                               
+$ADD	AH,BH                              
+DOWN6:
+$MOV	AL,AH                              
+$STOSB	                                   
+$ADD	DI,LOGICALSCREENWIDTH/4-2                            
+$DEC	BL                                 
+$JNZ	DOWN7                               
+$INC	CL                                 
+$TEST	CL,04                              
+$JZ	DOWN8                               
+$INC	BP                                 
+$MOV	CL,00                              
+DOWN8:
+$MOV	DI,BP                              
+$MOV	DX,0x3C4                            
+$MOV	AL,02                              
+$OUT	DX,AL                              
+$MOV	AL,01                              
+$SHL	AL,CL                              
+$INC	DX                                 
+$OUT	DX,AL                              
+$MOV	BL,08                              
+DOWN11:
+$MOV	AH,CH                              
+$LODSB	                                   
+$CMP	AL,00                              
+$JZ	DOWN9                               
+$ADD	AH,BH                              
+DOWN9:
+$MOV	AL,AH                              
+$STOSB	                                   
+$MOV	AH,CH                              
+$LODSB	                                   
+$CMP	AL,00                              
+$JZ	DOWN10                               
+$ADD	AH,BH                              
+DOWN10:
+$MOV	AL,AH                              
+$STOSB	                                   
+$ADD	DI,LOGICALSCREENWIDTH/4-2                            
+$DEC	BL                                 
+$JNZ	DOWN11                               
+$INC	CL                                 
+$TEST	CL,04                              
+$JZ	DOWN12                               
+$INC	BP                                 
+$MOV	CL,00                              
+DOWN12:
+$MOV	DI,BP                              
+$MOV	DX,0x3C4                            
+$MOV	AL,02                              
+$OUT	DX,AL                              
+$MOV	AL,01                              
+$SHL	AL,CL                              
+$INC	DX                                 
+$OUT	DX,AL                              
+$MOV	BL,08                              
+DOWN15:
+$MOV	AH,CH                              
+$LODSB	                                   
+$CMP	AL,00                              
+$JZ	DOWN13                               
+$ADD	AH,BH                              
+DOWN13:
+$MOV	AL,AH                              
+$STOSB	                                   
+$MOV	AH,CH                              
+$LODSB	                                   
+$CMP	AL,00                              
+$JZ	DOWN14                               
+$ADD	AH,BH                              
+DOWN14:
+$MOV	AL,AH                              
+$STOSB	                                   
+$ADD	DI,LOGICALSCREENWIDTH/4-2                            
+$DEC	BL                                 
+$JNZ	DOWN15                               
+}
+
+
+// temp variables used by line_x(...)
+word linex_halfxy = 0;   // halfxy dw 0 ; either halfx or halfy
+word linex_deltax = 0;   // deltax dw 0 ; deltax = |x2-x1|
+word linex_deltay = 0;   // deltay dw 0 ; deltay = |y2-y1|
+word linex_yinc = 0;     // increment to get from one line to the next
+
+: void line_x (word x1,y1,x2,y2; byte color)
+{
+ES = 0xA000;
+
+//; Reorder the points so we draw from left to right.
+
+IF( x1 > x2 )
+    {x1 >< x2;
+    }
+
+AX = x2;
+AX -= x1;	// sub bx,ax    	; bx = delta x
+linex_deltax = AX;
+
+BX = LOGICALSCREENWIDTH/4;
+AX = y2 - y1;
+IF( int AX < 0 )
+    {-AX;
+    -BX;
+    }
+
+linex_deltay = AX;
+linex_yinc = BX;      // bx = offset to next line (+ or - depending on delta y)
+
+AX = LOGICALSCREENWIDTH/4 * y1;
+DI = AX;
+
+DX = 0x3C4;	//	dx = sequencer index/data reg
+AL = 2;		//	select plane mask
+$OUT DX,AL
+DX++;		//	inc dx
+
+AX = x1;   
+CL = AL;
+$ SHR AX,2
+DI += AX;      // di = address
+CL &= 3;
+AL = 0x11;
+$ ROL AL,CL    // al = starting plane mask (doubled)
+AH = color;    // ah = color
+
+SI = linex_deltay;
+
+// at this point: AH = color
+//                AL = plane mask (doubled)
+//                DX = plane select port address
+//                SI = delta y
+//                DI = dest offset address (high 16 bits, not the low 2)
+//                BX,CX,BP = to be destroyed
+
+
+IF( SI > linex_deltax )   //	 deltay > deltax
+    {
+    // steep line: Line goes far over dy, and short over dx.
+
+    CX = SI;   //	mov cx,si     	; cx = count = deltay
+    $ SHR SI,1
+    BX = SI;   //	mov bx,si 	  	; bx = halfy
+    SI = 0;    //	xor si,si 		; si = error
+    CX++;
+    BP = linex_yinc;
+
+    loop(CX)
+        {
+	$ OUT DX,AL
+	ESBYTE[DI] = AH;
+	DI += BP;           // add di,bp  ; move to next line (up or down)
+	SI += linex_deltax;       // add si,cs:[deltax]  ; deltax
+ 	IF( int SI > BX )       // cmp si,bx  ; bx = halfy   // jle sline2
+	    {SI -= linex_deltay;  // sub si,cs:[deltay] ;deltay
+  	    $ ROL AL,1
+	    $ ADC DI,0
+            }
+	}
+    }
+
+ELSE{  //  easyline:
+
+    SI = linex_deltax;    //	mov si,cs:[deltax]  ; delta x
+    CX = SI;        //	mov cx,si	  	; cx = count = delta x
+    $ SHR SI,1
+    linex_halfxy = SI;    //	mov cs:[halfxy],si  ; halfx
+    SI = 0;         //	xor si,si	  	; si = error
+    BL = AL;        //	mov bl,al      ; bl = current plane mask
+    AL = 0;         //	xor al,al		; al = accum bits
+    CX++;
+    BP = linex_deltay;    //	mov bp,cs:[deltay] ; bp = deltay for speed
+
+    loop(CX)
+        {
+	AL |= BL;     // or al,bl     	; accum bit
+	$ ROL BL,1
+        IF( CARRYFLAG )  // did we just move to a new address?
+            {
+     	    $ OUT DX,AL        // yes, write at last one
+ 	    ESBYTE[DI] = AH;   // write pixel(s)
+	    AL = 0;            // clear accum mask
+	    DI++;              // move
+            }
+	SI += BP;              // add si,bp	; error+=deltay
+	IF( int SI > linex_halfxy )  // cmp si,cs:[halfxy]  ; ? err > halfx
+	                   // jle eline2
+            {
+	    SI -= linex_deltax;     // sub si,cs:[deltax]  ; error-=deltax
+	    $ OUT DX,AL       // out dx,al      ; set plane mask
+	    ESBYTE[DI] = AH;  // mov [di],ah    ; write pixel(s)
+	    AL = 0;           // xor al,al      ; clear accum mask
+	    DI += linex_yinc;       // add di,cs:[yinc]  ; move to next line (+ -)
+            }
+        }
+    $ OUT DX,AL
+    ESBYTE[DI] = AH;  // mov [di],ah 	; write out the last pixels
+    }
+}
+
+
+: void xorline_x (word x1,y1,x2,y2; byte color)
+{
+ES = 0xA000;
+
+//; Reorder the points so we draw from left to right.
+
+IF( x1 > x2 )
+    {x1 >< x2;
+    }
+
+AX = x2;
+AX -= x1;	// sub bx,ax    	; bx = delta x
+linex_deltax = AX;
+
+BX = LOGICALSCREENWIDTH/4;
+AX = y2 - y1;
+IF( int AX < 0 )
+    {-AX;
+    -BX;
+    }
+
+linex_deltay = AX;
+linex_yinc = BX;      // bx = offset to next line (+ or - depending on delta y)
+
+AX = LOGICALSCREENWIDTH/4 * y1;
+DI = AX;
+
+DX = 0x3C4;	//	dx = sequencer index/data reg
+AL = 2;		//	select plane mask
+$OUT DX,AL
+DX++;		//	inc dx
+
+AX = x1;   
+CL = AL;
+$ SHR AX,2
+DI += AX;      // di = address
+CL &= 3;
+AL = 0x11;
+$ ROL AL,CL    // al = starting plane mask (doubled)
+AH = color;    // ah = color
+
+SI = linex_deltay;
+
+// at this point: AH = color
+//                AL = plane mask (doubled)
+//                DX = plane select port address
+//                SI = delta y
+//                DI = dest offset address (high 16 bits, not the low 2)
+//                BX,CX,BP = to be destroyed
+
+
+IF( SI > linex_deltax )   //	 deltay > deltax
+    {
+    // steep line: Line goes far over dy, and short over dx.
+
+    CX = SI;   //	mov cx,si     	; cx = count = deltay
+    $ SHR SI,1
+    BX = SI;   //	mov bx,si 	  	; bx = halfy
+    SI = 0;    //	xor si,si 		; si = error
+    CX++;
+    BP = linex_yinc;
+
+    loop(CX)
+        {
+	$ OUT DX,AL
+	ESBYTE[DI] ^= AH;
+	DI += BP;           // add di,bp  ; move to next line (up or down)
+	SI += linex_deltax;       // add si,cs:[deltax]  ; deltax
+ 	IF( int SI > BX )       // cmp si,bx  ; bx = halfy   // jle sline2
+	    {SI -= linex_deltay;  // sub si,cs:[deltay] ;deltay
+  	    $ ROL AL,1
+	    $ ADC DI,0
+            }
+	}
+    }
+
+ELSE{  //  easyline:
+
+    SI = linex_deltax;    //	mov si,cs:[deltax]  ; delta x
+    CX = SI;        //	mov cx,si	  	; cx = count = delta x
+    $ SHR SI,1
+    linex_halfxy = SI;    //	mov cs:[halfxy],si  ; halfx
+    SI = 0;         //	xor si,si	  	; si = error
+    BL = AL;        //	mov bl,al      ; bl = current plane mask
+    AL = 0;         //	xor al,al		; al = accum bits
+    CX++;
+    BP = linex_deltay;    //	mov bp,cs:[deltay] ; bp = deltay for speed
+
+    loop(CX)
+        {
+	AL |= BL;     // or al,bl     	; accum bit
+	$ ROL BL,1
+        IF( CARRYFLAG )  // did we just move to a new address?
+            {
+     	    $ OUT DX,AL        // yes, write at last one
+ 	    ESBYTE[DI] ^= AH;   // write pixel(s)
+	    AL = 0;            // clear accum mask
+	    DI++;              // move
+            }
+	SI += BP;              // add si,bp	; error+=deltay
+	IF( int SI > linex_halfxy )  // cmp si,cs:[halfxy]  ; ? err > halfx
+	                   // jle eline2
+            {
+	    SI -= linex_deltax;     // sub si,cs:[deltax]  ; error-=deltax
+	    $ OUT DX,AL       // out dx,al      ; set plane mask
+	    ESBYTE[DI] ^= AH;  // mov [di],ah    ; write pixel(s)
+	    AL = 0;           // xor al,al      ; clear accum mask
+	    DI += linex_yinc;       // add di,cs:[yinc]  ; move to next line (+ -)
+            }
+        }
+    $ OUT DX,AL
+    ESBYTE[DI] ^= AH;  // mov [di],ah 	; write out the last pixels
+    }
+}
+
+
+
+byte x_leftmask = {0xf,0xe,0xc,0x8};
+byte x_rightmask = {0x1,0x3,0x7,0xf};
+
+: void box_x(int x1,y1,x2,y2; byte color)
+{
+ES = 0xA000;
+
+IF( x1 > x2 )
+    x1 >< x2;
+
+IF( y1 > y2 )
+    y1 >< y2;
+
+DI = x1;
+CX = x2;
+
+SI = CX;	//  mov si,cx
+SI &= 3;
+BL = x_rightmask[SI];
+SI = DI;
+SI &= 3;
+BH = x_leftmask[SI];
+
+$SHR CX,2
+$SHR DI,2
+CX -= DI;   //	sub cx,di	; cx=width of segment
+
+AX = LOGICALSCREENWIDTH/4 * y1 + DI;
+DI = AX;
+
+DX = y2 - y1;   //  sub dx,ax
+DX++;           //  inc dx	  ; dx=height of box
+
+AH = color;
+
+BP = DX;
+
+// at this point:  CX = width
+//                 DI = dest address
+//                 BL = right mask
+//                 BH = left mask
+//                 AL,BP,DX,SI = to be destroyed
+//                 AH = color
+
+SI = LOGICALSCREENWIDTH/4 - CX;
+
+DX = 0x3C4;
+AL = 2;
+$ OUT DX,AL     //	; Select plane mask
+DX++;
+
+
+IF( CX == 0 )   // or cx,cx          ; Are we doing a box that is less than 4 bytes wide?
+	 // jne BegBox
+    {SI--;      // dec si	; fixup the increment to next line
+    BH &= BL;   // and bh,bl 	; Combine the two masks into one
+    }
+
+// BegBox:              ; Do the left set of 4 (max) pixels for this line
+
+loop(BP)
+    {
+    $ PUSH CX           //  ; Save the width of the box
+    AL = BH;            //  ; get left edge mask
+    $ OUT DX,AL
+    ESBYTE[DI] = AH;    //  ; write 4 pixels
+    DI++;
+    CX--;
+    $ JS NEXTBOXLINE    //  ; Go to the next line if that was it
+    $ JZ ENDBOX         //  ; Do the end of the box if thats all thats left
+			//  ; Otherwise do the middle of the box scanline
+    AL = 0xF;
+    $ OUT DX,AL         //  ; mask all planes on
+    AL = AH;
+    $ SHR CX,1          //  ; Get a word count
+    $ JNC WORDIT
+    ESBYTE[DI] = AL;    //  ; write one byte of (4) pixels
+    DI++;
+WORDIT:
+    $ REPZ
+    $ STOSW  //	rep stosw	; write words of pixels (fast, esp with 16 bit VGA)
+ENDBOX:
+    AL = BL;     //	mov al,bl	      ; get right mask
+    $ OUT DX,AL
+    ESBYTE[DI] = AH;   //  mov [di],ah			; write pixel
+NEXTBOXLINE:     //    ; Now move to the next line
+    $ POP CX     //	pop cx
+    DI += SI;    //	add di,si	      ; Adjust the address
+    }
+}
+
+
+/* end of VGAX.H-- */

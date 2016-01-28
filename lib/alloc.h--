@@ -1,0 +1,147 @@
+?ifndef _ALLOC_
+?define _ALLOC_ TRUE
+?warning FALSE
+
+byte CUCHA[SIZE_CUCHA];
+word BLOCK_MEM[NUM_BL+1]=0;
+
+/* Процедура выделения и освобождения динамической памяти
+word MALLOC (size) - выделить память размером size. Возвращает смещение блока
+                     или 0 если нет места.
+void FREE (offs) - освобождает ранее выделеный блок памяти.
+В программе должны быть определены define - SIZE_CUCHA - размер динамической
+памяти (не более 0x7FFF) и NUM_BL - число блоков памяти которые могут быть
+запрошены одновременно.
+*/
+
+word MALLOC()
+{
+	$PUSH SI
+	$PUSH DI
+	DX><AX;
+	SI=0;
+	BX=#BLOCK_MEM;
+	DI=0;
+	do{
+		AX=DSWORD[BX];
+		AX|=AX;
+		IF(ZEROFLAG){
+			CX=SIZE_CUCHA-SI;
+			IF(CX>=DX){
+				DH|=0X80;
+				DSWORD[BX]=DX;
+				DSWORD[BX+2]=AX;
+				AX=SI+#CUCHA;
+			}
+			$JMP SHORT EN
+		}
+		IF(AX<0X8000){
+			IF(AX>=DX){
+				CX=AX-DX;
+				DH|=0X80;
+				DSWORD[BX]=DX;
+				CX|=CX;
+				IF(NOTZEROFLAG){
+					BX++;
+					BX++;
+					do{
+						AX=DSWORD[BX];
+						DSWORD[BX]=CX;
+						CX=AX;
+						BX++;
+						BX++;
+						AX|=AX;
+					} while ( NOTZEROFLAG );
+					DSWORD[BX]=AX;
+				}
+				AX=SI+#CUCHA;
+				$JMP SHORT EN
+			}
+		}
+		AH&=0X7F;
+		SI+=AX;
+		BX++;
+		BX++;
+		DI++;
+		$CMP DI,NUM_BL
+		$JZ ER
+		CX=SI+DX;
+	}while(CX<=SIZE_CUCHA);
+ER:
+	AX=0;
+EN:
+	$POP DI
+	$POP SI
+}
+
+void FREE()
+{
+	DX=AX-#CUCHA;
+	$CLD
+	$PUSH SI
+	$PUSH DI
+	$PUSH DS
+	$POP ES
+	SI=#BLOCK_MEM;
+	DX=AX-#CUCHA;
+	IF(ZEROFLAG){
+		DI=SI;
+		SI++;
+		SI++;
+		DX=DSWORD[DI];
+		DH&=0X7F;
+		$TEST DSWORD[SI],0X8000
+		$JZ CC1
+	}
+	ELSE{
+		BX=0;
+		do
+		{
+			$LODSW
+			AH&=0X7F;
+			BX+=AX;
+			$OR AX,AX
+			$JZ EN
+TW:
+		}while( BX!=DX );
+		DI=SI;
+		SI++;
+		SI++;
+		DX=DSWORD[DI];
+		DH&=0X7F;
+		AX=DSWORD[SI-4];
+		$TEST AH,0X80
+		IF(ZEROFLAG){
+			DX+=AX;
+			DI--;
+			DI--;
+		}
+		IF(DSWORD[SI]<0X8000){
+			AX=0;
+			IF(DSWORD[SI]==AX){
+				DSWORD[DI]=AX;
+				$JMP SHORT EN
+			}
+CC1:
+			DX+=DSWORD[SI];
+			SI++;
+			SI++;
+		}
+	}
+	AX><DX;
+	$STOSW
+	AX=SI-DI;
+	IF(NOTZEROFLAG){
+		do
+		{
+			$LODSW
+			$STOSW
+			AX|=AX;
+		} while ( NOTZEROFLAG);
+	}
+EN:
+	$POP DI
+	$POP SI
+}
+
+?endif

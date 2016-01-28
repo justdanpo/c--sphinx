@@ -1,0 +1,537 @@
+/*****************************************************************************
+ Sphinx C-- library (C) 2000.
+ FILE:        STRING.HMM
+ DESCRIPTION: inline procedures and defines.
+ LAST MODIFIED: 28.10.01 21:59
+ -----------------------------------------------------------------------------
+ FUNCTIONS:
+ void STRCPY((E)DI,(E)SI)
+ void STRCAT((E)DI,(E)SI)
+ void STRLENZ((E)DI)
+ unsigned int STRCHR((E)SI,BL)
+ char STRCMP((E)SI,(E)DI)
+ char STRCMPI((E)SI,(E)DI)
+ unsigned int STRLEN((E)DI)
+ void STRLWR((E)SI)
+ char STRNCMP((E)SI,(E)DI,(E)CX)
+ char STRNCMPI((E)SI,(E)DI,(E)CX)
+ void STRNCPY((E)DI,(E)SI,(E)CX);
+ unsigned int STRRCHR((E)DI,BL)
+ unsigned int STRSTR((E)BX,(E)DX)
+ void STRUPR((E)SI)
+ unsigned int STREND((E)DI)
+ void STRMOV((E)DX,(E)SI)
+ void STRMOVN((E)DX,(E)SI,(E)CX)
+ ***************************************************************************/
+
+/*****************************************************************************
+* TITLE : void STRCPY(SI,DI)
+* DESCR : Copy string
+* PARAMS: input: (E)SI - source string
+*       :        (E)DI - dest. string
+*****************************************************************************/
+#ifdef codesize
+
+inline void STRCPY((E)DI,(E)SI)
+{
+	do{
+		$LODSB
+		$STOSB
+	}while(AL!=0);
+}
+
+#else
+
+inline void STRCPY((E)DI,(E)SI)
+{
+	$push (E)CX,(E)DI
+	STRLENZ((E)SI);
+	(E)AX=(E)CX;
+	$pop (E)DI
+	(E)CX>>=2;
+	$REP $MOVSD
+	(E)CX=(E)AX&3;
+	$REP $MOVSB
+	$pop (E)CX
+}
+#endif
+
+/*****************************************************************************
+* NAME  : void STRCAT(DI,SI)
+* TITLE : Append a string
+* PARAMS: input: (E)SI - source string
+*       :        (E)DI - dest. string
+*****************************************************************************/
+#ifdef codesize
+
+inline void STRCAT((E)DI,(E)SI)
+{
+	WHILE(DSBYTE[(E)DI]!=0)(E)DI++;
+	STRCPY();
+}
+
+#else	//codesize
+
+inline void STRCAT((E)DI,(E)SI)
+{
+	$push (E)CX
+	(E)CX=-1;
+	AL=0;
+	$REPNE $SCASB
+	(E)DI--;
+	STRCPY();
+	$pop (E)CX
+}
+
+#endif	//codesize
+
+/*****************************************************************************
+* NAME  : unsigned int STRCHR(ESI,BL)
+* TITLE : Find a character in a string
+* PARAMS:
+*****************************************************************************/
+
+#ifdef codesize
+
+inline unsigned int STRCHR((E)SI,BL)
+{
+	do{
+		$lodsb
+		IF(AL==BL){
+			(E)AX><(E)SI;
+			(E)AX--;
+			GOTO END;
+		}
+	}while(AL!=0);
+	(E)AX=0;
+END:
+}
+
+#else	//codesize
+
+inline unsigned int STRCHR((E)DI,BL)
+{
+	$push (E)DI
+	STRLENZ((E)DI);
+	(E)AX=(E)BX;
+	$pop (E)DI
+	(E)BX=0;
+	$REPNE $SCASB
+	(E)AX=(E)BX;
+	IF(ZEROFLAG)(E)AX=(E)DI-1;
+}
+
+#endif	//codesize
+
+/*****************************************************************************
+* NAME  : void STRLENZ(EDI)
+* TITLE : Size string include zero terminater
+* PARAMS: input:  (E)DI - pointer string
+*       : output: (E)CX - size string+1
+*****************************************************************************/
+inline void STRLENZ((E)DI)
+{
+	(E)CX=-1;
+	(E)AX=0;
+	$REPNE $SCASB
+	(E)CX^=-1;
+}
+
+/*****************************************************************************
+* NAME  :char STRCMP((E)SI,(E)DI)
+* TITLE :Compare two strings, case sensitive
+* PARAMS:
+*****************************************************************************/
+#ifdef codesize
+
+inline char STRCMP((E)SI,(E)DI)
+{
+	do{
+		$lodsb
+		$scasb
+		IF(!ZEROFLAG)BREAK;
+	}while(AL!=0);
+	AL-=DSBYTE[(E)DI-1];
+}
+
+#else
+
+inline char STRCMP((E)SI,(E)DI)
+{
+	$push (E)CX
+	$push (E)DI
+	STRLENZ((E)DI);
+	$pop (E)DI
+	$REPE $CMPSB
+	AL=DSBYTE[(E)SI-1]-DSBYTE[(E)DI-1];
+	$pop (E)CX
+}
+
+#endif
+
+/*****************************************************************************
+* NAME  :char STRCMPI((E)SI,(E)DI)
+* TITLE :Compare two strings, case insensitive
+* PARAMS:
+*****************************************************************************/
+#ifdef codesize
+
+inline char STRCMPI((E)SI,(E)DI)
+{
+	$push (E)BX
+	do{
+		$lodsb
+		IF(AL>='a')&&(AL<='z')AL-=0x20;
+		BL=DSBYTE[(E)DI];
+		IF(BL>='a')&&(BL<='z')BL-=0x20;
+		AL-=BL;
+		IF(!ZEROFLAG)BREAK;
+		(E)DI++;
+	}while(BL!=0);
+	$pop (E)BX
+}
+
+#else
+
+inline char STRCMPI((E)SI,(E)DI)
+{
+	$push (E)BX,(E)CX
+	(E)BX=(E)DI;
+	STRLENZ((E)DI);
+	(E)DI=(E)BX;
+	do{
+		$REPE $CMPSB
+		IF(ZEROFLAG)BREAK;
+		AL=DSBYTE[(E)SI-1];
+		IF(AL>='a')&&(AL<='z')AL-=0x20;
+		BL=DSBYTE[(E)DI-1];
+		IF(BL>='a')&&(BL<='z')BL-=0x20;
+		AL-=BL;
+	}while(ZEROFLAG);
+	$pop (E)CX,(E)BX
+}
+
+#endif
+
+/*****************************************************************************
+* NAME  :unsigned int STRLEN((E)DI)
+* TITLE :Get string length
+* PARAMS:
+*****************************************************************************/
+#ifdef codesize
+
+inline unsigned int STRLEN((E)DI)
+{
+	(E)AX=(E)DI;
+	(E)DI--;
+	do{
+		(E)DI++;
+	}while(DSBYTE[(E)DI]!=0);
+	(E)DI-=(E)AX;
+	(E)AX><(E)DI;
+}
+
+#else
+
+inline unsigned int STRLEN((E)DI)
+{
+	$push (E)CX
+	STRLENZ();
+	(E)AX=(E)CX-1;
+	$pop (E)CX
+}
+
+#endif
+
+/*****************************************************************************
+* NAME  : void STRLWR((E)SI)
+* TITLE : Convert string to lower case
+* PARAMS:
+*****************************************************************************/
+#ifdef codesize
+
+inline void STRLWR((E)SI)
+{
+	do{
+		$LODSB
+		IF(AL>='A')&&(AL<='Z'){
+			AL+=0x20;
+			DSBYTE[(E)SI-1]=AL;
+		}
+	}while(AL!=0);
+}
+
+#else
+
+inline void STRLWR((E)SI)
+{
+	do{
+		$LODSB
+		IF(AL>='A')&&(AL<='Z'){
+			AL+=0x20;
+			DSBYTE[(E)SI-1]=AL;
+			CONTINUE;
+		}
+	}while(AL!=0);
+}
+
+#endif
+
+/*****************************************************************************
+* NAME  : char STRNCMP((E)SI,(E)DI,(E)CX)
+* TITLE : Compare n Characters of Two Strings, Case Sensitive
+* PARAMS:
+*****************************************************************************/
+inline char STRNCMP((E)SI,(E)DI,(E)CX)
+{
+	(E)AX=0;
+	IF((E)CX!=0){
+		$REPE $CMPSB
+		AL=DSBYTE[(E)SI-1]-DSBYTE[(E)DI-1];
+	}
+}
+
+/*****************************************************************************
+* NAME  :char STRNCMPI((E)SI,(E)DI,(E)CX)
+* TITLE :Compare n Characters of Strings, Case Insensitive
+* PARAMS:
+*****************************************************************************/
+inline char STRNCMPI((E)SI,(E)DI,(E)CX)
+{
+	(E)AX=0;
+	IF((E)CX!=0){
+		$push (E)BX
+		do{
+			$REPE $CMPSB
+			IF(ZEROFLAG)BREAK;
+			AL=DSBYTE[(E)SI-1];
+			IF(AL>='a')&&(AL<='z')AL-=0x20;
+			BL=DSBYTE[(E)DI-1];
+			IF(BL>='a')&&(BL<='z')BL-=0x20;
+			AL-=BL;
+		}while(ZEROFLAG);
+		$pop (E)BX
+	}
+}
+
+/*****************************************************************************
+* NAME  :void STRNCPY((E)DI,(E)SI,(E)CX)
+* TITLE :Copy a Specified Number of Characters
+* PARAMS:
+*****************************************************************************/
+#ifdef codesize
+
+inline void STRNCPY((E)DI,(E)SI,(E)CX)
+{
+	LOOPNZ((E)CX){
+		$LODSB
+		IF(AL==0)BREAK;
+		$STOSB
+	};
+	(E)AX=0;
+	$stosb
+}
+
+#else
+
+inline void STRNCPY((E)DI,(E)SI,(E)CX)
+{
+	$push (E)BX
+	$push (E)DI
+	(E)DI=(E)SI;
+	(E)BX=(E)CX;
+	(E)AX=0;
+	IF((E)CX!=0){
+		$REPNE $SCASB
+		IF(ZEROFLAG)(E)CX++;
+	}
+	(E)BX-=(E)CX;
+	$pop (E)DI
+	(E)CX=(E)BX>>2;
+	$REP $MOVSD
+	(E)CX=(E)BX&3;
+	$REP $MOVSB
+	$STOSB
+	$pop (E)BX
+}
+
+#endif
+
+/*****************************************************************************
+* NAME  :unsigned int STRRCHR((E)DI,BL)
+* TITLE :Scan String for Last Occurrence of Character
+* PARAMS:
+*****************************************************************************/
+#ifdef codesize
+
+inline unsigned int STRRCHR((E)DI,BL)
+{
+	(E)AX=0;
+	do{
+		IF(DSBYTE[(E)DI]==BL)(E)AX=(E)DI;
+		(E)DI++;
+	}while(DSBYTE[(E)DI-1]!=0);
+}
+
+#else
+
+inline unsigned int STRRCHR((E)DI,BL)
+{
+	$PUSH (E)CX
+	STRLENZ((E)DI);
+	$STD
+	(E)DI--;
+	(E)AX=(E)BX;
+	(E)BX=0;
+	$REPNE $SCASB
+	(E)AX=(E)BX;
+	IF(ZEROFLAG)(E)AX=(E)DI+1;
+	$CLD
+	$POP (E)CX
+}
+
+#endif
+
+/*****************************************************************************
+* NAME  : unsigned int STRSTR((E)BX,(E)DX)
+* TITLE : Find substring
+* PARAMS:
+*****************************************************************************/
+
+inline unsigned int STRSTR((E)BX,(E)DX)
+{
+	$push (E)CX,(E)DI,(E)SI
+	STRLENZ((E)DX);
+	IF((E)CX){
+		(E)SI=(E)CX;
+		STRLENZ((E)BX);
+		IF((E)SI<=(E)CX){
+			(E)DI=(E)BX;
+			$LEA (E)BX,DSDWORD[(E)SI-1]
+			do{
+				(E)SI=(E)DX;
+				$LODSB
+				$REPNE $SCASB
+				IF(!ZEROFLAG){
+					(E)AX=0;
+					GOTO ENDP;
+				}
+				(E)AX=(E)CX;
+				$PUSH (E)DI
+				(E)CX=(E)BX;
+				$REPE $CMPSB
+				$POP (E)DI
+				(E)CX=(E)AX;
+			}while(!ZEROFLAG);
+			$LEA (E)AX,DSDWORD[(E)DI-1]
+		}
+	}
+ENDP:
+	$pop (E)SI,(E)DI,(E)CX
+}
+
+/*****************************************************************************
+* NAME  :void STRUPR((E)SI)
+* TITLE :Convert string to uppercase
+* PARAMS:
+*****************************************************************************/
+
+inline void STRUPR((E)SI)
+{
+	for(;;){
+		$LODSB
+		IF(AL==0)BREAK;
+		IF(AL>='a')&&(AL<='z')AL-=0x20;
+		DSBYTE[(E)SI-1]=AL;
+	}
+}
+
+
+/*****************************************************************************
+* NAME  :unsigned int STREND((E)DI)
+* TITLE :
+* PARAMS:
+*****************************************************************************/
+inline unsigned int STREND((E)DI)
+{
+	$push (E)CX
+	(E)CX=-1;
+	(E)AX=0;
+	$REPNE $SCASB
+	$LEA (E)AX,DSDWORD[(E)DI-1]
+	$pop (E)CX
+}
+
+/*****************************************************************************
+* NAME  :void STRMOV((E)DX,(E)SI)
+* TITLE :
+* PARAMS:
+*****************************************************************************/
+inline void STRMOV((E)DX,(E)SI)
+{
+	$push (E)DI,(E)CX,(E)BX
+	STRLENZ((E)SI);
+	(E)DI=(E)DX;
+	(E)BX=(E)CX;
+	IF((E)DI<(E)SI){
+		(E)CX>>=2;
+  	$REP $MOVSD
+	  (E)CX=(E)BX&3;
+  	$REP $MOVSB
+	}
+	ELSE IF(!ZEROFLAG){
+		$LEA (E)SI,DSDWORD[(E)SI+(E)BX-1]
+		$LEA (E)DI,DSDWORD[(E)DI+(E)BX-1]
+		(E)CX&=3;
+		$STD
+		$REP $MOVSB
+		(E)SI-=3;
+		(E)DI-=3;
+		(E)CX=(E)BX>>2;
+		$REP $MOVSD
+		$CLD
+	}
+	$pop (E)BX,(E)CX,(E)DI
+}
+
+/*****************************************************************************
+* NAME  :void STRMOVN((E)DX,(E)SI,(E)CX)
+* TITLE :
+* PARAMS:
+*****************************************************************************/
+inline void STRMOVN((E)DX,(E)SI,(E)CX)
+{
+	$push (E)DI,(E)BX
+	(E)DI=(E)SI;
+	(E)BX=(E)CX;
+	(E)AX=0;
+	IF((E)CX!=0){
+		$REPNE $SCASB
+		IF(!ZEROFLAG)(E)CX++;
+		(E)BX-=(E)CX;
+	}
+	(E)DI=(E)DX;
+	(E)CX=(E)BX;
+	IF((E)DI<(E)SI){
+		(E)CX>>=2;
+		$REP $MOVSD
+		(E)CX=(E)BX&3;
+		$REP $MOVSB
+		$STOSB
+	}
+	ELSE IF(!ZEROFLAG){
+		$LEA (E)SI,DSDWORD[(E)SI+(E)BX-1]
+		$LEA (E)DI,DSDWORD[(E)DI+(E)BX]
+		(E)CX&=3;
+		$STD
+		$STOSB
+		$REP $MOVSB
+		(E)SI-=3;
+		(E)DI-=3;
+		(E)CX=(E)BX>>2;
+		$REP $MOVSD
+		$CLD
+	}
+	$pop (E)BX,(E)DI
+}
+

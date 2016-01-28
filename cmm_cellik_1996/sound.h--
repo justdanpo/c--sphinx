@@ -1,0 +1,51 @@
+/*
+    SPHINX Programming (C) 1993.
+    TITLE:  SOUND.H--
+    DESCRIPTION:  This file contains a collection of procedures for using
+                  the built in PC speaker.
+    LAST MODIFIED:  13 May 1993
+    PROCEDURES DEFINED IN THIS FILE:
+        : void NOSOUND()
+        : void SOUND(frequency)
+*/
+
+
+: void NOSOUND ()
+/*
+Silences the speaker.
+*/
+{
+$IN AL,0x61                              
+AL &= 0xFC;                              
+$OUT 0x61,AL                              
+} 
+/* RETURNS:  AL = undefined
+*/
+
+
+
+: void SOUND ()  /* AX = frequency */
+/*
+Starts the speaker emiting a sound of a given frequency
+*/ 
+{
+BX = AX;
+DX = 0x12;
+AX = 0x34DC;
+$DIV BX                                 
+BL = AL;
+AL = 0xB6;
+$OUT 0x43,AL                              
+AL = BL;
+$OUT 0x42,AL                              
+AL = AH;
+$OUT 0x42,AL                              
+$IN AL,0x61                              
+AL |= 3;
+$OUT 0x61,AL                              
+}
+/* RETURNS:  AX,BX,DX = undefined
+*/
+
+
+/* end of SOUND.H-- */

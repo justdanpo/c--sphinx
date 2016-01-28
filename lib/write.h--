@@ -1,0 +1,913 @@
+/*  SPHINX Programming (C) 1993.
+    NAME:  WRITE.H--
+    DESCRIPTION:  This file contains a collection of procedures for writing
+                  text to the screen, all via the BIOS interrupt 0x10.
+    LAST MODIFIED:  25 Dec 1993
+    PROCEDURES DEFINED IN THIS FILE:
+        : void BEEP()
+        : word GETXY()
+        : word GETXYZ(byte page)
+        : void GOTOXY(byte xloc,byte yloc)
+        : void GOTOXYZ(byte xloc,byte yloc,byte page)
+        : void WINDOWDOWN(numoflines,attribute,upperleftloc,lowerrightloc)
+        : void WINDOWUP(numoflines,attribute,upperleftloc,lowerrightloc)
+        : void WRITE(byte character)
+        : void WRITEDIGITS(word_value)
+        : void WRITEDWORD(dword dword_value)
+        : void WRITEHEX(word_value)
+        : void WRITEINT(int int_value)
+        : void WRITELN()
+        : void WRITELONG(long long_value)
+        : void WRITESTR(string)
+        : void WRITEWORD(word_value)
+*/
+?ifndef _WRITE_
+?warning FALSE
+?define _WRITE_ TRUE
+
+:void BEEP()
+// Outputs a beep from the internal speaker by use of BIOS video interrupt.
+{
+	BH=0x00;
+	AX=0x0E07;
+	$INT 0x10
+}
+/* returns:  AX = 0xE07
+             BH = 0 */
+
+:void GOTOXY()
+// AL = xloc, BL = yloc
+/* Sets the cursor postion to the location given by xloc and yloc.
+   Location values start at zero.*/
+{
+	DL=AL;
+	DH=BL;
+	BH=0;
+	AH=2;
+	$INT 0x10
+}
+/* RETURNS:  AX,BX,DX = undefined.*/
+
+:void GOTOXYZ()
+/* AL = xloc, BL = yloc, CL = page */
+/* Sets the cursor postion to the location given by xloc and yloc on the
+   given video page.
+   Location values start at zero.*/
+{
+	AH=BL;
+?ifdef codesize
+	DX><AX;
+?else
+	DX=AX;
+?endif
+	BH=CL;
+	AH=2;
+	$INT 0x10
+}
+/* RETURNS:  AX,BX,DX = undefined.*/
+
+: word GETXY ()
+/* Gets the cursor postion on video page zero.*/
+{
+	BH=0;
+	AH=3;
+	$INT 0x10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+}
+/* RETURNS:  BH = 0
+             AH = cursor row
+             AL = cursor column
+             CH = cursor start line
+             CL = cursor end line
+*/
+
+:word GETXYZ()
+/* AL = video page */
+/* Gets the cursor postion on the specified video page.*/
+{
+	BH=AL;
+	AH=3;
+	$INT 0x10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+}
+/* RETURNS:  BH = video page
+             AH = cursor row
+             AL = cursor column
+             CH = cursor start line
+             CL = cursor end line
+*/
+
+:void WRITE()
+/* AL = character to write to screen at cursor */
+/* Writes the specified character at the cursor and then advances the
+   cursor.  Bell, CR, and LF are treated as special characters and supported.*/
+{
+	BX=0x0007;
+	AH=0xE;
+	$ INT 0x10
+}
+/* returns:  AH = 0xE
+             BX = 7*/
+
+:void WRITELN()
+/* Moves the cursor to the beginning of the next line */
+{
+	BX=0x0007;
+	AX=0x0E0D;
+	$ INT 0x10
+	AX=0x0e0A;
+	$ INT 0x10
+}
+/* returns:  AX = 0xE0A
+             BX = 7
+*/
+
+:void WRITESTR()
+/* AX = offset address of string to write at cursor */
+{
+	BX=0x0007;
+	$PUSH SI
+?ifdef codesize
+	SI><AX;
+?else
+	SI=AX;
+?endif
+UP:
+	AH=0xE;
+	$LODSB
+	$CMP AL,0
+	$JZ DOWN
+	$INT 0x10
+	$JMP SHORT UP
+DOWN:
+	$POP SI
+}
+/* returns:  AX = undefined
+             BX = 7
+*/
+
+: void WRITEWORD ()  /* AX = word value to write to screen at cursor */
+{
+	BX=0x0007;
+	$CMP AX,10000
+	$JNB DOWN1
+	$CMP AX,1000
+	$JNB DOWN2
+	$CMP AX,100
+	$JNB DOWN3
+	$CMP AX,10
+	$JNB DOWN4
+	$JMP SHORT DOWN5
+DOWN1:
+	DX=0;
+	CX=10000;
+	$DIV CX
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+DOWN2:
+	DX=0;
+	CX=1000;
+	$DIV CX
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+DOWN3:
+	CL=100;
+	$DIV CL
+	DL=AH;
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+	AL=DL;
+DOWN4:
+	$AAM
+	DL=AL;
+	AL=AH;
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+	AL=DL;
+DOWN5:
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+}
+/* returns:  AX,CX,DX = undefined
+             BX = 7 */
+
+:void __writeword ()  /* AX = word value to write to screen at cursor */
+{
+	BX=0x0007;
+	$CMP AX,10000
+	$JNB DOWN1
+	$CMP AX,1000
+	$JNB DOWN2
+	$CMP AX,100
+	$JNB DOWN3
+	$CMP AX,10
+	$JNB DOWN4
+	$JMP SHORT DOWN5
+DOWN1:
+	DX=0;
+	CX=10000;
+	$DIV CX
+	$CALL DOWN5
+DOWN2:
+	DX=0;
+	CX=1000;
+	$DIV CX
+	$CALL DOWN5
+DOWN3:
+	CL=100;
+	$DIV CL
+	DL=AH;
+	$CALL DOWN5
+DOWN4:
+	$AAM
+	DL=AL;
+	AL=AH;
+	$CALL DOWN5
+DOWN5:
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+}
+/* returns:  AX,CX,DX = undefined
+             BX = 7 */
+:void WRITEINT()  /* AX = int value to write to screen at cursor */
+{
+	BX=0x0007;
+	$OR	AX,AX
+	$JGE	MEM1
+?ifdef codesize
+	AX><DX;
+?else
+	DX=AX;
+?endif
+	AX=0x0E2D;
+	$INT 0x10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+	-AX;
+MEM1:
+	$CMP AX,10000
+	$JNB DOWN1
+	$CMP AX,1000
+	$JNB DOWN2
+	$CMP AX,100
+	$JNB DOWN3
+	$CMP AX,10
+	$JNB DOWN4
+	$JMP SHORT DOWN5
+DOWN1:
+	AX=AX/10000;
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+DOWN2:
+	AX=AX/1000;
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+DOWN3:
+	CL=100;
+	$DIV CL
+	DL=AH;
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+	AL=DL;
+DOWN4:
+	$AAM
+	DL=AL;
+	AL=AH;
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+	AL=DL;
+DOWN5:
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+}
+/* returns:  AX,CX,DX = undefined
+             BX = 7 */
+
+:void __writeint()  /* AX = int value to write to screen at cursor */
+{
+	BX=0x0007;
+	$OR	AX,AX
+	$JGE	MEM1
+?ifdef codesize
+	AX><DX;
+?else
+	DX=AX;
+?endif
+	AX=0x0E2D;
+	$INT 0x10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+   -AX;
+MEM1:
+	$CMP AX,10000
+	$JNB DOWN1
+	$CMP AX,1000
+	$JNB DOWN2
+	$CMP AX,100
+	$JNB DOWN3
+	$CMP AX,10
+	$JNB DOWN4
+	$JMP SHORT DOWN5
+DOWN1:
+	DX=0;
+	CX=10000;
+	$DIV CX
+	$CALL DOWN5
+DOWN2:
+	DX=0;
+	CX=1000;
+	$DIV CX
+	$CALL DOWN5
+DOWN3:
+	CL=100;
+	$DIV CL
+	DL=AH;
+	$CALL DOWN5
+DOWN4:
+	$AAM
+	DL=AL;
+	AL=AH;
+	$CALL DOWN5
+DOWN5:
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+}
+/* returns:  AX,CX,DX = undefined
+             BX = 7 */
+:void WRITEDWORD()  /* EAX = dword value to write to screen at cursor */
+{
+	DI=FALSE;
+	SI=9;
+	ECX=1000000000;
+	loop(SI){
+		EDX = 0;
+		$DIV ECX;
+		IF(AL>0)DI++;
+		IF(DI!=FALSE){
+			AL+='0';
+			AH=0xE;
+			BX=0x0007;
+			$INT 0x10
+		}
+?ifdef codesize
+		EBX><EDX;
+?else
+		EBX=EDX;
+?endif
+		EAX=ECX/10;
+?ifdef codesize
+		ECX><EAX;
+		EAX><EBX;
+?else
+		ECX=EAX;
+		EAX=EBX;
+?endif
+	}
+	AL+='0';
+	AH=0xE;
+	BX=0x0007;
+	$INT 0x10
+}
+/* returns:  EAX,EBX,ECX,EDX,DI = undefined
+             SI = 0 */
+
+:void __writedword()  /* EAX = dword value to write to screen at cursor */
+{
+	DI=FALSE;
+	SI=9;
+	ECX=1000000000;
+	loop(SI){
+		EDX = 0;
+		$DIV ECX;
+		IF(AL>0)DI++;
+		IF(DI!=FALSE)$CALL NEAR MEM1
+		$PUSH EDX
+		EAX=ECX/10;
+?ifdef codesize
+		ECX><EAX;
+?else
+		ECX=EAX;
+?endif
+		$POP EAX
+	}
+MEM1:
+	AL+='0';
+	AH=0xE;
+	BX=0x0007;
+	$INT 0x10
+}
+/* returns:  EAX,EBX,ECX,EDX,DI = undefined
+             SI = 0 */
+
+:void WRITELONG()  /* EAX = long value to write to screen at cursor */
+{
+	$OR	EAX,EAX
+	$JGE	MEM1
+?ifdef codesize
+	EDX><EAX;
+?else
+	EDX=EAX;
+?endif
+	AX=0x0E2D;
+	BX=0x0007;
+	$INT 0x10
+?ifdef codesize
+	EDX><EAX;
+?else
+	EAX=EDX;
+?endif
+	-EAX;
+MEM1:
+	DI=FALSE;
+	SI=9;
+	ECX=1000000000;
+	loop(SI){
+		EDX = 0;
+		$DIV ECX;
+		IF(AL>0)DI++;
+		IF(DI!=FALSE){
+			AL+='0';
+			AH=0xE;
+			BX=0x0007;
+			$INT 0x10
+		}
+?ifdef codesize
+		EBX><EDX;
+?else
+		EBX=EDX;
+?endif
+		EAX=ECX/10;
+?ifdef codesize
+		ECX><EAX;
+		EAX><EBX;
+?else
+		ECX=EAX;
+		EAX=EBX;
+?endif
+	}
+	AL+='0';
+	AH=0xE;
+	BX=0x0007;
+	$INT 0x10
+}
+/* returns:  EAX,EBX,ECX,EDX,DI = undefined
+             SI = 0
+*/
+
+:void __writelong()  /* EAX = long value to write to screen at cursor */
+{
+	$OR	EAX,EAX
+	$JGE	MEM1
+?ifdef codesize
+	EDX><EAX;
+?else
+	EDX=EAX;
+?endif
+	AL=0x2D;
+	$CALL NEAR MEM2
+?ifdef codesize
+	EDX><EAX;
+?else
+	EAX=EDX;
+?endif
+	-EAX;
+MEM1:
+	DI=FALSE;
+	SI=9;
+	ECX=1000000000;
+	loop(SI){
+		EDX = 0;
+		$DIV ECX;
+		IF(AL>0)DI++;
+		IF(DI!=FALSE)$CALL NEAR MEM3
+		$PUSH EDX
+		EAX=ECX/10;
+?ifdef codesize
+		ECX><EAX;
+?else
+		ECX=EAX;
+?endif
+		$POP EAX
+	}
+MEM3:
+	AL+='0';
+MEM2:
+	AH=0xE;
+	BX=0x0007;
+	$INT 0x10
+}
+/* returns:  EAX,EBX,ECX,EDX,DI = undefined
+             SI = 0
+*/
+:void WRITEDIGITS()  /* AX = word value to display all digits at cursor */
+{
+	BX=0x0007;
+	DX=0;
+	CX=1000;
+	$DIV CX
+	$AAM
+	AX+=0X3030;
+	CL=AL;
+	AL=AH;
+	AH=14;
+	$INT 0X10
+	AL=CL;
+	AH=14;
+	$INT 0X10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+	CL=100;
+	$DIV CL
+	DL=AH;
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+	AL=DL;
+	$AAM
+	DL=AL;
+	AL=AH;
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+	AL=DL;
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+}
+/* returns:  AX,CX,DX = undefined
+             BX = 7*/
+
+:void __writedigits()  /* AX = word value to display all digits at cursor */
+{
+	BX=0x0007;
+	DX=0;
+	CX=10000;
+	$DIV CX
+	$CALL MEM1
+	DX=0;
+	CX=1000;
+	$DIV CX
+	$CALL MEM1
+	CL=100;
+	$DIV CL
+	DL=AH;
+	$CALL MEM1
+	$AAM
+	DL=AL;
+	AL=AH;
+	$CALL MEM1
+MEM1:
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+}
+/* returns:  AX,CX,DX = undefined
+             BX = 7*/
+:void WINDOWDOWN() // (numoflines,attribute,upperleftloc,lowerrightloc);
+{
+	AH=6;
+	BH=BL;
+	$INT 0x10
+}
+
+:void WINDOWUP() // (numoflines,attribute,upperleftloc,lowerrightloc);
+{
+	AH=7;
+	BH=BL;
+	$INT 0x10
+}
+
+:void WRITEHEX()  /* AX = word value to write */
+{
+	BX=7;
+	DX=AX;
+	$SHR AX,12
+	IF(AL>=10)AL+='A'-10-'0';
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+	AX=DX;
+	$SHR AX,8
+	AL&=0x0F;
+	IF(AL>=10)AL+='A'-10-'0';
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+	AX=DX;
+	$SHR AX,4
+	AL&=0x0F;
+	IF(AL>=10)AL+='A'-10-'0';
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+	AL=DL;
+	AL&=0x0F;
+	IF(AL>=10)AL+='A'-10-'0';
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+}
+
+:void __writehex()  // AX = word value to write !ПАРАМЕТР ПЕРЕДАЕТСЯ ЧЕРЕЗ РЕГИСТР
+{
+	BX=7;
+	DX=AX;
+	$SHR AX,12
+	$CALL NEAR WR2
+	$SHR AX,8
+	$CALL NEAR WR
+	$SHR AX,4
+	$CALL NEAR WR
+WR:
+	AL&=0x0F;
+WR2:
+	IF(AL>=10)AL+='A'-10-'0';
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+	AX=DX;
+}
+
+:word HIDECUR()
+//ДЕЛАЕТ НЕВИДИМЫМ КУРСОР В ТЕКСТ РЕЖ
+//ВОЗВРАЩАЕТ ПРЕД ФОРМУ КУРСОРА
+{
+	AH=3;
+	BH=0;
+	$INT 0X10
+	$PUSH CX
+	CH=0X20;
+	AH=1;
+	$INT 0X10;
+	$POP AX
+}
+
+:void SHOWCUR()
+//УСТАНАВЛ ФОРМУ КУРСОРА
+{
+?ifdef codesize
+	AX><CX;
+?else
+	CX=AX;
+?endif
+	AH=1;
+	$INT 0X10
+}
+
+:void WRITEBYTEBIT()
+//Вывести байт в битовом представлении
+{
+	BL=AL;
+	CX=8;
+	loop(CX){
+		$shl BL,1
+		$setb AL
+		AL+=0x30;
+		AH=14;
+		$INT 0x10
+	}
+}
+
+:void WRITEBYTE4BIT()
+//Вывести байт в битовом представлении с разделением по 4 бита
+{
+	BL=AL;
+	DL=4;
+	CX=8;
+	loop(CX){
+		IF(CL==DL){
+			AX=0xe20;
+			$INT 0x10
+		}
+		$shl BL,1
+		$setb AL
+		AL+=0x30;
+		AH=14;
+		$INT 0x10
+	}
+}
+
+:void WRITEWORDBIT()
+//Вывести слово в битовом представлении
+{
+?ifdef codesize
+	AX><BX;
+?else
+	BX=AX;
+?endif
+	CX=16;
+	loop(CX){
+		$shl BX,1
+		$setb AL
+		AL+=0x30;
+		AH=14;
+		$INT 0x10
+	}
+}
+
+:void WRITEWORD4BIT()
+//Вывести слово в битовом представлении с разделением по 4 бита
+{
+?ifdef codesize
+	AX><BX;
+?else
+	BX=AX;
+?endif
+	DL=12;
+	CX=16;
+	loop(CX){
+		IF(CL==DL){
+			AX=0xe20;
+			$INT 0x10
+			DL-=4;
+		}
+		$shl BX,1
+		$setb AL
+		AL+=0x30;
+		AH=14;
+		$INT 0x10
+	}
+}
+
+:void WRITEDWORDBIT()
+//Вывести двойное слово в битовом представлении
+{
+?ifdef codesize
+	EAX><EBX;
+?else
+	EBX=EAX;
+?endif
+	CX=32;
+	loop(CX){
+		$shl EBX,1
+		$setb AL
+		AL+=0x30;
+		AH=14;
+		$INT 0x10
+	}
+}
+
+:void WRITEDWORD4BIT()
+//Вывести двойное слово в битовом представлении с разделением по 4 бита
+{
+?ifdef codesize
+	EAX><EBX;
+?else
+	EBX=EAX;
+?endif
+	DL=28;
+	CX=32;
+	loop(CX){
+		IF(CL==DL){
+			AX=0xe20;
+			$INT 0x10
+			DL-=4;
+		}
+		$shl EBX,1
+		$setb AL
+		AL+=0x30;
+		AH=14;
+		$INT 0x10
+	}
+}
+
+:void WRITESTR2()
+// AX - адрес строки
+// BL - режим вывода
+// DX - позиция на экране
+{
+	$PUSH BP
+	BP=AX;
+?ifdef codesize
+	DI><AX;
+?else
+	DI=AX;
+?endif
+	ES=DS;
+	CX=-1;
+	AL=0;
+	$REPNE
+	$SCASB
+	!CX;
+	CX--;
+	AL=BL;
+	BX=7;
+	AH=0X13;
+	$INT 0X10
+	$POP BP
+}
+
+:void WRITEHEXWORD()
+{
+	CX=4;
+	loop(CX){
+		$rol AX,4
+		$push	AX
+		AL&=0xF;
+		$CMP AL,10
+		$sbb AL,0x69
+		$das
+		AH=14;
+		$INT 0x10
+		$pop AX
+	}
+}
+
+:void WRITEHEXBYTE()
+{
+	CX=2;
+	loop(CX){
+		$rol AL,4
+		$push	AX
+		AL&=0xF;
+		$CMP AL,10
+		$sbb AL,0x69
+		$das
+		AH=14;
+		$INT 0x10
+		$pop AX
+	}
+}
+
+:void WRITEHEXDWORD()
+{
+	CX=8;
+	loop(CX){
+		$rol EAX,4
+		$push	EAX
+		AL&=0xF;
+		$CMP AL,10
+		$sbb AL,0x69
+		$das
+		AH=14;
+		$INT 0x10
+		$pop EAX
+	}
+}
+
+?endif
+/* end of WRITE.H-- */

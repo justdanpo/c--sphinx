@@ -1,0 +1,413 @@
+/*
+   NAME:  MOOSE.C--
+   DESCRIPTION:  A TSR that enables limited emulation of a mouse by use of
+                 the keyboard.  Host program required to display pointer.
+                 This program is pretty sketchy right now.  You were warned.
+                 I only made it so I could play RISK on my notebook, and it
+                 works fine for that.
+*/
+
+?resize FALSE
+
+?include "VIDEO.H--"
+?include "KEYCODES.H--"
+?include "WRITE.H--"
+?include "SYSTEM.H--"
+?include "DOS.H--"
+?include "TSR.H--"
+
+?define  MOUSE_INT  0x33
+
+dword oldkeyhandle={};
+byte altflag=0,ctrlflag=0,scrolllock=0;
+byte upflag=0,downflag=0,leftflag=0,rightflag=0;
+byte button1flag=0,button2flag=0,button3flag=0;
+word showcounter=0;           /* show mouse if showcounter > 0 */
+int mousex=0,mousey=0;        /* mouse x and y coordinates */  
+int oldmousex=0,oldmousey=0;  /* last mouse position */
+int mouseb=0;                 /* mouse button status */
+byte currentvidmode=0;
+word mouseevent=0;
+word intmask=0;
+dword inthandle=0;
+enum { e_moved=1, e_leftpressed=2, e_leftreleased=4, e_rightpressed=8,
+       e_rightreleased=16, e_middlepressed=32, e_middlereleased=64 };
+enum { button1=1, button2=2, button3=4 };  /* button bits */
+
+int buttonpressx[3]=0;
+int buttonpressy[3]=0;
+int buttonpresscount[3]=0;
+
+int buttonreleasex[3]=0;
+int buttonreleasey[3]=0;
+int buttonreleasecount[3]=0;
+
+int maxmousex=1023,minmousex=0;  /* maximum and minimum x ranges */
+int maxmousey=767,minmousey=0;   /* maximum and minimum y ranges */
+int jump=1;   /* use for jump distance */
+
+
+interrupt keyhandle ()
+{
+$ PUSH DS
+$ PUSH AX
+$ PUSH BX
+BL = FALSE;
+DS = CS;
+button1flag = 0;
+button2flag = 0;
+button3flag = 0;
+$ IN AL,KEYBOARD_PORT
+IF( AL == s_scrolllock )
+    scrolllock = 1 - scrolllock;
+else IF( AL == s_alt )
+    altflag = 1;
+else IF( AL == s_ctrl )
+    ctrlflag = 1;
+else IF( AL == sr_alt )
+    altflag = 0;
+else IF( AL == sr_ctrl )
+    ctrlflag = 0;
+else IF( AL == s_up )
+    {upflag = TRUE;
+    BL = TRUE;}
+else IF( AL == sr_up )
+    upflag = FALSE;
+else IF( AL == s_down )
+    {downflag = TRUE;
+    BL = TRUE;}
+else IF( AL == sr_down )
+    downflag = FALSE;
+else IF( AL == s_right )
+    {rightflag = TRUE;
+    BL = TRUE;}
+else IF( AL == sr_right )
+    rightflag = FALSE;
+ELSE IF( AL == s_left )
+    {leftflag = TRUE;
+    BL = TRUE;}
+ELSE IF( AL == sr_left )
+    leftflag = FALSE;
+ELSE IF( AL == s_space )
+    {button1flag = 1;
+    BL = TRUE;}
+ELSE IF( AL == sr_space )
+    {button1flag = 2;
+    BL = TRUE;}
+ELSE IF( AL == s_1 )
+    {button1flag = 1;
+    BL = TRUE;}
+ELSE IF( AL == sr_1 )
+    {button1flag = 2;
+    BL = TRUE;}
+ELSE IF( AL == s_2 )
+    {button2flag = 1;
+    BL = TRUE;}
+ELSE IF( AL == sr_2 )
+    {button2flag = 2;
+    BL = TRUE;}
+ELSE IF( AL == s_3 )
+    {button3flag = 1;
+    BL = TRUE;}
+ELSE IF( AL == sr_3 )
+    {button3flag = 2;
+    BL = TRUE;}
+IF( BL == TRUE )
+    IF( scrolllock == 1 )
+        {@ EATKEY();
+        @ EOI();
+        dokeys();
+        $ POP BX
+        $ POP AX
+        $ POP DS
+        return();
+        }
+$ POP BX
+$ POP AX
+$ POP DS
+$ JMP CSDWORD[#oldkeyhandle]
+}
+
+
+void dokeys ()
+{$ PUSH CX
+$ PUSH DX
+$ PUSH DI
+$ PUSH SI
+$ PUSH BP
+$ PUSH ES
+
+IF( button1flag == 1 )
+    pressbutton1();
+ELSE IF( button1flag == 2 )
+    releasebutton1();
+IF( button2flag == 1 )
+    pressbutton2();
+ELSE IF( button2flag == 2 )
+    releasebutton2();
+IF( button3flag == 1 )
+    pressbutton3();
+ELSE IF( button3flag == 2 )
+    releasebutton3();
+
+jump = 5;
+IF( ctrlflag == 1 )
+    jump = 10; 
+IF( altflag == 1 )
+    jump = 1;
+
+IF( upflag == TRUE )
+    mousey -= jump;    
+ELSE IF( downflag == TRUE )
+    mousey += jump;    
+ELSE IF( leftflag == TRUE )
+    mousex -= jump;    
+ELSE IF( rightflag == TRUE )
+    mousex += jump;    
+
+checkmouserange();
+
+IF( oldmousex <> mousex )
+    mouseevent |= e_moved;
+IF( oldmousey <> mousey )
+    mouseevent |= e_moved;
+/* int handling jmp still to be done a long with mouse display. */
+IF( mouseevent & e_moved )
+    IF( showcounter > 0 )
+        {erasemouse();
+        drawmouse();
+        }
+oldmousex = mousex;
+oldmousey = mousey;
+
+IF( mouseevent & intmask )
+    {AH = mouseevent;
+    BX = mouseb;
+    CX = mousex;
+    DX = mousey;
+ /* DI = x mickey count; */ 
+ /* SI = y mickey count; */ 
+    $ JMP inthandle;
+    }
+
+$ POP ES
+$ POP BP
+$ POP SI
+$ POP DI
+$ POP DX
+$ POP CX
+}
+
+
+void erasemouse ()
+{
+}
+
+
+void drawmouse ()
+{
+}
+
+
+void pressbutton1 ()
+{IF( mouseb & button1 == 0 )
+    {mouseb |= button1;
+    buttonpresscount[0]++;
+    buttonpressx[0]=mousex;
+    buttonpressy[0]=mousey;
+    mouseevent |= e_leftpressed;}
+}
+
+
+void pressbutton2 ()
+{IF( mouseb & button2 == 0 )
+    {mouseb |= button2;
+    buttonpresscount[2]++;
+    buttonpressx[2]=mousex;
+    buttonpressy[2]=mousey;
+    mouseevent |= e_rightpressed;}
+}
+
+
+void pressbutton3 ()
+{IF( mouseb & button3 == 0 )
+    {mouseb |= button3;
+    buttonpresscount[4]++;
+    buttonpressx[4]=mousex;
+    buttonpressy[4]=mousey;
+    mouseevent |= e_middlepressed;}
+}
+
+
+void releasebutton1 ()
+{IF( mouseb & button1 != 0 )
+    {mouseb &= button1^0xFF;    
+    buttonreleasecount[0]++;
+    buttonreleasex[0]=mousex;
+    buttonreleasey[0]=mousey;
+    mouseevent |= e_leftreleased;}
+}
+
+
+void releasebutton2 ()
+{IF( mouseb & button2 != 0 )
+    {mouseb &= button2^0xFF;    
+    buttonreleasecount[2]++;
+    buttonreleasex[2]=mousex;
+    buttonreleasey[2]=mousey;
+    mouseevent |= e_rightreleased;}
+}
+
+
+void releasebutton3 ()
+{IF( mouseb & button3 == 0 )
+    {mouseb &= button3^0xFF;    
+    buttonreleasecount[3]++;
+    buttonreleasex[3]=mousex;
+    buttonreleasey[3]=mousey;
+    mouseevent |= e_middlereleased;}
+}
+
+
+void checkmouserange ()
+{IF( mousex < minmousex )
+    mousex = minmousex;
+IF( mousey < minmousey )
+    mousey = minmousey;
+IF( mousex > maxmousex )
+    mousex = maxmousex;
+IF( mousey > maxmousey )
+    mousey = maxmousey;
+}
+
+
+enum { m_reset, m_show, m_hide, m_getposition, m_setposition,
+       m_getpressdata, m_getreleasedata, m_setxranges, m_setyranges,
+       m_setgraphicscursor, m_settextcursor, m_readmickeys,
+       m_setintsubroutine, m_penemulationon, m_penemulationoff,
+       m_definemickeys };
+
+
+dword oldmousehandle={};
+
+interrupt mousehandle ()
+{
+IF( AX == m_reset )
+    {$ PUSH DS
+    $ PUSH CS
+    $ POP DS
+    showcounter = 0;
+    AX = @ GETVIDEOMODE();   /* BH = display page */
+    currentvidmode = AL;
+           /* proper determining of max X and Y to be done */
+    maxmousex=1023;
+    minmousex=0; 
+    maxmousey=767;
+    minmousey=0; 
+    mousex = maxmousex/2;
+    oldmousex = AX;
+    mousey = maxmousey/2;
+    oldmousey = AX;
+    intmask = 0;
+    AL = 0;
+    AH = -1;
+    BX = -1;   /* signify two button mouse */
+    $ POP DS
+    return();
+    }
+IF( AX == m_show )
+    {CSINT[#showcounter]++;
+    return();
+    }
+IF( AX == m_hide )
+    {CSINT[#showcounter]--;
+    return();
+    }
+IF( AX == m_getposition )
+    {BX = CSWORD[#mouseb];
+    CX = CSINT[#mousex];
+    DX = CSINT[#mousey];
+    return();}
+IF( AX == m_setposition )
+    {$ PUSH DS
+    $ PUSH CS
+    $ POP DS
+    mousex = CX;
+    mousey = DX;
+    checkmouserange();
+    $ POP DS
+    return();}
+IF( AX == m_getpressdata )
+    {$ PUSH DS
+    $ PUSH CS
+    $ POP DS
+    @ ENABLE();
+    BX += BX;
+//    do { } while( buttonpresscount[BX] == 0 );
+    @ DISABLE ();
+    AX = buttonpresscount[BX];
+    CX = buttonpressx[BX];
+    DX = buttonpressy[BX];
+    buttonpresscount[BX] = 0;
+    BX = AX;
+    AH = mouseb;
+    $ POP DS
+    return();}
+IF( AX == m_getreleasedata )
+    {$ PUSH DS
+    $ PUSH CS
+    $ POP DS
+    @ ENABLE();
+    BX += BX;
+  //  do { } while( buttonreleasecount[BX] == 0 );
+    @ DISABLE ();
+    AX = buttonreleasecount[BX];
+    CX = buttonreleasex[BX];
+    DX = buttonreleasey[BX];
+    buttonreleasecount[BX] = 0;
+    BX = AX;
+    AH = mouseb;
+    $ POP DS
+    return();}
+IF( AX == m_setxranges )
+    {$ PUSH AX
+    $ PUSH DS
+    DS = CS;
+    minmousex = CX;
+    maxmousex = DX;
+    $ POP DS
+    $ POP AX
+    return();
+    }
+IF( AX == m_setyranges )
+    {$ PUSH AX
+    $ PUSH DS
+    DS = CS;
+    minmousey = CX;
+    maxmousey = DX;
+    $ POP DS
+    $ POP AX
+    return();
+    }
+IF( AX == m_setintsubroutine )
+    {CSWORD[#intmask] = CX;
+    CSWORD[#inthandle] = DX;
+    CSWORD[#inthandle+2] = ES;
+    return();
+    }
+}
+
+
+
+main ()
+{
+MAXKEYRATE();
+WRITESTR("MOOSE installed.  <Scroll Lock> to activate/disactivate.\n");
+GETINTVECT(#oldkeyhandle,KEYBOARD_INT);
+SETINTVECT( ,KEYBOARD_INT,CS,#keyhandle);
+GETINTVECT(#oldmousehandle,MOUSE_INT);
+SETINTVECT( ,MOUSE_INT,CS,#mousehandle);
+@ KEEP( , , ,#main);
+}
+
+/* end of MOOSE.C-- */

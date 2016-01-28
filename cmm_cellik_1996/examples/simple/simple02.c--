@@ -1,0 +1,36 @@
+/*
+    FILENAME:  SIMPLE02.C--
+
+    DESCRIPTION:  This is the second in a list of progressing example files
+                  to teach you how to use C--.
+                  This program waits for two keys to be pressed on the
+                  keyboard and then exits.
+
+    CONCEPTS:  - There are three main procedure types in C--.  STACK 
+                 procedures are procedures which the parameters are passed
+                 on the stack.  REG procedures are procedures which
+                 parameters are passed in registers.  And finally MACROS,
+                 which are simple REG procedures, but the code is inserted
+                 at that location into the code, instead of calling.  STACK
+                 procedure names must have at least one lower case letter in
+                 it, and REG procedure and MACRO names must not contain any
+                 lower case letters.  To indicate that you want to use a REG
+                 procedure as a macro put an @ symbol before it.
+               - For a list and description of most of the STACK procedures
+                 see STAKPROC.DOC (press SHIFT F10 in work bench).
+               - For a list and description of most of the REG procedures and
+                 MACROS see REGPROC.DOC (press CTRL F10 in work bench).
+
+    COM FILE SIZE:  42 bytes.
+*/
+
+?include "KEYCODES.H--"
+
+
+main()           
+{
+@ BIOSREADKEY();  // wait for a key using BIOSREADKEY() macro 
+BIOSREADKEY();    // wait for a key using BIOSREADKEY() REG procedure
+} 
+
+/* end of SIMPLE02.C-- */

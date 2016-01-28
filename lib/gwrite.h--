@@ -1,0 +1,400 @@
+/*
+    SPHINX Programming (C) 1993.
+    TITLE:  GWRITE.H--
+    DESCRIPTION:  This file contains a collection of procedures for writing
+                  text to the screen.  The difference between this file and
+                  WRITE.H--, is that these procedures support colour
+                  selection and are to be used for graphics modes.
+    PROCEDURES DEFINED IN THIS FILE:
+        : void GWRITE(character,colour)
+        : void GWRITEDIGITS(word_value,colour)
+        : void GWRITEINT(int_value,colour)
+        : void GWRITELN()
+        : void GWRITESTR(string,colour)
+        : void GWRITEWORD(word_value,colour)
+*/
+?ifndef _GWRITE_
+?define _GWRITE_ TRUE
+?warning FALSE
+
+: void GWRITE ()  /* AL = character to write to screen at cursor
+                     BL = colour to use */
+/* Writes the specified character at the cursor and then advances the
+   cursor.  Bell, CR, and LF are treated as special characters and
+   supported.
+*/
+{
+	BH=0;
+	AH=0xE;
+	$INT 0x10
+}
+
+
+: void GWRITELN ()
+/* Moves the cursor to the beginning of the next line */
+{
+	BH= 0;
+	AX= 0x0E0D;
+	$INT 0x10
+	AX=0x0e0A;
+	$INT 0x10
+}
+
+:void GWRITESTR()  /* AX = offset address of string to write at cursor
+                        BL = colour to use */
+{
+	BH= 0;
+	$PUSH SI
+?ifdef codesize
+	SI><AX;
+?else
+	SI=AX;
+?endif
+UP:
+	AH=0xE;
+	$LODSB
+	$CMP AL,0
+	$JZ DOWN
+	$INT 0x10
+	$JMP SHORT UP
+DOWN:
+	$POP SI
+}
+
+:void GWRITEWORD()  /* AX = word value to write to screen at cursor
+                         BL = colour to use */
+{
+	BH=0;
+	$CMP AX,10000
+	$JNB DOWN1
+	$CMP AX,1000
+	$JNB DOWN2
+	$CMP AX,100
+	$JNB DOWN3
+	$CMP AX,10
+	$JNB DOWN4
+	$JMP SHORT DOWN5
+DOWN1:
+	DX=0;
+	CX=10000;
+	$DIV CX
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+DOWN2:
+	DX=0;
+	CX=1000;
+	$DIV CX
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+DOWN3:
+	CL=100;
+	$DIV CL
+	DL=AH;
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+	AL=DL;
+DOWN4:
+	$AAM
+	DL=AL;
+	AL=AH;
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+	AL=DL;
+DOWN5:
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+}
+
+:void __gwriteword()  /* AX = word value to write to screen at cursor
+                         BL = colour to use */
+{
+	BH=0;
+	$CMP AX,10000
+	$JNB DOWN1
+	$CMP AX,1000
+	$JNB DOWN2
+	$CMP AX,100
+	$JNB DOWN3
+	$CMP AX,10
+	$JNB DOWN4
+	$JMP SHORT DOWN5
+DOWN1:
+	DX=0;
+	CX=10000;
+	$DIV CX
+	$CALL DOWN5
+DOWN2:
+	DX=0;
+	CX=1000;
+	$DIV CX
+	$CALL DOWN5
+DOWN3:
+	CL=100;
+	$DIV CL
+	DL=AH;
+	$CALL DOWN5
+DOWN4:
+	$AAM
+	DL=AL;
+	AL=AH;
+	$CALL DOWN5
+DOWN5:
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+}
+
+:void GWRITEINT()  /* AX = int value to write to screen at cursor
+                        BL = colour to use */
+{
+	$OR	AX,AX
+	$JGE	MEM1
+?ifdef codesize
+	AX><DX;
+?else
+	DX=AX;
+?endif
+	AX=0x0E2D;
+	$INT 0x10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+	-AX;
+MEM1:
+	$CMP AX,10000
+	$JNB DOWN1
+	$CMP AX,1000
+	$JNB DOWN2
+	$CMP AX,100
+	$JNB DOWN3
+	$CMP AX,10
+	$JNB DOWN4
+	$JMP SHORT DOWN5
+DOWN1:
+	DX=0;
+	CX=10000;
+	$DIV CX
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+DOWN2:
+	DX=0;
+	CX=1000;
+	$DIV CX
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+DOWN3:
+	CL=100;
+	$DIV CL
+	DL=AH;
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+	AL=DL;
+DOWN4:
+	$AAM
+	DL=AL;
+	AL=AH;
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+	AL=DL;
+DOWN5:
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+}
+
+:void __gwriteint()  /* AX = int value to write to screen at cursor
+                        BL = colour to use */
+{
+	$OR	AX,AX
+	$JGE	MEM1
+?ifdef codesize
+	AX><DX;
+?else
+	DX=AX;
+?endif
+	AX=0x0E2D;
+	$INT 0x10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+	-AX;
+MEM1:
+	$CMP AX,10000
+	$JNB DOWN1
+	$CMP AX,1000
+	$JNB DOWN2
+	$CMP AX,100
+	$JNB DOWN3
+	$CMP AX,10
+	$JNB DOWN4
+	$JMP SHORT DOWN5
+DOWN1:
+	DX=0;
+	CX=10000;
+	$DIV CX
+	$CALL DOWN5
+DOWN2:
+	DX=0;
+	CX=1000;
+	$DIV CX
+	$CALL DOWN5
+DOWN3:
+	CL=100;
+	$DIV CL
+	DL=AH;
+	$CALL DOWN5
+DOWN4:
+	$AAM
+	DL=AL;
+	AL=AH;
+	$CALL DOWN5
+DOWN5:
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+}
+
+:void GWRITEDIGITS()  /* AX = word value to display all digits at cursor
+                           BL = colour to use */
+{
+	BH=0;
+	DX=0;
+	CX=1000;
+	$DIV CX
+	$AAM
+	AX+=0X3030;
+	CL=AL;
+	AL=AH;
+	AH=14;
+	$INT 0X10
+	AL=CL;
+	AH=14;
+	$INT 0X10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+	CL=100;
+	$DIV CL
+	DL=AH;
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+	AL=DL;
+	$AAM
+	DL=AL;
+	AL=AH;
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+	AL=DL;
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+}
+
+:void __gwritedigits()  /* AX = word value to display all digits at cursor
+                           BL = colour to use */
+{
+	BH=0;
+	DX=0;
+	CX=10000;
+	$DIV CX
+	$CALL NEAR MEM1
+	DX=0;
+	CX=1000;
+	$DIV CX
+	$CALL NEAR MEM1
+	CL=100;
+	$DIV CL
+	DL=AH;
+	$CALL NEAR MEM1
+	$AAM
+	DL=AL;
+	AL=AH;
+	$CALL NEAR MEM1
+MEM1:
+	AL+='0';
+	AH=0xE;
+	$INT 0x10
+?ifdef codesize
+	AX><DX;
+?else
+	AX=DX;
+?endif
+}
+
+:void GWRITEDWORDSP()
+/* EAX = dword value to write to screen at cursor BL = colour to use */
+{
+	DI=FALSE;
+	SI=9;
+	ECX=1000000000;
+	loop(SI){
+		EDX=0;
+		$DIV ECX;
+		IF(AL>0)DI++;
+		IF(DI!=FALSE)AL+='0';
+		ELSE AL=32;
+		AH=14;
+		$INT 0x10
+		$PUSH EDX
+		EAX=ECX/10;
+?ifdef codesize
+		ECX><EAX;
+?else
+		ECX=EAX;
+?endif
+		$POP EAX
+	}
+	AL+='0';
+	AH=14;
+	$INT 0x10
+}
+
+?endif
+/* end of GWRITE.H-- */

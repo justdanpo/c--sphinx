@@ -1,0 +1,160 @@
+/*
+    C-- source code for FUNDOS.COM, the FUNDOS driver program.
+*/
+
+?use80286      /* optimize using 286 op codes */
+?resize TRUE
+?resizemessage "Error resizing memory block.\n"
+?stack 2048
+?parsecommandline FALSE
+
+?include "WRITE.H--"
+?include "DOS.H--"
+?include "FUNDOS.H--"
+
+byte loading = "LOADING ";
+byte fundoserror = "Unable to load FD.COM!\n";
+
+byte fundos = "FD.COM";
+byte fundosparams = "";
+byte spawnprog[STRLENGTH];
+byte spawnparams[STRLENGTH];
+byte spawnpath[STRLENGTH];
+
+
+
+/*
+  SPHINX driver state values:
+     0 = exit to DOS
+     1 = spawn FUNDOS
+     2 = spawn program then enter state 0
+     3 = spawn program then enter state 1
+  SPHINX driver function values (passed in DH):
+     0 = check if installed
+     1 = set driver state value
+     2 = get driver state value
+     3 = get spawn program buffer address
+     4 = set driver error state value
+     5 = get driver error state value
+*/
+
+/****** start of SPHINX interrupt handle (which used to be ROM BASIC) ******/
+
+?define SPHINXINT    0x18   /* haha ROM basic is mine, all mine. */
+
+byte sphinxstate = 0;
+word errorword = 0x8000;
+word oldsphinxhandle[2];
+
+interrupt sphinxhandle()
+{
+IF( AH == 'S' )
+    IF( AL == 'P' )
+        IF( BH == 'H' )
+            IF( BL == 'I' )
+                IF( CH == 'N' )
+                    IF( CL == 'X' )
+                        {sphinxfunctions();
+                        return();}
+$ CS:
+$ JMP FAR oldsphinxhandle
+}
+
+
+void sphinxfunctions()
+{
+$PUSH DS
+DS = CS;
+IF( DH == 1 )         /* set driver state */
+    sphinxstate = DL;
+ELSE IF( DH == 2 )    /* get driver state */
+    DL = sphinxstate;
+ELSE IF( DH == 3 )    /* get spawn program buffer address */
+    {ES = CS;
+    DI = #spawnprog;}
+ELSE IF( DH == 4 )    /* set error state */
+    errorword = DI;
+ELSE IF( DH == 5 )    /* get error state */
+    DX = errorword;
+AL = 's';
+AH = 'p';
+BL = 'h';
+BH = 'i';
+CL = 'n';
+CH = 'x';
+$POP DS
+}
+
+/************************** end of SPHINX int ****************************/
+
+?define  paramlen  DSBYTE[0x80]   /* length of command line */
+?define  paramstr  DSBYTE[0x81]   /* command line string */
+
+
+main()
+{
+IF( paramlen < 4 )       /* minimum path length > C:\< therefore 4 */
+    patherror();
+
+do {
+    sphinxstate = 0;
+    @ GETINTVECT(#oldsphinxhandle,SPHINXINT);   /* get the old handle */
+    hooksphinxint();
+    
+    BL = paramlen;
+    BH = 0;
+    paramstr[BX] = 0;
+    IF( SETPATH( ,#paramstr[1]) != 0 )
+        {unhooksphinxint();
+        patherror();}
+
+    IF( spawn(#fundos,#fundosparams,0) != 0 )
+        WRITESTR(#fundoserror);
+    unhooksphinxint();
+
+    IF( sphinxstate >= 2 )
+        {WRITESTR(#loading);
+        WRITESTR(#spawnprog);
+        WRITELN(0);
+        sphinxstate -= 2;
+        errorword = error_none;
+        errorword ^= SETPATH( ,#spawnpath);
+        IF( errorword == 0 )
+            IF( spawn(#spawnprog,#spawnparams,0) != 0 )
+                errorword ^= error_spawning;
+        }
+
+    } while( sphinxstate != 0 );
+
+WRITESTR("\nSPHINX programming 1994\n");
+}
+
+
+int SETPATH ()     /* string location in BX */
+{IF( DSBYTE[BX] < 'a' )
+    AL = DSBYTE[BX] - 'A';
+ELSE AL = DSBYTE[BX] - 'a';
+IF( SETCURRENTDRIVE(AL) != 0 )
+    return(error_drive);
+IF( SETCURRENTDIR(BX) != 0 )
+    return(error_dir);
+return(0);
+}
+
+
+void patherror ()
+{WRITESTR("Invalid FUNDOS Directory Given.");
+EXIT(1);
+}
+
+
+void hooksphinxint ()
+{SETINTVECT( ,SPHINXINT,CS,#sphinxhandle);  /* GRAB the SPHINX INT */
+}
+
+
+void unhooksphinxint ()
+{SETINTVECT( ,SPHINXINT,oldsphinxhandle[2],oldsphinxhandle[0]);
+}
+
+/* end of FUNDOS.C-- */

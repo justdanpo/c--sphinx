@@ -1,0 +1,58 @@
+/*
+    SPHINX Programming (C) 1993.
+    TITLE:  GUSMOD.H--
+    DESCRIPTION:  This file contains a collection of procedures for using
+                  the EURO_MOD driver.
+                  EURO_MOD.EXE must be run with the first parameter being the
+                  name of your program and any parameters that should be
+                  passed to your program.  EURO_MOD will then hook onto INT
+                  0x18 and spawn your application.  After your program
+                  terminates EURO_MOD will also terminate.
+    LAST MODIFIED:  4 August 1993
+    PROCEDURES DEFINED IN THIS FILE:
+	: void GUS_MOD_INIT()
+	: void GUS_MOD_LOAD(filename)
+	: void GUS_MOD_PLAY()
+	: void GUS_MOD_STOP()
+	: void GUS_MOD_SHUTDOWN()
+*/
+
+
+: void GUS_MOD_INIT ()
+{
+AX = 0x8000;
+$ INT 0x18
+}
+
+
+: void GUS_MOD_LOAD ()      // AX = offset of filename
+{
+BX = DS;
+CX = AX;
+AX = 0x8001;
+$ INT 0x18
+}
+
+
+: void GUS_MOD_PLAY ()
+{
+AX = 0x8002;
+$ INT 0x18
+}
+
+
+: void GUS_MOD_STOP ()
+{
+AX = 0x8003;
+$ INT 0x18
+}
+
+
+: void GUS_MOD_SHUTDOWN ()
+{
+AX = 0x8004;
+$ INT 0x18
+}
+
+
+/* end of GUSMOD.H-- */

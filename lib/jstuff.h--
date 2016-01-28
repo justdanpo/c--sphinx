@@ -1,0 +1,686 @@
+/*
+   CyberRax Programming (C) 1999 - 2000
+   TITLE:   JSTUFF.H--
+   DESCRIPTION:   Some useful (and lots of useless) procedures
+   LAST MODIFIED:   28 Nov 2000
+   PROCEDURES DEFINED IN THIS FILE:
+       : word COMMANDLINE()
+       : byte PARAMETERS()
+       : word COMMANDLINESTRING(number_of_parameter)
+       : void SETFTIME( ,filehandle,time,date)
+       : void DOSWRITESTRING(string)
+       : word ADVANCEDSTRLEN(string)
+       : void TD86TRAP()
+       : void ANTITD86TRAP()
+       : void UNPTRAP()
+       : void ANTIUNPTRAP()
+       : void TRACERTRAP()
+       : void ANTITRACERTRAP()
+       : void DEBUGGERTRAP(offset_address_of_DEBUGGERTRAP)
+       : void ANTIDEBUGGERTRAP(offset_address_of_ANTIDEBUGGERTRAP)
+       : void FLAGCHECK()
+       : void ANTIFLAGCHECK()
+       : void ANTISETINTVECT(,intnum,segment_of_newint,offset_of_newint)
+       : void CLEARMEM(exit_code,size_of_cleaned_space_in_words)
+       : void DUMPPREVENT(DUMPPREVENTCALL)
+       : word INSTCHECK(pointer_to_NAME,size_of_NAME)
+       : void FINDPATH()
+       : word COMPAREWORDFAR(buf1_offset,buf2_segment,buf2_offset,words)
+       : byte GETINT(interrupt_number)
+       : byte GETLASTPRESSEDKEY()
+       : void RELOCATE(#LastVariable)    // see extended text below
+       : void CHECK(MainNum, BigNum, SmallNum)
+       : void RESTORE_DS()
+       : void RESTORE_ES()
+*/
+
+
+// Declaring procedures
+void CLEARMEM (AX,CX);
+void CHECK (BX,CX,DX);
+word COMPAREWORDFAR (SI,AX,DI,CX);
+word COMMANDLINESTRING (CX);
+void DUMPPREVENT (SI);
+void DOSWRITESTRING (DX);
+
+
+
+: void CHECK ()   // ver. 2.02, optimized by 1 byte
+/* Checks if unsigned MainNum is smaller than unsigned BigNum and bigger than
+   unsigned SmallNum.
+   Size: 29 bytes
+*/
+{
+	AX=0;
+	IF(BX>=CX){
+		IF(NOTZEROFLAG)AH++;
+		AH++;
+	}
+	IF(BX<=DX){
+		IF(NOTZEROFLAG)AX++;
+		AX++;
+	}
+}
+/* Returns: BX, CX, DX = not changed
+            AH = 0 if smaller, AH = 1 if equal, AH = 2 if bigger to BigNum
+            AL = 0 if bigger, AL = 1 if equal, AL = 2 if smaller to SmallNum
+*/
+
+
+
+: void SETFTIME ()
+/* Sets file date and time.
+   Size:
+*/
+{
+? DOSrequired 0x0200
+	AX = 0x5701;
+	$INT 0x21
+}
+/* Returns: AX = undefined on success
+            errorcode in AX and CARRYFLAG set on error
+*/
+
+
+
+: void TD86TRAP ()   // ver. 1.1, bugfixed
+/* A little trap for Borland's Turbo Debugger in 86 mode, so the debugger
+   will crash by debugging. The trick is the HLT command which TD doesn't
+   like
+   Size: 6 bytes
+   PS! The program will work correctly under other debuggers or when the
+       program isn't debugged. You have to use this procedure as a macro
+       (by putting @ in front of TD86TRAP() when calling) to disable TD's
+       'Step over' (F8) feature.
+*/
+{
+	$JMP SHORT TD_TRAP
+	$DB 0xEA
+TD_TRAP:
+	$STI
+	$HLT
+	$INT 3
+}
+/* Returns: nothing
+*/
+
+
+
+: void ANTITD86TRAP ()
+/* A trap "replacement" for TD86TRAP() for use during testing (I use TD muself
+   and I'd hate to continously shut the computer off and on because my own
+   trap forces me to)
+   Size: also 6 bytes
+*/
+{
+	$DB 6 dup 0x90
+}
+
+
+
+: void UNPTRAP ()
+/* A trap for UNP and DOS Debug: UNP will fail tracing because of the INT 1 and
+   Debug can't go over the INT 3
+   Size: 3 bytes
+*/
+{
+	$INT 1
+	$INT 3
+}
+
+
+
+: void ANTIUNPTRAP ()
+/* A replacement for UNPTRAP() for testing.
+   Size: 3 bytes
+*/
+{
+	$DB 3 dup 0x90
+}
+
+
+
+: void TRACERTRAP ()   // ver. 1.01, no AX preserving anymore
+/* A general (I hope) trap for tracers and some debuggers (atleast it stops
+   UNP), which works by clearing the Trap flag.
+   Size: 7 bytes
+*/
+{
+	$PUSHF
+	$POP AX
+	$AND AX,0xFEFF
+	$PUSH AX
+	$POPF
+}
+/* Returns: AX = destroyed
+*/
+
+
+
+: void ANTITRACERTRAP ()
+/* A secure replacement for TRACERTRAP()
+   Size: 7 bytes
+*/
+{
+	$DB 7 dup 0x90
+}
+
+
+
+: void DEBUGGERTRAP ()
+/* A stack trick to make debuggers crash, which exploits the fact that most
+   real mode debuggers don't have their own stack but use the stack of
+   debugged program. This procedure sets the stack inside itself and by that
+   some of the program is overwritten with debugger's stack (if no debugger
+   is present or a protected mode debugger is used (probably) then the program
+   will work without any problems).
+   Size: 26 bytes
+*/
+{
+	AX += 16;
+	$CLI
+	BX = SS;
+	CX = SP;
+	$PUSH CS
+	$POP SS
+	SP = AX;
+	$NOP
+	$NOP
+	$JMP SHORT OVERTRAP
+	$INT 0x20
+OVERTRAP:
+	SP = CX;
+	SS = BX;
+	$STI
+}
+/* Returns: AX = BX = CX = destroyed
+*/
+
+
+
+: void ANTIDEBUGGERTRAP ()
+/* A replacement for DEBUGGERTRAP()
+   PS! You MUST call this procedure like DEBUGGERTRAP(), this means calling
+       ANTIDEBUGGERTRAP(offline_address_of_ANTIDEBUGGERTRAP()) is RIGHT, but
+       ANTIDEBUGGERTRAP() is WRONG.
+   Size: 26 bytes
+*/
+{
+	$DB 23 dup 0x90
+}
+/* Returns: AX = destroyed, all other registers are preserved
+*/
+
+
+
+: void DOSWRITESTRING ()
+/* Prints the string to the screen using DOS interrupt. A replacement for
+   standard DOSWRITESTR(), which is 2 bytes larger.
+   Size: 7 bytes
+*/
+{
+? DOSrequired 0x0100
+	AH = 9;
+	$INT 0x21
+}
+/* Returns: AH = 0x0924(?)
+*/
+
+
+
+: void FLAGCHECK ()
+/* Add-on for TRACERTRAP() which should be called after TRACERTRAP()
+   and checks if Trap flag is still cleared. If not then a real mode
+   debugger might be present.
+   Size: 5 bytes
+*/
+{
+$PUSHF
+$POP AX
+AX &= 0x100;
+}
+/* Returns: AX = 0 if debugger present
+            AX <> 0 if no debugger
+*/
+
+
+
+: void ANTIFLAGCHECK ()
+/* A replacement for FLAGCHECK(). This procedure sets AX <> 0 as there
+   wouldn't be any debugger.
+   Size: 5 bytes
+*/
+{
+AX = 0x23;
+$NOP
+$NOP
+}
+/* Returns: AX = BX = 35
+*/
+
+
+
+: void ANTISETINTVECT ()
+/* A temporary replacement for SETINTVECT(). This procedure here has a
+   limitation: ES won't be destroyed so you have to remember to PUSH
+   and POP it if you need to preserve this register even if this procedure
+   here doesn't kill it
+   Size: 31 bytes
+*/
+{
+$DB 17 dup 0x90
+}
+/* Returns: nothing changed
+*/
+
+
+
+: void CLEARMEM ()
+/* Erases the program (COM file) from memory. That happens by filling the
+   memory at CS:100h to the point specified with spaces. A security mesurment.
+   After that the program terminates with the specified exit-code
+   Size: 16-18 bytes
+*/
+{
+	DI=0x100;
+#ifdef codesize
+	$push AX
+	$push CS
+	$pop ES
+	AL=0x20;
+	$rep $stosb
+	$pop AX
+#else
+	loop(CX){
+		CSWORD[DI]=0x2020;
+		DI++;
+		DI++;
+	}
+#endif
+	AH = 0x4C;
+	$INT 0x21
+}
+/* Returns: nothing
+*/
+
+
+
+: void DUMPPREVENT ()   // ver. 1.01, 'more logic' calling format
+/* Prevents the program from being dumped by programs   la LCDump (by
+   CyberRax  :) by checking a byte and if it's not what it supposed to
+   be then the program terminates. If the byte is OK then it'll be
+   set wrong, so the dumped version will terminate.
+   Call at the beginning of the program to get the best result.
+   PS!  Use the next 3 lines
+                         DUMPREVENTCALL:
+                         $NOP
+                         @DUMPPREVENT(DUMPPREVENTCALL);
+        if you want this macro to work.
+   PS!  This code won't stop anyone who knows assembler
+   Size: 11 bytes
+*/
+{
+// The next 2 lines MUST be included
+// DUMPPREVENTCALL:
+// $NOP
+	IF (DSBYTE[DI] != 0x90)$INT 0x20
+	DSBYTE[DI] = 0xF4;
+}
+/* Returns: DI = not destroyed
+*/
+
+
+
+: void FINDPATH ()
+/* Determines program's path, this means the coplete commandline like
+   C:\..\FILE.EXT, INCLUDING the filename and extension.
+   Size: 21 bytes
+*/
+{
+? DOSrequired 0x0300
+	SI = 0;
+	CX = 0x8001;
+	DS = DSWORD[0x2C];
+	loop(CX){
+		$lodsw
+		IF(AX==1)GOTO MACRO_END;
+		$DEC SI
+	}
+	SI = 0;
+MACRO_END:
+}
+/* Returns:  CX = destroyed
+             Pathname in DS:SI if success
+             DS = destroyed!, SI= 0 if error occoured
+*/
+
+
+
+: word INSTCHECK ()
+/* Checks whether the program with name "name" is already resident in
+     memory.
+   "name" points to a null-terminated string containing the name of
+     the program. "len" is equal to strlen(name)+1 if strlen(name)<8,
+     and 8 otherwise.
+   This routine will only work correctly  under DOS 4+, unless your
+     program writes its name in its Memory Control Block.  Moreover,
+     it will fail to detect programs loaded high.
+
+  Written by Jean-Marc Lasgouttes (Jean-Marc.Lasgouttes@inria.fr).
+  Modified by SPHINX.
+  Converted to REG procedure by CyberRax
+
+  PS! This is almost a 100% copy of instcheck() in TSR.H-- I converted
+      and included it only because I needed this REG procedure in my REx-trick.
+  Size: 64-66 bytes
+*/
+{
+?DOSrequired 0x0200
+	$PUSH BX,AX
+	AH = 0x52;
+	$INT 0x21;
+#ifdef codesize
+	BX--;
+	BX--;
+#else
+	BX -= 2;
+#endif
+	ES = ESWORD[BX];
+	do {
+		$CLD
+		$POP CX
+		DI = 8;
+		$POP SI
+		SP -= 4;
+		$REPZ $CMPSB
+		IF (ZEROFLAG){
+			DX = ES+1;
+			AX = CS;
+			IF (AX <> DX ) && (DX == ESWORD[1]){
+#ifdef codesize
+				AX><DX;
+#else
+				AX = DX;
+#endif
+				$JMP SHORT ENDED
+			}
+		}
+		ES = ES+ESWORD[3]+1;
+	} while (ESBYTE[0] <> 0x5A);
+	AX = 0;
+ENDED:
+}
+/* Returns: AX = segment of the first block in memory that:
+               - has the name "name"
+               - owns itself
+               - is not the current program.
+            AX = 0 if no such block exists.
+            BX, CX, DX, SI, DI, ES, destroyed
+*/
+
+
+
+: word ANTIINSTCHECK ()
+/* Replacement for INSTCHECK(), simulates a checking (and finding)
+   Size: 71 bytes
+*/
+{
+AX = 0x1234;
+$XOR BX,AX
+$XOR CX,AX
+$XOR DX,AX
+$XOR SI,AX
+$XOR DI,AX
+ES = 1233;
+$DB 46 dup 0x90
+#ifdef speed
+   $NOP
+#endif
+}
+/* Returns: AX, BX, CX, DX, SI, DI, ES, SP destroyed
+*/
+
+
+: word COMPAREWORDFAR ()   // ver. 1.03, optimized by 11 bytes by M. Sheker
+/* Compares X words at DS:SI with words at ES:DI. Basically STRCMP(),
+   just doesn't need the 0 byte as end-of-string identifier
+   PS!   If you need different DS then you have to set it before calling
+         this procedure.
+   Size: 11 bytes
+*/
+{
+	ES = AX;
+	AX=0;
+	$CLD
+	$REP $CMPSW
+	IF(NOTZEROFLAG)AX++;
+}
+/* Returns: AX = CX = 0 if success
+            AX = 1, CX undetermined by failure
+            SI, DI, ES destroyed
+*/
+
+
+: byte GETINT ()
+/* Gets the address of wanted interrupt vector
+   Size: 7 bytes
+*/
+{
+? DOSrequired 0x0200
+	AH = 0x35;
+	$INT 0x21
+}
+/* Returns: address of vector in ES:BX
+*/
+
+
+: word COMMANDLINE ()   // ver. 1.1, 100% '?pasecommandline' compatible
+/* Sets the commandline up by removing spaces and TABs and determining the
+   length. Almost a byte-match of code which is added when ?parsecommandline
+   was set to TRUE.
+   Differences: commandline is being set up at CS:81 (original place) not at
+                   the end of program
+                treats TABs as spaces, thus removing them
+                returns the number of parameters
+                is not necessary for other 'commandline handling procedures'
+   So like '?pasecommandline' and PARAMSTR() all in one
+   This code was added because it can be used inside the program (and not only
+   at the beginning).
+   Size: 51-53 bytes
+*/
+{
+	DX=0;
+	ES=CS;
+	DI = 0x81;
+	SI = DI;
+	BL = 1;
+	$LODSB
+	WHILE(AL!=0xD){
+		WHILE(AL<=0x20)$LODSB
+		do{
+			$STOSB
+			$LODSB
+			DL+=BL;
+			BX=0;
+		}while(AL>0x20);
+		ESBYTE[DI]=BL;
+		BL = 1;
+		DI++;
+	}
+	AX=0;
+	$STOSW
+	DSBYTE[0x80] = DL;
+	AX = DX;
+}
+/* Returns: AX = DX = number of parameters, BX = 0 if any parameters
+            AX = DX = 0, BX = 1 if no parameters
+            SI, DI undetermined
+            ES = CS
+*/
+
+
+: byte PARAMETERS ()
+/* Returns the number of parameters on commandline
+   The same as PARAMSTR(), just doesn't need '?pasecommandline'
+   PS!   DS must equal to segment of PSP (usually CS)
+   Size: 4 bytes
+*/
+{
+	AL=DSBYTE[0x80];
+}
+
+
+
+: word COMMANDLINESTRING ()
+/* Returns the address of parameter nr. AX
+   The same as PARAMSTR(x), just doesn't need '?parsecommandline TRUE'
+   First parameter has the number 0, not 1
+   DS must equal to CS
+   Size: 22-23 bytes
+*/
+{
+	BX = 0x81;
+	LOOPNZ(CX){
+		IF(DSBYTE[BX]==0)BREAK;
+		do{
+			BX++;
+		}while(DSBYTE[BX]!=0);
+		BX++;
+	}
+	AX = BX;
+}
+/* Returns: AX = BX = address of parameter string
+                      (so COMMANDLINESTRING(0) will return 0x81)
+            CX = 0
+*/
+
+
+
+: void RELOCATE ()   // ver. 1.11, uses advantages of C-- 0.235
+/* Relocates the program from CS:100h to CS:40h saving so 192 bytes. This is
+   mainly ment for TSRs to make them smaller.
+
+   Thanks to this procedure the program might overwrite among other things
+   the original commandline at CS:81h (if the program is big enough), so the
+   parameters should be examined first (if anything is needed from them)
+   if COMMANDLINE() is used.
+
+   Calling: add line
+
+                         byte LastVariable;
+
+            as the LAST line of program and then call this procedure with
+            the address of this parameter (like  @RELOCATE(#LastVariable); )
+
+   NOTE: if you use the segment address given by the TSR for FREEMEM() then
+         you have to add Ch (12) to it (else FREEMEM() will fail)
+         by KEEP() you better substract 0xC0 from the end-address to get
+         the effect of RELOCATE()
+
+   Size: 49 bytes
+*/
+{
+CX = AX - 0x100;
+AX += 16;
+SP >< AX;
+$PUSH 0xCB50,0x1E58,0xC08E,0xD88E,0x0CE8,0x83D8,0x8CA4,0xF3FC
+
+/***
+The above code pushes the following into the end of program:
+
+	$CLD
+	$REP $MOVSB
+	AX = DS;
+	AX -= 0xC;
+	DS = AX;
+	ES = AX;
+	$POP AX
+	$PUSH DS
+	$PUSH AX
+	$RETF
+***/
+
+AX >< SP;
+SI = 0x100;
+DI = 0x40;
+$CALL AX;
+}
+/* Returns: CS = DS = ES = new (relocated) segment
+            BX = IP
+            DI = SI = destroyed
+            CX = 0
+*/
+
+
+
+: void RESTORE_DS ()
+/* Sets DS to CS
+   PS!   Use as a macro (by calling @RESTORE_DS();)
+   Size: 2 bytes
+*/
+{
+	$PUSH CS
+	$POP DS
+}
+
+
+
+: void RESTORE_ES ()
+/* Sets ES to CS
+   PS!   Use as a macro (by calling @RESTORE_ES();)
+   Size: 2 bytes
+*/
+{
+	$PUSH CS
+	$POP ES
+}
+
+
+: word ADVANCEDSTRLEN ()   // ver. 1.01, returns type of terminator
+/* Determines the length of a string terminating with 0 or ','
+   Differs from standard STRLEN() by accepting ',' also as terminator
+   Size: 25 bytes
+*/
+{
+	DX=0;
+	BX = AX;
+	BX--;
+
+LENGTH_CHECK_LOOP:
+
+	BX++;
+
+	$CMP DSBYTE[BX],0
+	$JE ASL_END
+	$CMP DSBYTE[BX],','
+	$JE ASL_ENDING
+
+	$JMP SHORT LENGTH_CHECK_LOOP
+
+ASL_ENDING:
+	DX++;
+
+ASL_END:
+	BX -= AX;
+	AX >< BX;
+}
+/* RETURNS:  AX = length of string, not including 0 or ',' terminator.
+             BX = start adress string
+             DX = type of terminator: 0 - '0'
+                                      1 - ','
+*/
+
+
+
+: byte GETLASTPRESSEDKEY ()
+/* Gets the keycode of last pressed key from keyboard port 60h
+   Size: 2 bytes
+*/
+{
+	$IN AL,0x60
+}
+/* Returns: AL = keycode
+*/
+
+
+/* end of JSTUFF.H-- */

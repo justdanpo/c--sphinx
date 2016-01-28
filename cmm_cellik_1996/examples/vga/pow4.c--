@@ -1,0 +1,180 @@
+/*
+     SPHINX C-- program of POW4
+*/
+
+?include "VIDEO.H--"
+?include "WRITE.H--"
+?include "RANDOM.H--"
+?include "DOS.H--"
+?include "KEYCODES.H--"
+
+
+?define  DOTS         1000    /* maximum number around 6666 or so */
+?define  MAXCHANGE       5
+?define  MINCHANGE       1
+
+?define  CHANGEMOD        MAXCHANGE *2 + 1
+?define  MODCHANGE        CHANGEMOD *2 + 1
+?define  LOCATIONCHANGE   100
+
+?define  HI256  0x5C   // vid_800x600_256_ATI /* 99 for ATI VGA Wonder 800x600-256 */
+                                    /* 98 for ATI VGA Wonder 640x480-256 */
+                                    /* 97 for ATI VGA Wonder 640x400-256 */
+
+
+?define  XMAX     800    /* X width of screen in pixels */
+?define  YMAX     600    /* Y width of screen in pixels */
+
+?define  STARTXMOD    XMAX-100
+?define  STARTYMOD    YMAX-100
+?define  STARTX       XMAX / 2
+?define  STARTY       YMAX / 2
+
+
+word x[DOTS],y[DOTS];
+int xchange[DOTS],ychange[DOTS];
+byte color[DOTS];
+
+word startx=STARTX, starty=STARTY;
+byte startcolor=15;
+byte quit=0;
+
+
+main()
+{
+@ RANDOMIZE();
+@ SETVIDEOMODE( HI256 );
+
+IF( GETVIDEOMODE() <> HI256 )
+    {WRITESTR("Unable to enter 800x600-256 video mode");
+    @ EXIT(1);
+    }
+
+DI = 0;
+ES = 0xA000;
+
+do { SI = DI+DI;
+     x[SI] = startx;
+     y[SI] = starty;
+
+     xchange[SI] = RAND() % CHANGEMOD - MAXCHANGE;
+     ychange[SI] = RAND() % CHANGEMOD - MAXCHANGE;
+
+     BL = 0;
+     AX = xchange[SI];
+     IF( AX < 0 )
+         - AX;
+     IF( AX >= MINCHANGE )
+         BL = 1;
+     AX = ychange[SI];
+     IF( AX < 0 )
+         - AX;
+     IF( AX >= MINCHANGE )
+         BL = 1;
+     IF( BL == 0 )
+         xchange[SI] = MINCHANGE;
+
+     color[DI] = startcolor;
+
+     XORPIXEL_EVGA256();
+
+     DI++;
+    } while(DI < DOTS);
+
+startcolor = 1;
+
+do {
+    @KBHIT();
+    IF(AX != 0)
+        {@BIOSREADKEY();
+        IF(AX == k_esc)
+            quit = 1;
+        }
+
+    DI = 0;
+    do {
+        SI = DI+DI;
+
+        BX = 0;               /* let BX be a flag */
+        IF( x[SI] >= XMAX )
+            BX = 1;
+        IF( y[SI] >= YMAX )
+            BX = 1;
+        if( BX == 0 )
+            {
+            XORPIXEL_EVGA256();
+            x[SI] += xchange[SI];
+            y[SI] += ychange[SI];
+
+            BX = 0;               /* let BX be a flag */
+            IF( x[SI] >= XMAX )
+                BX = 1;
+            IF( y[SI] >= YMAX )
+                BX = 1;
+            IF( BX == 0 )
+                XORPIXEL_EVGA256();
+            }
+        else{
+            AX = RAND() % LOCATIONCHANGE;
+            IF( AX == 0 )
+                {startx = RAND() % STARTXMOD + 50;
+                starty = RAND() % STARTYMOD + 50;
+                startcolor = RAND() /*& 15*/;   /* allow any colour 0 to 15 */
+                }
+            x[SI] = startx;
+            y[SI] = starty;
+
+            do {
+                xchange[SI] = RAND() % MODCHANGE - MAXCHANGE;
+                ychange[SI] = RAND() % MODCHANGE - MAXCHANGE;
+                BL = 0;
+
+                AX = xchange[SI];
+                IF( AX < 0 )
+                    - AX;
+                IF( AX >= MINCHANGE )
+                    BL = 1;
+                AX = ychange[SI];
+                IF( AX < 0 )
+                    - AX;
+                IF( AX >= MINCHANGE )
+                    BL = 1;
+                } while (BL == 0);
+
+            color[DI] = startcolor;
+            XORPIXEL_EVGA256();
+            }
+        DI ++;
+        } while( DI < DOTS );
+    } while( quit == 0);
+
+@ SETVIDEOMODE( 3 );
+WRITESTR("SPHINX Programming 1993");
+}
+
+
+
+XORPIXEL_EVGA256()
+{
+AX = XMAX * y[SI];   /* Multiply X width by Y coord and store in AX */
+AX += x[SI];
+$ ADC DL,0      /* INC DL if addition of x coord caused a carry */
+BX = AX;        /* the offset address is now in BX */
+CH = DL;        /* CH is now the memory plane to select */
+DX = 0x01CE;    /* move port number into DX */
+AL = 0xB2;
+$ CLI           /* disable interrupts so not to interfere with port writing */
+$ OUT DX,AL     /* SELECTION OF VIDEO MEMORY PLANE STARTS */
+DL++;
+$ IN AL,DX      /* read from port DX into AL */
+AH = AL;
+AH &= 0xE1;
+CH += CH;
+AH |= CH;
+AL = 0xB2;
+DL--;
+$ OUT DX,AX     /* VIDEO MEMORY PLANE IS SELECTED */
+$ STI                      /* enable interrupts */
+ESBYTE[BX] ^= color[DI];   /* XOR pixel in memory */
+}
+ÿÿ

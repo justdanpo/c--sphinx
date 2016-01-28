@@ -1,0 +1,655 @@
+/*
+    SPHINX Programming (C) 1994.
+    NAME:  FILE.H--
+    DESCRIPTION:  File related constant definitions and procedures.
+    LAST MODIFIED:  18 Dec 1994
+    PROCEDURES DEFINED IN THIS FILE:
+        : word appendfile(filename,bufsegment,bufoffset,bytes)
+        : word close(filehandle)
+        : word create(filename,attribute)
+        : word open(filename,byte mode)
+        : word read(filehandle,bufferoffset,bytes)
+        : word readfar(filehandle,bufferseg,bufferoffset,bytes)
+        : word readfile(filename,bufseg,bufoff,bytes)
+        : word write(filehandle,bufferoffset,bytes)
+        : word writefar(filehandle,bufferseg,bufferoffset,bytes)
+        : word writefile(filename,bufseg,bufoff,bytes)
+        :dword FILELENGTH32(handl) //ВОЗВРАЩАЕТ ДЛИНУ ФАЙЛА В EAX
+        :word FILELENGTH(handl)    //ВОЗВРАЩАЕТ ДЛИНУ ФАЙЛА В DX:AX
+        :MOUNTDSK()                //AL-ДИСК 0-A 1-B 2-C ...
+        :UNMOUNTDSK()              //AL-ДИСК 0-A 1-B 2-C ...
+        :SIZEDSK(disk)             //ВОЗВРАЩАЕТ РАЗМЕР ДИСКА В DX:AX
+        :FREESIZEDSK(disk)         //ВОЗВРАЩАЕТ РАЗМЕР СВОБОДНОГО МЕСТА НА ДИСКЕ В DX:AX
+        :FNSPLIT(fullname,disk,dir,name,ext) //РАЗБИВАЕТ ИМЯ ФАЙЛА НА ДИСК ДИРЕКТОРИЮ РАСШИРЕНИЕ
+        :FNMERGE(fullname,disk,dir,name,ext) //СОБИРАЕТ ПОЛНОЕ ИМЯ ФАЙЛА ИЗ КОМПОНЕНТ
+        :void LSEEK(,handl,hofs.lofs)	//устанавливает указатель файла в опр положение
+        :byte TYPEDRIVE(numdisk,buf)	// ВОЗВРАЩАЕТ ТИП ДИСКОВОГО УСТРОЙСТВА
+        :void LSEEKHOME(,handl)    // УСТАНАВЛИВАЕТ УКАЗАТЕЛЬ В ФАЙЛЕ НА НАЧАЛО
+        :word READFAR(,handl,size,segm) //чтение в указаный сегмент
+        :word WRITEFAR(,handl,size,segm)//запись в указаный сегмент
+        :CHMOD(,,atr,name)          //УСТАНОВКА АТРИБУТОВ
+        :word READATR(name)         //ЧТЕНИЕ АТРИБУТОВ
+        :void REMOVER(,,,name)      // Абсолютное удаление файла, даже если он имеет атрибут только чтение;
+        :dword SIZE_FILE32(,,,file_name) //размер неоткрытого файла
+        :void SET_DRIVE(,,,disk)    // Устанавливает текущий диск
+        :void MKDIR(,,,namedir)     // Создает директорию
+        :void RMDIR(,,,namedir)     // Удаляет директорию
+        :void CHDIR(,,,namedir)     // Устанавливает текущую директорию
+        :void RENAME(,,,file_old,file_new)//Переименование или перемещение в
+                                            другой каталог на том же диске
+        :word FSEEK(byte mode;word handl,seek_h,seek_l)
+        :word FSEEK32(byte mode;word handl,;dword seek)
+*/
+?ifndef _FILE_
+?define _FILE_ TRUE
+?warning FALSE
+
+/*** file access constansts for use with open() and FOPEN() ***/
+
+enum { F_READ, F_WRITE, F_READWRITE };
+
+/*** file attribute constants for use with create() and FCREATE() ***/
+
+?define  FA_NORMAL     0x00
+?define  FA_READONLY   0x01
+?define  FA_HIDDEN     0x02
+?define  FA_SYSTEM     0x04
+?define  FA_VOLUME     0x08
+?define  FA_DIRECTORY  0x10
+?define  FA_ARCHIVE    0x20
+
+/*** standard input, output, error, auxilary and printer file handles ***/
+
+?define  STDIN    0
+?define  STDOUT   1
+?define  STDERR   2
+?define  STDAUX   3
+?define  STDPRN   4
+
+/****** procedure definitions ******/
+
+:word open(word filename;byte mode)
+{
+?DOSrequired 0x200
+	AL=mode;
+	DX=filename;
+	AH=0x3D;
+	$INT 0x21
+	IF(CARRYFLAG)AX=0;
+}
+
+:word create(word filename,attribute)
+{
+?DOSrequired 0x200
+	CX=attribute;
+	DX=filename;
+	AH=0x3C;
+	$INT 0x21
+	IF(CARRYFLAG)AX=0;
+}
+
+:word close(word filehandle)
+{
+?DOSrequired 0x200
+	BX=filehandle;
+	AH=0x3E;
+	$INT 0x21
+	IF(NOTCARRYFLAG)AX=0;
+}
+
+:word readfile(word filename,bufseg,bufoff,bytes)
+inline
+{?DOSrequired 0x0200
+$DB 0x55,0x89,0xE5,0x8B,0x56,0x0A,0xB8,0x00,0x3D,
+    0xCD,0x21,0x73,0x04,0x31,0xC0,0xEB,0x1a,0x93,0x1e,
+    0x8e,0x5e,0x08,0x8B,0x56,0x06,0x8B,
+		0x4E,0x04,0xB4,0x3F,0xCD,0x21,0x73,0x02,0x31,0xC0,
+		0x92,0xB4,0x3E,0xCD,0x21,0x92,0x1F,0x5D,0xC2,0x08,0x00
+}
+
+:word appendfile(word filename,bufsegment,bufoffset,bytes)
+inline
+{?DOSrequired 0x0200
+$DB 0x55,0x8B,0xEC,0x8B,0x56,0x0A,0xB8,0x01,0x3D,
+    0xCD,0x21,0x73,0x0c,0xB4,0x3C,0x33,0xC9,0xCD,0x21,
+		0x73,0x04,0x33,0xC0,0xeb,0x25,0x93,0xB8,0x02,0x42,
+		0x33,0xC9,0x33,0xD2,0xCD,0x21,0x72,0x10,0x1e,
+		0x8e,0x5e,0x08,0x8B,0x56,0x06,0x8B,0x4E,
+		0x04,0xB4,0x40,0xCD,0x21,0x73,0x02,0x33,0xC0,0x92,
+		0xB4,0x3E,0xCD,0x21,0x92,0x1F,0x5D,0xC2,0x08,0x00
+}
+
+:word writefile(word filename,bufseg,bufoff,bytes)
+inline
+{?DOSrequired 0x0200
+$DB 0x55,0x89,0xE5,0x8B,0x56,0x0A,0xB4,0x3C,0x31,
+    0xC9,0xCD,0x21,0x73,0x04,0x31,0xC0,0xeb,0x1a,0x93,
+		0x1e,0x8e,0x5e,0x08,0x8B,0x56,0x06,
+		0x8B,0x4E,0x04,0xB4,0x40,0xCD,0x21,0x73,0x02,0x31,
+		0xC0,0x92,0xB4,0x3E,0xCD,0x21,0x92,0x1F,0x5D,0xC2,
+		0x08,0x00
+}
+
+:word read(word filehandle,bufferoffset,bytes)
+inline
+{?DOSrequired 0x0200
+$DB 0x58,0x59,0x5A,0x5B,0x50,0xB4,0x3F,0xCD,0x21,0x73,
+    0x02,0x31,0xC0,0xc3
+}
+
+:word readfar(word filehandle,bufferseg,bufferoffset,bytes)
+inline
+{?DOSrequired 0x0200
+$DB 0x58,0x59,0x5A,0x1F,0x5B,0x50,0xB4,0x3F,0xCD,0x21,
+    0x73,0x02,0x31,0xC0,0x0E,0x1f,0xc3
+}
+
+:word write(word filehandle,bufferoffset,bytes)
+inline
+{?DOSrequired 0x0200
+$DB 0x58,0x59,0x5A,0x5B,0X50,0xB4,0x40,0xCD,0x21,0x73,
+    0x02,0x31,0xC0,0xC3
+}
+
+:word writefar(word filehandle,bufferseg,bufferoffset,bytes)
+inline
+{?DOSrequired 0x0200
+$DB 0x58,0x59,0x5A,0x1F,0x5B,0x50,0xB4,0x40,0xCD,0x21,
+    0x73,0x02,0x31,0xC0,0x0E,0x1f,0xc3
+}
+
+:dword FILELENGTH32()
+//ВОЗВРАЩАЕТ ДЛИНУ ФАЙЛА В EAX
+{
+?ifdef codesize
+	BX><AX;
+?else
+	BX=AX;
+?endif
+	CX=0;
+	DX=0;
+	AX=0X4202;
+	$INT 0X21
+	$PUSH DX
+	$PUSH AX
+	$POP EAX
+}
+
+:word FILELENGTH()
+//ВОЗВРАЩАЕТ ДЛИНУ ФАЙЛА В DX:AX
+{
+?ifdef codesize
+	BX><AX;
+?else
+	BX=AX;
+?endif
+	CX=0;
+	DX=0;
+	AX=0X4202;
+	$INT 0X21
+}
+:word MOUNTDSK()
+//AL-ДИСК 0-A 1-B 2-C ...
+{
+	DL=AL;
+	AX=0X5F07;
+	$INT 0X21
+//ВЫХОД: CF-УСТ - ОШИБКА
+}
+
+:word UNMOUNTDSK()
+{
+	DL=AL;
+	AX=0X5F08;
+	$INT 0X21
+}
+
+:word SIZEDSK()
+//ВХОД AL - ДИСК 1,2... 0-ТЕКУЩИЙ
+//ВОЗВРАЩАЕТ РАЗМЕР ДИСКА В DX:AX
+{
+	DL=AL;
+	AH=0X36;
+	$INT 0X21
+	IF(AX<>-1){
+		BX=DX;
+		$MUL CX
+		$MUL BX
+	}
+	ELSE DX=AX;
+}
+
+:word FREESIZEDSK()
+//ВХОД AL - ДИСК 1,2... 0-ТЕКУЩИЙ
+//ВОЗВРАЩАЕТ РАЗМЕР СВОБОДНОГО МЕСТА НА ДИСКЕ В DX:AX
+{
+	DL=AL;
+	AH=0X36;
+	$INT 0X21
+	IF(AX<>-1){
+		$MUL CX
+		$MUL BX
+	}
+	ELSE DX=AX;
+}
+
+?define MAXPATH	80
+?define MAXDRIVE	3
+?define	MAXDIR	66
+?define MAXFILE	9
+?define	MAXEXT	5
+
+:void FNSPLIT()
+//РАЗБИВАЕТ ИМЯ ФАЙЛА НА ДИСК ДИРЕКТОРИЮ РАСШИРЕНИЕ
+/*	AX-ПОЛНОЕ ИМЯ ФАЙЛА
+		BX-БУФЕР ДЛЯ ИМЕНИ ДИСКА
+		CX-БУФЕР ДЛЯ ДИРЕКТОРИИ
+		DX-БУФЕР ДЛЯ ИМЕНИ ФАЙЛА
+		DI-БУФЕР ДЛЯ РАСШИРЕНИЯ
+ */
+{
+	$PUSH SI
+?ifdef codesize
+	SI><AX;
+?else
+	SI=AX;
+?endif
+	ES=DS;
+	DI><BX;
+	IF(DI!=0){
+		IF(DSBYTE[SI+1]==':'){
+			$MOVSW
+		}
+		AL=0;
+		$STOSB
+	}
+	IF(CX!=0){
+		DI><CX;
+		IF(DSBYTE[SI]=='\\'){
+			$PUSH SI
+			CX=0;
+			do{
+				$LODSB
+				CX++;
+			}while(AL!=0);
+			$STD
+			SI--;
+			do{
+				$LODSB
+				CX--;
+			}while(AL!='\\');
+			CX++;
+			$POP SI
+			$CLD
+			$REPE
+			$MOVSB
+		}
+		AL=0;
+		$STOSB
+	}
+	IF(DX!=0){
+		DI><DX;
+		CX=8;
+		loop(CX){
+			$LODSB
+			IF(AL=='.'){
+				SI--;
+				$JMP SHORT EN1
+			}
+			IF(AL==0){
+				SI--;
+				$JMP SHORT EN2
+			}
+			$STOSB
+		}
+	EN1:
+		AL=0;
+	EN2:
+		$STOSB
+	}
+	IF(BX!=0){
+		DI><BX;
+		do{
+			$LODSB
+			$STOSB
+		}while(AL!=0);
+	}
+	$POP SI
+}
+
+:void FNMERGE()
+//СОБИРАЕТ ПОЛНОЕ ИМЯ ФАЙЛА ИЗ КОМПОНЕНТ
+/*	AX-БУФЕР ДЛЯ ПОЛНОГО ИМЕНИ ФАЙЛА
+		BX-ИМЯ ДИСКА
+		CX-ИМЯ ДИРЕКТОРИИ
+		DX-ИМЯ ФАЙЛА
+		DI-РАСШИРЕНИЕ
+ */
+{
+	$PUSH SI
+	SI=BX;
+	BX=DI;
+?ifdef codesize
+	DI><AX;
+?else
+	DI=AX;
+?endif
+	ES=DS;
+	IF(SI!=0){
+C1:
+		$LODSB
+		IF(AL!=0){
+			$STOSB
+			$JMP SHORT C1
+		}
+	}
+	IF(CX!=0){
+		SI><CX;
+C2:
+		$LODSB
+		IF(AL!=0){
+			$STOSB
+			$JMP SHORT C2
+		}
+	}
+	IF(DX!=0){
+		SI><DX;
+C3:
+		$LODSB
+		IF(AL!=0){
+			$STOSB
+			$JMP SHORT C3
+		}
+	}
+	IF(BX!=0){
+		SI><BX;
+		do{
+			$LODSB
+			$STOSB
+		}while(AL!=0);
+	}
+	$POP SI
+}
+
+:void LSEEK()		//устанавливает указатель файла в опр положение
+/*ВХОД: BX - ДЕСКРИПТОР
+CX:DX - НЕОБХОДИМОЕ СМЕЩЕНИЕ В ФАЙЛЕ
+ */
+{
+	AX=0x4200;
+	$INT 0x21
+}
+
+:byte TYPEDRIVE()	/* ВОЗВРАЩАЕТ ТИП ДИСКОВОГО УСТРОЙСТВА
+	ВХОД: БАЙТ НОМЕРА УСТРОЙСТВА(1-26)-AL, BX - УКАЗАТЕЛЬ НА БУФЕР В 32 БАЙТА
+	БУФЕР НЕ ИСПОЛЬЗУЕТСЯ
+	ВЫХОД: В AL = 0 -FLOPPY
+	              1 - FIXED
+	              2 - RAM
+	              3 - NETWORK
+	              4 - SUBST
+	             -1 - INVALID
+*/
+{
+	CX=BX;
+	BL=AL;
+	AX=0X4408;
+	$INT  0X21
+	AL|=AL;    //FLOP
+	IF(NOTZEROFLAG){
+		DX=0;
+		AX=0X4409;
+		$INT 0X21
+		$LAHF
+		AL=3;         //NETWORK
+		$TEST DH,0X10
+		IF(ZEROFLAG){
+			AX++;        //SUBST
+			$TEST DH,0X80
+			IF(ZEROFLAG){
+				AL=-1;
+				$SAHF
+				IF(NOTCARRYFLAG){
+					DX=CX;
+					CX=0X860;
+					AX=0X440d;
+					$INT 0X21
+					AL=2;      //RAM
+					IF(NOTCARRYFLAG)AX--; //FIXED
+				}
+			}
+		}
+	}
+}
+
+:void LSEEKHOME()
+// УСТАНАВЛИВАЕТ УКАЗАТЕЛЬ В ФАЙЛЕ НА НАЧАЛО
+// ВХОД: BX - ДЕСКРИПТОР
+{
+//	BX><AX;
+	AX=0X4200;
+	CX=0;
+	DX=0;
+	$INT 0X21
+}
+
+:word READFAR()
+// BX-HANDL CX-SIZE DX-SEGM
+{
+	$PUSH DS
+	DS=DX;
+	DX=0;
+	AH=0X3F;
+	$INT 0X21
+	$POP DS
+}
+
+:word WRITEFAR()
+//BX-HANDL CX-SIZE DX-SEGM
+{
+	$PUSH DS
+	DS=DX;
+	DX=0;
+	AH=0X40;
+	$INT 0X21
+	$POP DS
+}
+
+:word CHMOD()
+//УСТАНОВКА АТРИБУТОВ
+//CX-АТРИБ DX-ИМЯ
+{
+	AX=0X4301;
+	$INT 0X21
+}
+
+:word READATR()
+//ЧТЕНИЕ АТРИБУТОВ
+// AX-ИМЯ ФАЙЛА
+{
+?ifdef codesize
+	DX><AX;
+?else
+	DX=AX;
+?endif
+	AX=0X4300;
+	$INT 0X21
+?ifdef codesize
+	CX><AX;
+?else
+	AX=CX;
+?endif
+}
+
+/* Процедуры добавлены после проссмотра библиотек
+         Roman Lonely: 2:5015/52.38 */
+
+:void REMOVER()
+// Абсолютное удаление файла, даже если он имеет атрибут только чтение;
+//DX - имя файла
+//возвр при ошибке уст carry flag
+{
+	AX=0x4301;
+	CX=0;
+	$INT 0x21
+	AH=0x41;
+	$INT 0x21
+}
+
+:dword SIZE_FILE32()
+// Вызов процедуры: SIZE_F(,,,file_name);
+{
+	AX=0x3d00;
+	$INT 0x21
+?ifdef codesize
+	BX><AX;
+?else
+	BX=AX;
+?endif
+	AX=0x4202;
+	DX=0;
+	CX=0;
+	$INT 0x21
+	$push  DX
+	$push  AX
+	AH=0x3E;
+	$INT 0x21
+	$POP EAX
+}
+
+:void MKDIR()
+// Создает директорию
+//DX - адрес с именем директории
+// Возвращает CF=1, если директория не создана;
+{
+	$MOV AH,0x39
+	$INT 0x21
+}
+
+:void RMDIR()
+// Удаляет директорию
+//DX - адрес с именем директории
+// Возвращает CF=1, если директория не удалена;
+{
+	$ MOV AH,0x3A
+	$ INT 0x21
+}
+
+:void CHDIR()
+// Устанавливает текущую директорию
+//DX - адрес с именем директории
+// Возвращает CF=1, если директория не установлена;
+{
+	$ MOV AH,0x3B
+	$ INT 0x21
+}
+
+:void RENAME()
+//Переименование или перемещение в другой каталог на том же диске
+//Вызов:RENAME(,,,file_old,file_new);
+//DX - адрес со старым именем
+//DI - адрес с новым именеи
+// При ошибке возвращает CF=1
+{
+	ES=DS;
+	$ MOV AH,0x56
+	$ INT 0x21
+}
+
+/* Режимы установки указателя */
+?define SEEK_SET 0	//от начала
+?define SEEK_CUR 1	//от текщей позиции
+?define SEEK_END 2	//от конца
+
+:word FSEEK()
+/* Вызов: FSEEK(mode,handl,seek_h,seek_l)
+ AX - mode - режим установки указателя
+ BX - handl - дескриптор
+ CX - seek_h - старшая часть смещения
+ DX - seek_l - младшая часть смещения
+ Возвращает: DX:AX - новое положение от начала файла */
+{
+	AH=0X42;
+	$INT 0X21
+}
+
+:dword FSEEK32()
+/* Вызов: FSEEK32(mode,handl,,dword seek)
+ AX - mode - режим установки указателя
+ BX - handl - дескриптор
+ EDX - seek - смещение
+ Возвращает: EAX - новое положение от начала файла */
+{
+	$PUSH EDX
+	$POP CX
+	$POP CX
+	AH=0X42;
+	$INT 0X21
+	$push  DX
+	$push  AX
+	$POP EAX
+}
+
+:word CREATENEW()
+/* Создает новый файл. Если файл существует, то возвращает ошибку
+ Вход: CX - атрибуты файла
+			 DX - имя файла
+ Выход: AX=0 - ошибка
+				AX!=0 - дескриптор файла
+ */
+{
+	AH=0X5B;
+	$INT 0X21
+	$JNC EX
+	AX=0;
+EX:
+}
+
+:word CREATETEMP()
+/* Создает временный файл.
+ Вход: CX - атрибуты файла
+			 DX - директория файла
+ Выход: AX=0 - ошибка
+				AX!=0 - дескриптор файла
+				DS;DX - полное имя открытого файла
+ */
+{
+	AH=0X5A;
+	$INT 0X21
+	$JNC EX
+	AX=0;
+EX:
+}
+
+:byte READSECTOR()
+/* Считать сектор логического диска
+ Вход:
+ AL - номер дисковода (0-A 1-B ...)
+ CX - число секторов
+ DX - номер первого сектора
+ DS:BX - адрес вуфера
+ Выход:
+ AL=0 - ошибка
+ AL=1 - все нормально*/
+{
+	$INT 0X25
+	$SETNB AL
+}
+
+:byte WRITESECTOR()
+/* Записать сектор логического диска
+ Вход:
+ AL - номер дисковода (0-A 1-B ...)
+ CX - число секторов
+ DX - номер первого сектора
+ DS:BX - адрес вуфера
+ Выход:
+ AL=0 - ошибка
+ AL=1 - все нормально*/
+{
+	$INT 0X26
+	$SETNB AL
+}
+
+?endif
+/* end of FILE.H-- */

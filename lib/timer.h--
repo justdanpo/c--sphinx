@@ -1,0 +1,76 @@
+/*-----------------22.12.98 16:52-------------------
+	Библиотека процедур разгоняющих системный таймер
+ для более точных замеров промежутков времени.
+ Для системы часы работают с прежней скоростью
+--------------------------------------------------*/
+?ifndef _TIMER_
+?define _TIMER_ TRUE
+
+?ifndef _SYSTEM_
+?include "system.h--"
+?endif
+
+//?define DELITEL 32	//во сколько разгоняем часы (макс значение для W95)
+//  Эта константа должна быть задана в вашей программе перед
+//  строкой ?include "timer.h--"
+
+
+?define DELTIMER 0x10000/DELITEL	//коэф деления для таймера
+
+word oldtime[2]=0;	//адрес старого вектора int8
+dword schot=0;		//пользовательский счетчик
+word delit=0;		//счетчик таймера чтобы не бежали часы
+
+interrupt time()	//навый обработчик int 8
+{
+	@ ENABLE();
+	$PUSH AX
+	$PUSH DS
+	DS=CS;
+	schot++;
+	delit++;
+	IF(delit>=DELITEL){
+		delit=0;
+		$POP DS
+		$POP AX
+		$CS:
+		$JMP FAR oldtime
+	}
+	$POP DS
+	@ EOI();
+	$POP AX
+}
+
+void INSTTIMER()
+{
+//установить свой обработчик времени и перепр таймер
+	GETINTVECT(#oldtime,0x8);
+	SETINTVECT( ,0x8,CS,#time);
+	@ DISABLE();
+	AL=0X36;
+	$OUT 0X43,AL
+	AL=DELTIMER%256;
+	GOTO $+2;
+	$OUT 0X40,AL
+	AL=DELTIMER/256;
+	GOTO $+2;
+	$OUT 0X40,AL
+	@ ENABLE();
+}
+
+void DEINSTTIMER()	//вернуть все в нормальный вид
+{
+	@ DISABLE();
+	AL=0X36;
+	$OUT 0X43,AL
+	GOTO $+2;
+	AL=0;
+	$OUT 0X40,AL
+	GOTO $+2;
+	AL=0;
+	$OUT 0X40,AL
+	SETINTVECT( ,0x8,oldtime[2],oldtime);
+	@ ENABLE();
+}
+
+?endif

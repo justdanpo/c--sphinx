@@ -1,0 +1,297 @@
+#resize TRUE
+?include "DOS.H--"
+?include "FILE.H--"
+?include "WRITE.H--"
+?include "PCX.H--"
+?include "VGA.H--"
+?include "KEYCODES.H--"
+?include "MATH.H--"
+?include "RANDOM.H--"
+?include "SYSTEM.H--"
+?include "VIDEO.H--"
+
+#includepath "includes"
+?include "VESALIB.H--"
+
+?define PALSIZE 256*3
+byte palette[PALSIZE]; //palette buffer
+
+?define BUFSEGSIZE 4095	// 4095 paragrtaphs == 65520 bytes
+word bufseg;
+word whichkey,keyflag;
+
+byte temp;
+word afonthand;
+
+byte welcome = "VESAlib-- demo  Press A-Q\000";
+byte atext = "A: xorlinedrawVESA\000";
+byte btext = "B: xorxlineVESA, xorylineVESA\000";
+byte ctext = "C: xorboxVESA\000";
+byte dtext = "D: xorbarVESA\000";
+byte etext = "E: xorpolylineVESA\000";
+byte ftext = "F: xorputimageVESA\000";
+
+byte qtext = "Q: quit demo";
+
+main()
+{
+
+RANDOMIZE();
+
+bufseg=GETMEM(BUFSEGSIZE);
+IF(bufseg==0)
+	{WRITESTR("Unable to allocate memory.\n");
+	EXIT(0);
+	}
+
+IF(byte readPCX("PROPHET.PCX", bufseg, 0 ,BUFSEGSIZE*16,0, pcx_raw)!=pcx_e_ok)
+	{WRITESTR("Not valid PCX file.\n");
+	EXIT(0);
+	}
+
+IF(byte readPCXpalette("PROPHET.PCX", DS ,#palette)!=pcx_e_ok)
+	{WRITESTR("Error reading palette.\n");
+	EXIT(0);
+	}
+
+afonthand=loadfont("FONTS\\C1536_27.ppp");
+
+CLEARSCREEN0();
+GOTOXY(0,0);
+WRITESTR("Welcome to VesaLib-- 1.0 demo.");
+WRITELN();
+WRITELN();
+WRITESTR("Select resolution:");
+WRITELN();
+WRITELN();
+WRITESTR("Press A for 640x480");
+WRITELN();
+WRITESTR("Press B for 800x600");
+WRITELN();
+WRITESTR("Press C for 1024x768");
+WRITELN();
+WRITELN();
+WRITESTR("Any other key to cancel");
+
+keyflag=0;
+whichkey=BIOSREADKEY();
+
+IF(whichkey==0x1e61){	temp=set640x480VESA(0);
+			IF(temp==0)keyflag=1;}
+IF(whichkey==0x3062){	temp=set800x600VESA(0);
+			IF(temp==0)keyflag=1;}
+IF(whichkey==0x2e63){	temp=set1024x768VESA(0);
+			IF(temp==0)keyflag=1;}
+IF(keyflag!=1)EXIT(0);
+
+SETVGAPALETTE( ,0 ,256 ,#palette);
+
+do{
+barVESA(0,0,screenwidth,screenheight,0);
+
+textoutVESA(afonthand,0,0,200,0,0,1,0,DS,#welcome);
+textoutVESA(afonthand,0,27,100,0,0,1,0,DS,#atext);
+textoutVESA(afonthand,0,54,100,0,0,1,0,DS,#btext);
+textoutVESA(afonthand,0,81,100,0,0,1,0,DS,#ctext);
+textoutVESA(afonthand,0,108,100,0,0,1,0,DS,#dtext);
+textoutVESA(afonthand,0,135,100,0,0,1,0,DS,#etext);
+textoutVESA(afonthand,0,162,100,0,0,1,0,DS,#ftext);
+textoutVESA(afonthand,0,189,100,0,0,1,0,DS,#qtext);
+
+whichkey=BIOSREADKEY();
+
+IF(whichkey==0x1e61)linedrwdemo();
+IF(whichkey==0x3062)xylinedemo();
+IF(whichkey==0x2e63)boxdemo();
+IF(whichkey==0x2064)bardemo();
+IF(whichkey==0x1265)polylinedemo();
+IF(whichkey==0x2166)putimagedemo();
+
+IF(whichkey==0x1071){SETVIDEOMODE(vid_text80c);EXIT(0);}
+
+}while(1==1);
+}
+
+
+void putimagedemo()
+
+word tempa,trash;
+word imgx,imgy;
+
+{
+barVESA(0,0,screenwidth,screenheight,0);
+
+do{
+	IF(KBHIT()){trash=BIOSREADKEY();return();};
+
+	tempa=screenwidth-320;
+	imgx=RAND()%tempa;
+
+	tempa=screenheight-200;
+	imgy=RAND()%tempa;
+
+	xorputimageVESA(imgx,imgy,320,200,bufseg,0,0);
+
+	}while(1==1);
+}
+
+void polylinedemo()
+
+word x[10],y[10],trash;
+byte color;
+
+{
+barVESA(0,0,screenwidth,screenheight,0);
+
+do{
+	IF(KBHIT()){trash=BIOSREADKEY();return();};
+
+	color=RAND();
+	color&=255;
+
+	x[0]=RAND()%screenwidth;
+	y[0]=RAND()%screenheight;
+	x[2]=RAND()%screenwidth;
+	y[2]=RAND()%screenheight;
+	x[4]=RAND()%screenwidth;
+	y[4]=RAND()%screenheight;
+	x[6]=RAND()%screenwidth;
+	y[6]=RAND()%screenheight;
+
+	xordrawpolyVESA(4,#x,#y,color);
+	xordrawpolyVESA(4,#x,#y,color);
+
+	}while(1==1);
+}
+
+void bardemo()
+
+word tempa,trash;
+word barx,bary,barwidth,barheight;
+byte color;
+
+{
+barVESA(0,0,screenwidth,screenheight,0);
+
+do{
+	IF(KBHIT()){trash=BIOSREADKEY();return();};
+
+	color=RAND();
+	color&=255;
+
+	barwidth=RAND()%screenwidth;
+
+	tempa=screenwidth-barwidth;
+	barx=RAND()%tempa;
+
+	barheight=RAND()%screenheight;
+
+	tempa=screenheight-barheight;
+	bary=RAND()%tempa;
+
+	xorbarVESA(barx,bary,barwidth,barheight,color);
+	xorbarVESA(barx,bary,barwidth,barheight,color);
+
+	}while(1==1);
+}
+
+void boxdemo()
+
+word tempa,trash;
+word boxx,boxy,boxwidth,boxheight;
+byte color;
+
+{
+barVESA(0,0,screenwidth,screenheight,0);
+
+do{
+	IF(KBHIT()){trash=BIOSREADKEY();return();};
+
+	color=RAND();
+	color&=255;
+
+	boxwidth=RAND()%screenwidth;
+
+	tempa=screenwidth-boxwidth;
+	boxx=RAND()%tempa;
+
+	boxheight=RAND()%screenheight;
+
+	tempa=screenheight-boxheight;
+	boxy=RAND()%tempa;
+
+	xorboxVESA(boxx,boxy,boxwidth,boxheight,color);
+	xorboxVESA(boxx,boxy,boxwidth,boxheight,color);
+
+	}while(1==1);
+}
+
+void xylinedemo()
+
+word tempa,trash;
+word x,y,length;
+byte color;
+
+{
+barVESA(0,0,screenwidth,screenheight,0);
+
+do{
+	IF(KBHIT()){trash=BIOSREADKEY();return();};
+
+	color=RAND();
+	color&=255;
+
+	length=RAND()%screenwidth;
+
+	tempa=screenwidth-length;
+	x=RAND()%tempa;
+
+	y=RAND()%screenheight;
+
+	xorxlineVESA(x,y,length,color);
+	xorxlineVESA(x,y,length,color);
+
+	color=RAND();
+	color&=255;
+
+	length=RAND()%screenheight;
+
+	tempa=screenheight-length;
+	y=RAND()%tempa;
+
+	x=RAND()%screenwidth;
+
+	xorylineVESA(x,y,length,color);
+	xorylineVESA(x,y,length,color);
+
+	}while(1==1);
+}
+
+
+void linedrwdemo()
+
+word x,y,x1,y1,trash;
+byte color;
+
+{
+barVESA(0,0,screenwidth,screenheight,0);
+
+do{
+	IF(KBHIT()){trash=BIOSREADKEY();return();};
+
+	color=RAND();
+	color&=255;
+
+	x=RAND()%screenwidth;
+
+	y=RAND()%screenheight;
+
+	x1=RAND()%screenwidth;
+
+	y1=RAND()%screenheight;
+
+	xorlinedrawVESA(x,y,x1,y1,color);
+	xorlinedrawVESA(x,y,x1,y1,color);
+
+	}while(1==1);
+}

@@ -1,0 +1,310 @@
+/*
+    SPHINX Programming (C) 1994.
+    NAME:  PCX.H--
+    DESCRIPTION:  This file contains a collection of procedures for reading
+                  PCX format of graphics files.
+                  Current support is limited to 256 color PCX's which are
+                  320x200 or smaller.
+    LAST MODIFIED:  22 Apr 1994
+    PROCEDURES DEFINED IN THIS FILE:
+	byte readPCX(filename,bufseg,bufoffset,bufsize,buftype)
+	byte readPCXpalette(filename,palsegment,paloffset)
+        byte savePCX(filename,bufseg,bufoffset,xsize,ysize,palseg,paloffset)*/
+?ifndef _PCX_
+?define _PCX_ TRUE
+//?warning FALSE
+
+byte readPCX (word filename,bufseg,bufoffset,bufsize,bufinfo;byte buftype);
+byte readPCXpalette (word filename,palsegment,paloffset);
+byte savePCX (word filename,bufseg,bufoffset,xsize,ysize,palseg,paloffset);
+
+// error codes
+enum{pcx_e_ok,        // no errors, everything OK
+     pcx_e_nofile,    // file could not be openned
+     pcx_e_noinput,   // unable to read enough data from input file
+     pcx_e_nooutput,  // unable to write enough data to output file
+     pcx_e_badheader, // PCX header was invalid
+     pcx_e_not256,    // PCX file is not 256 colours
+     pcx_e_toobig,    // PCX file is too big for given buffer
+     pcx_e_error      // some other error occurred
+     };
+
+// buffer types
+enum{pcx_raw,      // just raw data (no x and y sizes)
+     pcx_cut       // cut buffer format (includes x and y sizes)
+    };
+
+?define PCXBUFSIZE 1024     // input file read buffer size
+
+struct PCX_HEAD
+{
+	byte PCX_manufacturer;      // manufacturer byte (always 0A0h)
+	byte PCX_version;           // pcx Version
+	byte PCX_encoding;          // (always 1)
+	byte PCX_bits_per_pixel;    // color bits per pixel
+	word PCX_xmin;              // image origin x
+	word PCX_ymin;              // image origin y
+	word PCX_xmax;              // image end x
+	word PCX_ymax;              // image end y
+	word PCX_hres;              // horizontal resolution
+	word PCX_vres;              // vertical resolution
+	byte PCX_palette1[48];      // (color palette, for older not 256 col vers.)
+	byte PCX_reserved;          // reserved byte
+	byte PCX_color_planes;      // number of color planes
+	word PCX_bytes_per_line;    // line buffer size
+	word PCX_palette_type;      // grey or color palette indicator
+	byte PCX_reserved2[58];     // reserved
+};
+
+?define PCX_HEADERSIZE sizeof(PCX_HEAD)
+
+:byte readPCXpalette (word filename,palsegment,paloffset)
+/* This procedure reads the last 769 bytes of the PCX file.
+  Checks if we are at the palette (cuz pcx's have the palette at the end of
+  file) and then reads it into memory at PALETTE*/
+byte temp;
+{
+	FOPEN(0, , ,filename);   /* open file */
+	AX|=AX;
+	IF(ZEROFLAG)RETURN(pcx_e_nofile);	// if file did not open
+	CX=-1;
+	DX=-769;
+	BX><AX;
+	AX=0x4202;
+	$INT 0x21
+	IF(CARRYFLAG)$JMP SHORT ERR
+	AX=FREAD(,,1,#temp);
+	IF(temp!=0xC){
+		FCLOSE();  /* close the file */
+		RETURN(pcx_e_badheader);
+	}
+	$PUSH DS
+	DS=palsegment;
+	IF(FREAD(,,768,paloffset)!=768){
+		$POP DS
+ERR:
+		FCLOSE();  /* close the file */
+		RETURN(pcx_e_noinput);
+	}
+	DI=paloffset;
+	CX=768;
+loops:
+		AL=DSBYTE[DI];   // convert the palette from
+		$SHR AL,2          // 8 bits
+		DSBYTE[DI]=AL;    // and save it
+		DI++;
+		$LOOP loops
+	$POP DS
+	FCLOSE();  /* close the file */
+	AL=pcx_e_ok;
+}
+
+:byte readPCX (word filename,bufseg,bufoffset,bufsize,bufinfo;byte buftype)
+/* Reads and checks the header of the pcx to make sure that it is a pcx file,
+  it then reads the data into the buffer given by bufseg:bufoffset.*/
+word xcount;
+word ycount;
+word local_bytesperline;
+byte readbuf[PCXBUFSIZE];
+{
+	FOPEN(0, , ,filename);   /* open file */
+	AX|=AX;
+	IF(ZEROFLAG)return(pcx_e_nofile);	// if file did not open
+// read the PCX file header into the header buffer
+	AX><BX;
+	SI=bufinfo;
+	IF(SI==0)SI=#readbuf;
+	IF(FREAD(,,PCX_HEADERSIZE,SI)!=PCX_HEADERSIZE)$JMP ERR1
+	IF(SI.PCX_HEAD.PCX_manufacturer!=0x0A)$JMP SHORT ERR2   // check the manufacturer byte
+	IF(SI.PCX_HEAD.PCX_version!=5){   // check the version
+ERR2:
+		FCLOSE();  /* close the file */
+    return(pcx_e_badheader);
+	}
+	IF(SI.PCX_HEAD.PCX_bits_per_pixel!=8)$JMP SHORT ERR3
+	IF(SI.PCX_HEAD.PCX_color_planes>1){
+ERR3:
+		FCLOSE();  /* close the file */
+		return(pcx_e_not256);
+	}
+	ycount=SI.PCX_HEAD.PCX_ymax-SI.PCX_HEAD.PCX_ymin+1;
+	CX><AX;
+	xcount=SI.PCX_HEAD.PCX_xmax-SI.PCX_HEAD.PCX_xmin+1;
+	local_bytesperline=AX;
+	$MUL CX
+	DX|=DX;
+	$JNZ ERR4
+	IF(AX>bufsize){
+ERR4:
+		FCLOSE();  /* close the file */
+    return(pcx_e_toobig);
+	}
+	$CLD              // clear the direction flag
+	ES=bufseg;
+	DI=bufoffset;
+	SI=PCXBUFSIZE;   // set input pointer to end, so data will have to be read
+	IF(buftype==pcx_cut){  // if CUT buffer format, store x and y sizes first
+		AX=xcount;
+		$STOSW
+		AX=CX;
+		$STOSW
+	}
+	loop(ycount){
+		xcount=local_bytesperline;  // reset the image width
+		do{
+			IF(SI==PCXBUFSIZE){
+				$PUSH DI
+				$PUSH ES
+				AX=FREAD(,,PCXBUFSIZE,#readbuf);  // read some data
+				AX|=AX;
+				IF(ZEROFLAG){
+ERR1:
+					FCLOSE();  /* close the file */
+					RETURN(pcx_e_noinput);
+				}
+				SI=0;
+				$POP ES
+				$POP DI
+			}
+			AL=readbuf[SI];   // get a byte to unpack
+			SI++;
+			IF(AL>=0xC0){         // if byte is repeater code
+				AL&=0x3F;
+				CX=0;
+				CL=AL;             // get count into cx
+				xcount-=CX;   // subtract it from the width counter
+				IF(SI==PCXBUFSIZE){
+					$PUSH DI
+					$PUSH ES
+					$PUSH CX
+					AX=FREAD(,,PCXBUFSIZE,#readbuf);  // read some data
+					AX|=AX;
+					$JZ ERR1
+					SI=0;
+					$POP CX
+					$POP ES
+					$POP DI
+				}
+				AL=readbuf[SI];   // get the byte pattern
+				SI++;
+				$REPNE
+				$STOSB             // write the byte
+			}
+			ELSE{              // not a pattern call soo...
+				xcount--;      // decrement our counter
+				$STOSB        // write the byte to the screen
+			}
+		}while(xcount>0);
+	}
+	FCLOSE();  /* close the file */
+	AL=pcx_e_ok;
+}
+
+:byte savePCX (word filename,bufseg,bufoffset,xsize,ysize,palseg,paloffset)
+/* Saves the buffer and palette in a valid PCX file.
+  It works, but the compression could be done a little better.  Some how...*/
+word xcount;
+byte writebuf[PCXBUFSIZE];
+byte currentbyte;
+byte currentcount;
+{
+	AH=0x3C;
+	CX=0;
+	DX=filename;
+	$INT 0x21     /* create file */
+	IF(CARRYFLAG)return(pcx_e_nofile);  // unable to create
+	AX><BX;
+	ES=DS;
+	DI=#writebuf;
+	SI=DI;
+	CX=PCX_HEADERSIZE;
+	AL=0;
+	$REPZ
+	$STOSB   // zero the entire PCX header
+	SI.PCX_HEAD.PCX_manufacturer=0xA;
+	SI.PCX_HEAD.PCX_version=5;
+	SI.PCX_HEAD.PCX_bits_per_pixel=8;
+	SI.PCX_HEAD.PCX_color_planes=1;
+	SI.PCX_HEAD.PCX_xmax=xsize-1;
+	SI.PCX_HEAD.PCX_ymax=ysize-1;
+	SI.PCX_HEAD.PCX_hres=320;
+	SI.PCX_HEAD.PCX_vres=200;
+	SI.PCX_HEAD.PCX_encoding=1;
+	SI.PCX_HEAD.PCX_bytes_per_line=xsize;
+	SI.PCX_HEAD.PCX_palette_type=1;      // grey or color palette indicator
+// write the PCX header to the file
+	IF(FWRITE(,,PCX_HEADERSIZE,#writebuf)!=PCX_HEADERSIZE)$JMP ERR2
+	$CLD              // clear the direction flag
+	ES=bufseg;
+	SI=bufoffset;
+	DI=0;   // set input pointer to end, so data will have to be read
+	loop(ysize){
+		xcount=xsize;  // reset the image width
+		loop(xcount){
+//	do{
+			currentcount=1;
+			currentbyte=ESBYTE[SI];
+			SI++;
+			do{
+				DL=FALSE;
+				IF(ESBYTE[SI]==currentbyte)IF(xcount>1)IF(currentcount<63){
+					xcount--;
+					currentcount++;
+					SI++;
+					DL=TRUE;
+				}
+			}while(DL==TRUE);
+			IF(DI==PCXBUFSIZE){
+				$PUSH SI
+				$PUSH ES
+				IF(FWRITE(,,PCXBUFSIZE,#writebuf)!=PCXBUFSIZE)$JMP SHORT ERR2
+				$POP ES
+				$POP SI
+				DI=0;
+			}
+			IF(currentcount>1)$JMP SHORT LL1
+			ELSE IF(currentbyte>=0xC0){
+LL1:
+				writebuf[DI]=0xC0+currentcount;
+				DI++;
+			}
+			IF(DI==PCXBUFSIZE){
+				$PUSH SI
+				$PUSH ES
+				IF(FWRITE(,,PCXBUFSIZE,#writebuf)!=PCXBUFSIZE){
+ERR2:
+					FCLOSE();
+					RETURN(pcx_e_nooutput);
+				}
+				$POP ES
+				$POP SI
+				DI=0;
+			}
+			writebuf[DI]=currentbyte;
+			DI++;
+//			xcount--;      // decrement our counter
+//		}while(xcount>0);
+		}
+	}
+	IF(DI>0){
+		IF(FWRITE(,,DI,#writebuf)==0)$JMP SHORT ERR2
+	}
+/*** We must now save the palette ***/
+	writebuf[0]=0xC;      // palette notifier byte
+	ES=palseg;
+	SI=paloffset;
+	DI=0;
+	do{
+		AL=ESBYTE[SI];      // convert the palette from
+		$SHL AL,2            // 6 bits
+		writebuf[1+DI]=AL;  // and save it
+		DI++;
+		SI++;
+	}while(DI<768);
+	IF(FWRITE(,,769,#writebuf)!=769)$JMP SHORT ERR2
+	FCLOSE();  /* close the file */
+	AL=pcx_e_ok;
+}
+
+?endif
+/* end of PCX.H-- */

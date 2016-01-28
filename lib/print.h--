@@ -1,0 +1,69 @@
+/*------------- Работа с принтером
+
+:void INITPRINT()      - сброс предыдущих установок
+:void PRINTCHAR(char)  - печать символа
+:void PRINTSTR(string) - печать строки
+:void PRINTESC(,par)    - Вывод на принтер ESC+par
+:void PRINTLN()        - начать новую строку
+ ----------------------------------*/
+?ifndef _PRINT_
+?define _PRINT_ TRUE
+?warning FALSE
+
+:void INITPRINT()
+{
+	AH=1;
+	DX=0;
+	$INT	0X17
+}
+
+:void PRINTCHAR()
+{
+	AH=0;
+	DX=0;
+	$INT 0X17
+}
+
+:void PRINTSTR()
+{
+	$PUSH SI
+	DX=0;
+?ifdef codesize
+	SI><AX;
+?else
+	SI=AX;
+?endif
+M1:
+	$LODSB
+	AL|=AL;
+	$JZ EXI
+	AH=0;
+	$INT 0X17
+	$JMP SHORT M1
+EXI:
+	$POP SI
+}
+
+:void PRINTESC()
+{
+	AX=0X1B;
+	DX=0;
+	$INT 0X17
+?ifdef codesize
+	BX><AX;
+?else
+	BX=AX;
+?endif
+	AH=0;
+	$INT 0X17
+}
+:void PRINTLN()
+{
+	DX=0;
+	AX=13;
+	$INT 0X17
+	AX=10;
+	$INT 0X17
+}
+
+?endif

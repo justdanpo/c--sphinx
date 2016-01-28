@@ -1,0 +1,267 @@
+/*
+    NAME:  FIXPATH.C--
+    DESCRIPTION:  TSR that removes the trailing backslash in command line
+    AUTHOR:  Jean-Marc Lasgouttes (Jean-Marc.Lasgouttes@inria.fr)
+    VERSION: 1.2
+    27 Apr. 1994 === Small modifications by SPHINX.
+    NOTE:  DOC file appended to end of this source file.
+*/
+
+// First, some compilation directives 
+
+? codesize                   // optimize for code size, not speed
+? alignword FALSE            // do not align words
+? parsecommandline TRUE      // parse command line
+? resize FALSE               // do not resize program memory block
+
+// Then, some useful definitions
+
+?include "DOS.H--"
+?include "TSR.H--" 
+?include "STRING.H--"
+
+? define OLD21_OFS 0x0000    // Offset where holding the address of the old handler
+? define NEW21_OFS 0x0004    // Offset at which the interrupt routine resides
+
+byte progname = "FIXPATH";
+? define len_progname 8
+byte usage = "Usage :   FIXPATH [/U]\n\n"
+             "   /U uninstalls FixPath\n$";
+
+// Now, the serious things can begin
+
+// Resident routine ///////////////////////////////////////////////////////
+
+: void FIXPATH ()  // removes trailing backslash in the command line
+{                  //   DS:BX points to the command line
+  $ MOV  BX, DX
+  $ CMP  DSBYTE[BX+2], 0x20; // test whether the first character is a space
+  $ JZ   END;
+  $ INC  BX;
+LOOP:
+  $ INC  BX;
+  $ CMP  DSBYTE[BX], 0x0D;   // test for end of input
+  $ JZ   END;
+  $ CMP  DSBYTE[BX], 0x20;   // test for space
+  $ JZ   LOOP2;
+  $ CMP  DSBYTE[BX], 0x3A;   // test for colon
+  $ JZ   LOOP2;
+  $ CMP  DSWORD[BX], 0x205C; // test for backslash plus space 
+  $ JZ   REPLACE;
+  $ CMP  DSWORD[BX], 0x0D5C; // test for backslash plus carriage return
+  $ JNZ  LOOP;
+REPLACE:
+  $ MOV  DSBYTE[BX], 0x20;   // replace backslash with space
+  $ JMP  LOOP;
+LOOP2:
+  $ INC  BX;
+  $ CMP  DSBYTE[BX], 0x0D;   // test for end of input
+  $ JNZ  LOOP;
+END:
+}
+
+word olddoshandle[2] = {0,0};    // Address of the old interrupt handler
+
+interrupt doshandler ()    // this is called every time INT 0x21 is invoked
+{
+  $ PUSHF;
+  $ CMP AH, 0x0A; 
+  $ JZ  DOFIX;
+  $ POPF;
+  $ JMP CSDWORD[OLD21_OFS];
+DOFIX:
+  $ CALL CSDWORD[OLD21_OFS]; // call the old handler to do the edit work
+  $ PUSH BX;            // save BX; it will be restored later
+  @FIXPATH();          // Do the real work
+END:
+  $ POP  BX;            // Restore BX
+}
+
+word endofdoshandle=0;  // used to compute the length of the interrupt routine
+
+
+// Transient part of the program //////////////////////////////////////////
+
+// More FixPath-specific functions
+
+void installint ()      // install our interrupt routine
+word seg;
+{
+  @RELEASEENV();
+  seg = @GETMEM(#endofdoshandle - #olddoshandle - 1 / 16 + 1);
+  IF( seg == 0 )
+    @DOSWRITESTR("ERROR:  environment size too small to install FixPath\n$");
+  ELSE{
+    ES = seg-1;                        // change the MCB of the block
+    ESWORD[1]=seg;                     //   to tell DOS that it owns itself
+    COPYFAR(ES,0x08,DS,#progname,len_progname); // write the name in the MCB
+    GETINTVECT(#olddoshandle,0x21);    // get old DOS interrupt handle 
+    COPYFAR(seg,OLD21_OFS,CS,#olddoshandle,#endofdoshandle-#olddoshandle); 
+                   // copy the interrupt routine into the new segment
+    SETINTVECT( ,0x21,seg,NEW21_OFS);  // attach to DOS interrupt 
+  }
+}
+
+
+void uninstall (word seg)  // remove FixPath from memory if possible
+word currentint21[2];
+{
+  GETINTVECT(#currentint21,0x21);  // Get the current DOS interrupt address
+  IF( DSWORD[#currentint21] == NEW21_OFS ) // Is it the resident
+    IF( DSWORD[#currentint21+2] == seg ){  //     FixPath?
+      ES=seg;
+      SETINTVECT( ,0x21,ESWORD[OLD21_OFS+2],ESWORD[OLD21_OFS]); 
+      @FREEMEM(seg);
+      @DOSWRITESTR("FixPath successfully removed from memory.\n$");
+      return();
+    }
+  @DOSWRITESTR("ERROR:  Unable to remove FixPath from memory.\n$");
+}  
+
+
+void main ()
+byte str[80];
+{
+  @DOSWRITESTR("FixPath 1.2 by Jean-Marc Lasgouttes.\n$");
+  AX = instcheck(#progname, len_progname);
+  DX = AX;             // AX = instcheck(): 0 or the segment where FixPath is
+  AX = @PARAMCOUNT();
+  IF( AX == 0 )
+      IF( DX != 0 )
+          @DOSWRITESTR("ERROR:  FixPath is already installed.\n$");
+      ELSE installint();
+  ELSE{
+      strcpy(#str, @PARAMSTR(0));
+      @STR_UP(#str);
+      IF( @STRCMP(#str,"/U") )
+          @DOSWRITESTR(#usage);
+      ELSE IF( DX != 0 )
+          uninstall(DX);
+      ELSE @DOSWRITESTR("ERROR:  FixPath is not installed.\n$"); 
+      }
+      
+} /* Terminate but don't stay resident.  The interrupt routine is in the
+     environment segment. */
+
+/* end of FIXPATH.C-- */
+
+/********************* FIXPATH.DOC ******************************************
+FixPath v1.2
+-------------
+Public Domain Software by Jean-Marc Lasgouttes.
+  Jean-Marc.Lasgouttes@inria.fr
+
+
+FixPath is a small TSR (96 bytes at most!) that removes the trailing
+backslash of directory names on the command line.  When using a
+command-line editor with filename completion, one often ends-up with a
+command like:
+
+                    C:\>cd dos\
+
+DOS will not accept such a command, because it does not recognize directory
+names that end with '\'.  Before COMMAND.COM sees it, FixPath will modify
+it to:
+
+                    C:\>cd dos
+
+You will soon find that this simple feature saves you a lot of time because
+you will not have to issue commands twice just because you forgot to remove
+the backslash of "copy *.* temp\".
+
+There is one exception to that: when the command begins with a space
+character, it will not be modified by FixPath.  This allows to type
+complex commands flawlessly.  I have been told for example that some
+archivers will behave differently depending on the backslash at the
+end of directory names.  XCOPY is another familiar command that needs
+the ending \ for a purpose.
+
+
+FixPath must be installed just after your favorite command-line editor. It
+has been tested with Dosed v5.0 (highly recommended BTW) and should also
+work with CmdEdit and others.  It is not needed with Wced 1.8, since I
+stole the idea of FixPath from there :-) 
+
+The installation of FixPath is as simple as typing "FixPath".  If FixPath
+can find a memory hole in which it can install itself, it will use no
+memory at all.  Otherwise, it will use a mere 96 bytes!  The only possible
+argument that you can specify is "/u" to uninstall FixPath from memory.
+Any other argument will display a short syntax help.
+
+
+Let's get technical
+--------------------
+
+FixPath has been written in SPHINX C--, a freely available language written
+by Peter Cellik (thanks Peter!).  C-- is a sort of low-level C that allows
+to mix freely high-level C-like constructs and assembly instructions.  I
+recommend wholeheartedly that you to take a look at it.  The latest version
+at the time of this writing is
+oak.oakland.edu:/pub/msdos/misclang/c--0192.zip.
+
+The algorithm used to remove the '\' is the following:  FixPath will remove
+any backslash which is followed by a space or a carriage return if and only
+if it is not preceded by a space or a colon.  This takes care of most cases
+that I encountered.  See however the "Known bugs and limitations" section
+below.
+
+What makes FixPath so small was inspired is a clever technique that I stole
+from the screen-saver ss_80b (garbo.uwasa.fi:/pub/pc/screen/ss_80b.zip).
+Instead of using the classical Terminate and Stay Resident DOS call,
+FixPath relocates itself into a memory block that it has allocated.  This
+allows to avoid the overhead of the Program Segment Prefix (which take
+usually 256 bytes).  I would be glad to hear of any problem this weird
+method may cause.
+
+The installation check is done by inspecting the Memory Control Block chain
+and looking for a block named "FIXPATH" which owns itself and is not the
+current program.  Since FixPath writes itself its name in the MCB, this
+method should be safe with any version of DOS since 2.0.  However, I am not
+sure of what happens when the program is loaded high.
+
+
+Known bugs and limitations
+---------------------------
+
+Since FixPath has been written for my own use, it has a lot of
+limitations.  However, if there is some interest for the program, I will be
+happy to try to enhance it.  If any of these limitations is a problem for
+you, please let me know.  
+
+ - the backslash are not really removed, but replaced with spaces;
+
+ - FixPath will also do its job in programs like Debug or V. Buerg's
+   List.  This is not necessarily what you want.  A fix for that could be
+   implemented under DOS 4+, but I did not write it yet;
+
+ - some people type "cd\" to go to the root directory.  This will be
+   transformed into "cd", which has a different meaning;
+
+ - there is no visual way to see how the command line has been really
+   modified.  This could be a problem since the algorithm used is not
+   really foolproof for complex commands.  However, if you really want to know,
+   type "echo" in front of your command;
+
+ - the algorithm considers only the space as a valid separator.  The
+   comma could be considered also;
+
+ - text enclosed in double quotes should perhaps be skipped.
+
+
+History
+--------
+
+ 1.0: - Initial release.
+ 1.1: - fixed a bug where a directory name like 'C:\' was not handled
+        correctly;
+      - changed the initialization of the program.  It uses now 96 bytes of
+        memory instead of 160!
+ 1.2: - New memory allocation strategy:  FixPath is now able to fill memory
+        holes and will in most cases use *no* memory!
+      - FixPath checks whether it is already installed and refuses to
+        install over itself;
+      - new uninstall feature;
+      - short syntax help;
+      - the screen output of the program can be redirected.
+
+****************************************************************************/

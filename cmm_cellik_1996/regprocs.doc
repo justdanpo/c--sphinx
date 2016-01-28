@@ -1,0 +1,1400 @@
+LIST OF BUILT IN REG AND MACRO FUNCTIONS OF SPHINX C--
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Last Update:  24 Mar 1994
+
+
+METHOD OF CALLING:  PROCEDURENAME(AX,BX,CX,DX,DI,SI);
+			or
+        	    @ MACRONAME(AX,BX,CX,DX,DI,SI);
+
+All parameters for REG procedures and MACROS are passed using registers.  The
+register used in each position is listed above.
+
+SIZE refers to size of the MACRO, add one byte to the size for REG procedure.
+All registers that are modified are listed.
+
+
+CALLING FORMAT:  ABORT();
+DOS REQUIRED:  1.0 +
+SIZE:  2 bytes.
+FUNCTION:  aborts the program.
+RETURNS:  never
+
+
+CALLING FORMAT:  ADDPIXEL19( ,x,colour,y);
+		  colour = colour of pixel desired (0..255)
+		  x = x coordinate of pixel (0..319)
+		  y = y coordinate of pixel (0..199)
+SIZE:  15 bytes.
+FUNCTION:  ADDs a pixel to the screen in mode 19 (0x13) graphics mode.
+RETURNS:  AX,DX,BX = Undefined.
+	  ES = 0xA000 (VGA seg)
+
+
+CALLING FORMAT:  ALLOCBESTFIT();
+DOS REQUIRED:  3.0 +
+SIZE:  8 bytes.
+FUNCTION:  Changes the DOS memory allocation strategy to best fit.
+RETURNS:  AX,BX = Undefined.
+
+
+CALLING FORMAT:  ALLOCFIRSTFIT();
+DOS REQUIRED:  3.0 +
+SIZE:  8 bytes.
+FUNCTION:  Changes the DOS memory allocation strategy to first fit.
+RETURNS:  AX,BX = Undefined.
+
+
+CALLING FORMAT:  ALLOCLASTFIT();
+DOS REQUIRED:  3.0 +
+SIZE:  8 bytes.
+FUNCTION:  Changes the DOS memory allocation strategy to last fit.
+RETURNS:  AX,BX = Undefined.
+
+
+CALLING FORMAT:  ALLOCBESTFIT();
+DOS REQUIRED:  3.0 +
+SIZE:  8 bytes.
+FUNCTION:  Changes the DOS memory allocation strategy to best fit.
+RETURNS:  AX,BX = Undefined.
+
+
+CALLING FORMAT:  ALLOCSTRATEGY();
+DOS REQUIRED:  3.0 +
+SIZE:  8 bytes.
+FUNCTION:  Returns the current DOS memory allocation strategy.
+RETURNS:  BX = Undefined.
+          AX == 0 if First Fit
+             == 1 if Best Fit
+             >= 2 if Last Fit
+
+
+CALLING FORMAT:  ANDPIXEL19( ,x,colour,y);
+		  colour = colour of pixel desired (0..255)
+		  x = x coordinate of pixel (0..319)
+		  y = y coordinate of pixel (0..199)
+SIZE:  15 bytes.
+FUNCTION:  ANDs a pixel to the screen in mode 19 (0x13) graphics mode.
+RETURNS:  AX,DX,BX = Undefined.
+	  ES = 0xA000 (VGA seg)
+
+
+CALLING FORMAT:  BASIC();
+SIZE:  2 bytes.
+FUNCTION:  calls ROM BASIC by interrupt 0x18.
+RETURNS:  nothing.
+
+
+CALLING FORMAT:  BEEP();
+DEFINED IN:  WRITE.H--
+SIZE:  7 bytes.
+FUNCTION:  Emmits the normal IBM beep from the internal speaker using a BIOS
+           interrupt.
+RETURNS:  AX = undefined
+	  BX = 0
+
+
+CALLING FORMAT:  BIOSEKEYCHECK();
+DEFINED IN:  KEYCODES.H--
+SIZE:  8 bytes.
+FUNCTION:  Checks if a key is available to be read from the enhanced keyboard
+	   using a BIOS interrupt.  This function will only work with AT
+	   enhanced keyboard BIOS or higher.  This functions will recognize
+	   F11 and F12, BIOSKEYCHECK will not.
+RETURNS:  If key waiting:
+	      AX = key code (AH = keyboard scancode, AL = ASCII character).
+	  If no key waiting:
+	      AX = 0
+
+
+CALLING FORMAT:  BIOSEREADKEY();
+DEFINED IN:  KEYCODES.H--
+SIZE:  4 bytes.
+FUNCTION:  Reads a key from the enhanced keyboard using a BIOS interrupt.
+	   If no key is waiting to be read from the keyboard buffer, this
+	   procedure will wait until a key is pressed.  This function will
+	   only work with AT enhanced keyboard BIOS or higher.  This
+	   functions will recognize F11 and F12.
+RETURNS:  AX = key code (AH = keyboard scancode, AL = ASCII character).
+
+
+CALLING FORMAT:  BIOSKEYCHECK();
+DEFINED IN:  KEYCODES.H--
+SIZE:  8 bytes.
+FUNCTION:  Checks if a key is available to be read from the enhanced keyboard
+	   using a BIOS interrupt.  This functions will not recognize F11 and
+	   F12.
+RETURNS:  If key waiting:
+	      AX = key code (AH = keyboard scancode, AL = ASCII character).
+	  If no key waiting:
+	      AX = 0
+
+
+CALLING FORMAT:  BIOSPUSHKEY(keycode);
+		  keycode = (AH = keyboard scancode, AL = ASCII character).
+DEFINED IN:  KEYCODES.H--
+SIZE:  4 bytes.
+FUNCTION:  Pushes a key code onto the keyboard buffer using a BIOS interrupt.
+	   This function requires AT or higher BIOS.
+RETURNS:  AH = 5.
+
+
+CALLING FORMAT:  BIOSREADKEY();
+DEFINED IN:  KEYCODES.H--
+SIZE:  4 bytes.
+FUNCTION:  Reads a key from the keyboard using a BIOS interrupt.  If no key
+	   is waiting to be read from the keyboard buffer, this procedure
+	   will wait until a key is pressed.  This function will not
+	   recognize F11 and F12.
+RETURNS:  AX = key code (AH = keyboard scancode, AL = ASCII character).
+
+
+CALLING FORMAT:  BIOSSHIFT();
+DEFINED IN:  KEYCODES.H--
+SIZE:  4 bytes.
+FUNCTION:  Reads the status of the shift like keys using a BIOS interrupt.
+RETURNS:  AH = 2
+	  AL = bit 0 set if right shift key down
+	       bit 1 set if left shift key down
+	       bit 2 set if Ctrl key down
+	       bit 3 set if Alt key down
+	       bit 4 set if Scroll Lock On
+	       bit 5 set if Num Lock On
+	       bit 6 set if Caps Lock On
+	       bit 7 set if Insert On
+
+
+CALLING FORMAT:  BLANKVGA();
+SIZE:  6 bytes.
+FUNCTION:  Blanks the screen on any VGA display in any mode.  This is done
+	   by setting the DAC mask register to 0.  This operation can be
+	   undone by calling UNBLANKVGA(), very handy for screen savers.
+RETURNS:  AL = 0
+	  DX = 0x3C6
+
+
+CALLING FORMAT:  BYTETODIGITS(number,stringloc);
+		  number = byte to be converted to digits string
+		  stringloc = location of string
+SIZE:  31 bytes.
+FUNCTION:  converts a byte value to 3 decimal digits and a NULL terminating
+	   character.
+RETURNS:  CX,DX = undefined
+	  AX = number % 10
+
+
+CALLING FORMAT:  CLEARSCREEN0();
+		 CLEARSCREEN1();
+		 CLEARSCREEN2();
+		 CLEARSCREEN3();
+SIZE:  15 bytes.
+FUNCTION:  clears video page 0 of the specifed screen mode.
+RETURNS:  CX = 0
+	  ES = 0xB800
+	  AX = 0x0700
+	  DI = undefined
+
+
+CALLING FORMAT:  CLEARSCREEN4();
+		 CLEARSCREEN5();
+		 CLEARSCREEN6();
+SIZE:  15 bytes.
+FUNCTION:  clears the screen.
+RETURNS:  CX = 0
+	  ES = 0xB800
+	  AX = 0x0000 
+	  DI = undefined
+
+
+CALLING FORMAT:  CLEARSCREEN7();
+SIZE:  15 bytes.
+FUNCTION:  Clears page 0 in video mode 7.
+RETURNS:  CX = 0
+	  ES = 0xB000
+	  AX = 0x0000 
+	  DI = undefined
+
+
+CALLING FORMAT:  CLEARSCREEN17();
+		 CLEARSCREEN19();
+SIZE:  15 bytes.
+FUNCTION:  clears the screen.
+EXAMPLE IN:  C--GDEMO.C--
+RETURNS:  CX = 0
+	  ES = 0xA000
+	  AX = 0x0000 
+	  DI = undefined
+
+
+CALLING FORMAT:  CLEARWINDOW( ,attribute,upperleftloc,lowerrightloc);
+		  attribute = attribute to be used for blanked area
+		  upperleftloc = CH =Y coordinate + CL =X coordinate of the
+				 upper left corner of the window
+		  lowerrightloc = DH =Y coordinate + DL =X coordinate of the
+				  upper left corner of the window
+SIZE:  7 bytes.
+FUNCTION:  clears a specified window with given attribute.
+RETURNS:  AX = 0x0600
+	  BH = attribute
+
+
+CALLING FORMAT:  CLICKOFF();
+SIZE:  5 bytes.
+FUNCTION:  Turns off the PCjr interrupt key click (available only with PCjr
+	   BIOS).
+RETURNS:  AX = 0x0400
+
+
+CALLING FORMAT:  CLICKON();
+SIZE:  5 bytes.
+FUNCTION:  Turns on the PCjr interrupt key click (available only with PCjr
+	   BIOS).
+RETURNS:  AX = 0x0401
+
+
+CALLING FORMAT:  COLDBOOT();
+SIZE:  5 bytes.
+FUNCTION:  Cold boots the computer.
+RETURNS:  Never Ever
+
+
+CALLING FORMAT:  DELAY(time);
+		  time = amount of time to delay in 1/15.3 second time units.
+SIZE:  8 bytes.
+FUNCTION:  Delays for a certain interval of time by a call to a BIOS
+           interrupt.  This function is only available with AT or higher
+           BIOS.
+RETURNS:  AX,CX,DX = undefined
+
+
+CALLING FORMAT:  DISABLE();
+SIZE:  1 byte.
+FUNCTION:  Executes a CLI instruction to disable external interrupts.
+RETURNS:  nothing
+
+
+CALLING FORMAT:  DOSGETDATE();
+DOS REQUIRED:  1.0 +
+SIZE:  4 bytes.
+FUNCTION:  Obtains the system day of the month, day of the week, month, and 
+           year.
+RETURNS:  AH = 0x2A
+          CX = year (1980 to 2099)
+          DH = month (1 to 12)
+          DL = day (1 to 31)
+          Under DOS 1.1 or later:
+          AL = day of week (0 = Sunday, 1 = Monday, ...)  
+
+
+CALLING FORMAT:  DOSGETTIME();
+DOS REQUIRED:  1.0 +
+SIZE:  4 bytes.
+FUNCTION:  Obtains the time of day from the system real-time clock driver,
+           converted to hours, minutes, seconds, and hundredths of seconds.
+RETURNS:  AH = 0x2C
+          CH = hours (0 to 23)
+          CL = minutes (0 to 59)
+          DH = seconds (0 to 59)
+          DL = hundredths of seconds (0 to 99)
+
+
+CALLING FORMAT:  DOSINPORT();
+DOS REQUIRED:  1.0 +
+SIZE:  4 bytes.
+FUNCTION:  Reads a character from the serial port.
+RETURNS:  AH = 3
+          AL = 8-bit data
+
+
+CALLING FORMAT:  DOSOUTPORT( , , ,databyte);
+                  databyte = 8-bit data value to be sent.
+DOS REQUIRED:  1.0 +
+SIZE:  4 bytes.
+FUNCTION:  Outputs a character to the serial port.
+RETURNS:  AH = 4
+
+
+CALLING FORMAT:  DOSWRITESTR(stringloc);
+		  stringloc = memory location of '$' terminating string
+DOS REQUIRED:  1.0 +
+SIZE:  6 bytes.
+FUNCTION:  Prints a $ terminating string to the screen using DOS interrupt.
+RETURNS:  AH = 9
+
+
+CALLING FORMAT:  EATKEY();
+SIZE:  12 bytes.
+FUNCTION:  Signals the keyboard controller that the current scan code has
+           been recieved.
+RETURNS:  AX = undefined
+
+
+CALLING FORMAT:  ENABLE();
+SIZE:  1 byte.
+FUNCTION:  Executes a STI instruction to enable external interrupts.
+RETURNS:  nothing
+
+
+CALLING FORMAT:  EOI();
+SIZE:  4 byte.
+FUNCTION:  Sends the End Of Interrupt signal to the external interrupt
+           controller.  This is done by sending the value 0x20 to port 0x20.
+RETURNS:  AL = 0x20
+
+
+CALLING FORMAT:  EXIT(code);
+		  code = return code of program 0 to 255
+DOS REQUIRED:  2.0 +
+SIZE:  4 bytes.
+FUNCTION:  Terminates program with return code.
+RETURNS:  never
+
+
+CALLING FORMAT:  FCLOSE( ,handle);
+		  handle = file handle
+DOS REQUIRED:  2.0 +
+SIZE:  8 bytes.
+FUNCTION:  Closes a file of the given handle.
+RETURNS:  Success:  AX = 0
+	  Failed:  AX = error code
+
+
+CALLING FORMAT:  FCREATE( , ,attribute,filename);
+		  attribute = file attribute (bits may be combined but are
+                              usually all zero):
+                             bit 0:  read-only
+                             bit 1:  hidden
+                             bit 2:  system
+                             bit 3:  volume label
+                             bit 4:  must be 0
+                             bit 5:  archive
+                             bit 6 to 15:  must be 0
+		  filename = pointer to null-terminating string
+DOS REQUIRED:  2.0 +
+SIZE:  8 bytes.
+FUNCTION:  Creates a file of given filename and attribute and returns a file
+	   handle.
+RETURNS:  Success:  AX = file handle
+	  Failed:  AX = 0
+
+
+CALLING FORMAT:  FDELETE( , , ,filename);
+		  filename = pointer to null-terminating string
+DOS REQUIRED:  2.0 +
+SIZE:  8 bytes.
+FUNCTION:  Deletes a file of given filename.
+RETURNS:  Success:  AX = 0
+	  Failed:  AX = error code
+
+
+CALLING FORMAT:  FHANDLE( ,handle);
+		  handle = handle to be copied
+DOS REQUIRED:  2.0 +
+SIZE:  8 bytes.
+FUNCTION:  Copies file handle for use after handle has been closed.
+RETURNS:  Success:  AX = new handle
+	  Failed:  AX = 0
+
+
+CALLING FORMAT:  FINDFIRSTFILE( , ,attribute,pathname);
+                  attribute = search attribute:
+                              bit 0 = read only
+                              bit 1 = hidden
+                              bit 2 = system
+                              bit 3 = volume label
+                              bit 4 = directory
+                              bit 5 = archive
+                              bits 6 to 15 = reserved (0)
+		  pathname = pointer to null-terminating pathname string
+DOS REQUIRED:  2.0 +
+SIZE:  8 bytes.
+FUNCTION:  Searches the default or specified directory and drive for the
+           first matching file.  Wild card characters may be used.
+EXAMPLE IN:  REFRESH.C-- and TINYDRAW.C--
+RETURNS:  File Not Found:  AX = error code
+	  File Found:  AX = 0   And the current DTA will contain the
+                  following after the search:
+               byte offset:
+               0x00 to 0x14 = reserved (0)
+               0x15         = attribute of matched file or directory
+               0x16 to 0x17 = file time:
+                              bits 0x0 to 0x4 = 2 second increments (0-29)
+                              bits 0x5 to 0xA = minutes (0-59)
+                              bits 0xB to 0xF = hours (0-23)
+               0x18 to 0x19 = file date:
+                              bits 0x0 to 0x4 = day (1-31)
+                              bits 0x5 to 0x8 = month (1-12)
+                              bits 0x9 to 0xF = year (relative to 1980)
+               0x1A to 0x1D = file size
+               0x1E to 0x2A = ASCII filename and extension
+NOTE:  The initial address of the DTA (Disk Transfer Area) in COM files
+       is at the offset 0x80, which is the same address as the location of
+       the command line parameters, thus if the DTA is not moved, the
+       command line parameters will be lost.
+
+
+CALLING FORMAT:  FINDNEXTFILE();
+DOS REQUIRED:  2.0 +
+SIZE:  8 bytes.
+FUNCTION:  Searches the default or specified directory and drive for the
+           next matching file.  FINDFIRSTFILE must be called before using
+           this function.
+EXAMPLE IN:  TINYDRAW.C--
+RETURNS:  File Not Found:  AX = error code
+	  File Found:  AX = 0   And the current DTA will contain the
+                  same information as for FINDFIRSTFILE, except that it will
+                  be the next found file.
+
+
+CALLING FORMAT:  FOPEN(mode, , ,filename);
+		  mode = 0 for read access
+			 1 for write access
+			 2 for read/write access
+		  filename = offset address of filename string
+DOS REQUIRED:  2.0 +
+SIZE:  8 bytes.
+FUNCTION:  Opens a file of given filename and attribute and returns a file
+	   handle.  A FILE THAT DOES NOT EXIST CANNOT BE OPENED!  Use 
+           FCREATE if the file needs to be created.
+RETURNS:  Success:  AX = file handle
+	  Failed:  AX = 0
+
+
+CALLING FORMAT:  FREAD( ,handle,count,buffer);
+		  handle = file handle
+		  count = # of bytes to read
+		  buffer = pointer to read buffer
+DOS REQUIRED:  2.0 +
+SIZE:  8 bytes.
+FUNCTION:  Reads a number of bytes specified in count from handle into
+	   buffer.
+RETURNS:  AX = actual # bytes read
+
+
+CALLING FORMAT:  FWRITE( ,handle,count,buffer);
+		  handle = file handle
+		  count = # of bytes to write
+		  buffer = pointer to write buffer
+DOS REQUIRED:  2.0 +
+SIZE:  8 bytes.
+FUNCTION:  Writes a number of bytes specified in count from buffer into
+	   handle.
+RETURNS:  AX = actual # bytes written
+
+
+CALLING FORMAT:  GETBORDERCOLOR();
+SIZE:  7 bytes.
+FUNCTION:  Calls a BIOS interrupt to get the colour of the border.  This
+	   function will only work on VGA or higher graphics cards.
+RETURNS:  BH = border colour
+	  AH = undefined
+	  AL = border colour
+
+
+CALLING FORMAT:  GETCH();
+DOS REQUIRED:  1.0 +
+SIZE:  4 bytes.
+FUNCTION:  calls DOS interrupt to read a key from the keyboard.
+RETURNS:  AH = 8
+	  AL = ASCII value of key read
+
+
+CALLING FORMAT:  GETCHE();
+DOS REQUIRED:  1.0 +
+SIZE:  4 bytes.
+FUNCTION:  calls DOS interrupt to read a key from the keyboard and echo it to
+	   the screen.
+RETURNS:  AH = 1
+	  AL = ASCII value of key read
+
+
+CALLING FORMAT:  GETCONFIG();
+SIZE:  2 bytes.
+FUNCTION:  Calls BIOS interrupt 0x11 to get system configuration.
+RETURNS:  AX = bit 0 = 1 if floppy drive(s) installed
+	       bit 1 = 1 if math coprocessor installed
+  	       bit 2 = 1 if pointing device installed (PS/2)
+	       bit 3 = don't worry about it
+	       bit 4 = don't worry about it
+	       bits 4,5 = inital video mode
+		        0,0  reserved
+		        0,1  40x25 colour text
+		        1,0  80x25 colour text
+		        1,1  80x25 monochrome text
+	       bits 6,7 = number of floppy disk drives
+			0,0  1 drive
+			0,1  2 drives
+			1,0  3 drives
+			1,1  4 drives
+	       bit 8 = who knows what
+	       bits 9,10,11 = number of RS-232 ports installed
+	       bit 12 = 1 if game adapter installed
+	       bit 13 = don't worry about it
+	       bits 14,15 = number of printers installed
+
+
+CALLING FORMAT:  GETCPU();
+SIZE:  83 bytes.
+FUNCTION:  Determines whether the system processor is an 8086, 80286, 80386,
+           or 80486.
+RETURNS:  AH,BX,CX,DX = undefined
+          AL = 0 if 8086 or 8088
+             = 2 if 80286
+             = 3 if 80386
+             = 4 if 80486
+
+
+CALLING FORMAT:  GETDOSVERSION();
+DOS REQUIRED:  1.0 +
+SIZE:  5 bytes.
+FUNCTION:  calls DOS interrupt to get the version number of the host MS-DOS
+	   operating system.
+RETURNS:  if DOS version 1
+	      AX = 0x3000
+	  if DOS version 2.0 +
+   	      AL = major version number (example 2.10 would be AL = 2)
+	      AH = minor version number (example 4.10 would be AH = 10)
+
+
+CALLING FORMAT:  GETINTVECT(addressbuf,intnum);
+		  addressbuf = address of 2 word buffer for interrupt
+			 address.  Low word of interrupt address will
+			 be stored at offset 0 and high word at offset
+			 2 bytes.
+		  intnum = number of the interrupt vector to get.
+SIZE:  22 bytes.
+FUNCTION:  Copies the address of the interrupt vector into addressbuf.
+RETURNS:  AX,BX,CX,DX = undefined
+	  ES = 0x0000
+
+
+CALLING FORMAT:  GETMEM(blocksize);
+                  blocksize = size of desired block in 16 byte paragraphs.  
+DOS REQUIRED:  2.0 +
+SIZE:  10 bytes.
+FUNCTION:  Attempts to allcate a memory block of the specified size.
+           Returns the address of the allocated memory block.  All
+           allocated memory blocks are automatically deallocated when the
+           program terminates.
+RETURNS:  AX = segment address of allocated memory block, if the value is
+               0 then the allocation failed.
+          BX = undefined.
+
+
+CALLING FORMAT:  GETMEMSIZE();
+SIZE:  2 bytes.
+FUNCTION:  returns the amount of conventional memory available for MS-DOS
+	   and application programs, by interrupt 0x12.
+RETURNS:  AX = memory size in KiloBytes.
+
+
+CALLING FORMAT:  GETPIXEL( ,page,x,y);
+		  page = graphics page * 256 (usually 0)
+		  x = x coordinate of pixel
+		  y = y coordinate of pixel
+SIZE:  4 bytes.
+FUNCTION:  Gets the colour of a pixel on screen when in a graphics mode by
+	   BIOS interrupt.
+RETURNS:  AH = 0x0D
+	  AL = pixel colour
+
+
+CALLING FORMAT:  GETPIXEL19( ,x, ,y);
+		  x = x coordinate of pixel (0..319)
+		  y = y coordinate of pixel (0..199)
+SIZE:  15 bytes.
+FUNCTION:  Gets a pixel from the screen in mode 19 (0x13) graphics mode.
+RETURNS:  DX,BX = Undefined.
+	  ES = 0xA000 (VGA seg)
+	  AL = colour of pixel specified
+
+
+CALLING FORMAT:  GETRETURNCODE();
+DOS REQUIRED:  2.0 +
+SIZE:  4 bytes.
+FUNCTION:  calls DOS interrupt to get the return code from a child process.
+RETURNS: AH = exit type:
+		0x00 if normal termination
+		0x01 if termination by critical-error handler
+		0x02 if termination by int 0x21 function 0x31 or int 0x27
+	 AL = return code
+
+
+CALLING FORMAT:  GETTEXTPOSITION( ,page);
+		  page = desired display page * 256
+SIZE:  4 bytes.
+FUNCTION:  gets the cursor location of a specified screen page by BIOS
+	   interrupt.
+RETURNS:  AH = 3
+	  CH = starting line for cursor
+	  CL = ending line for cursor
+	  DH = row (y coordinate)
+	  DL = column (x coordinate
+
+
+CALLING FORMAT:  GETVERIFYFLAG();
+DOS REQUIRED:  2.0 +
+SIZE:  4 bytes.
+FUNCTION:  calls DOS interrupt to get the current value of the system verify
+	   (read-after-write) flag.
+RETURNS: AH = 84
+	 AL = 0x00 if verify flag on or
+	      0x01 if verify flay off
+
+
+CALLING FORMAT:  GETVGAPALETTE( ,first,numbertoget,buffer);
+		  first = first colour register to get.
+		  numbertoget = number of palette values to get.
+		  buffer = offset address of buffer.
+SIZE:  9 bytes.
+FUNCTION:  Calls a BIOS interrupt to get the RGB palette values.  The buffer
+	   must be 3 times the number of colour values long in bytes.  This
+	   function will only work on VGA or higher graphics cards.
+RETURNS:  nothing.
+
+
+CALLING FORMAT:  GETVIDEOMODE();
+DEFINED IN:  VIDEO.H--
+SIZE:  4 bytes.
+FUNCTION:  Gets the value of the current video mode from a BIOS interrupt.
+RETURNS:  AH = # of character column in current mode
+	  AL = video mode (see SETVIDEOMODE();)
+	  BH = active display page (usually 0)
+
+
+CALLING FORMAT:  GOTOXY(xloc,yloc);
+		  xloc = X coordinate for cursor starting with 0.
+		  yloc = Y coordinate for cursor starting with 0.
+DEFINED IN:  WRITE.H--
+SIZE:  9 bytes.
+FUNCTION:  Sets the cursor location on video page 0 to the desired location,
+           using a BIOS interrupt.
+RETURNS:  AX,BX,DX = undefined.
+
+
+CALLING FORMAT:  GWRITE(character,attribute);
+  		  character = ASCII character code to write.
+		  attribute = attribute of text.
+DEFINED IN:  GWRITE.H--
+SIZE:  6 bytes.
+FUNCTION:  Writes a single character to video page 0 in the specifed colour
+           using a BIOS interrupt.
+RETURNS:  AX,BX = undefined
+
+
+CALLING FORMAT:  GWRITEDIGITS(wordvalue,attribute);
+		  wordvalue = number to be printed.
+		  attribute = attribute of text.
+DEFINED IN:  GWRITE.H--
+SIZE:  69 bytes.
+FUNCTION:  Writes the specified number as a sequence of 5 digits to the
+           screen on video page 0 of a graphics video mode in the specified
+           colour using a BIOS interrupt.
+RETURNS:  AX,BX,CX,DX = Undefined.
+
+
+CALLING FORMAT:  GWRITEINT(intvalue,attribute);
+		  intvalue = number to be printed.
+		  attribute = attribute of text.
+DEFINED IN:  GWRITE.H--
+SIZE:  106 bytes.
+FUNCTION:  Writes the specified number to the screen on video page 0 of a
+           graphics video mode in the specified colour using a BIOS
+           interrupt.
+RETURNS:  AX,BX,CX,DX = Undefined.
+
+
+CALLING FORMAT:  GWRITESTRING(stringloc,attribute);
+		  stringloc = address of 0 terminating string to be printed.
+		  attribute = attribute of text.
+DEFINED IN:  GWRITE.H--
+SIZE:  17 bytes.
+FUNCTION:  Writes the specified string to the screen on video page 0 of a
+           graphics video mode in the specified colour using a BIOS
+           interrupt.
+RETURNS:  AX,BX = Undefined.
+
+
+CALLING FORMAT:  GWRITEWORD(wordvalue,attribute);
+		  wordvalue = number to be printed.
+		  attribute = attribute of text.
+DEFINED IN:  GWRITE.H--
+SIZE:  90 bytes.
+FUNCTION:  Writes the specified number to the screen on video page 0 of a
+           graphics video mode in the specified colour using a BIOS
+           interrupt.
+RETURNS:  AX,BX,CX,DX = Undefined.
+
+
+CALLING FORMAT:  HALT();
+DOS REQUIRED:  1.0 +
+SIZE:  4 bytes.
+FUNCTION:  quits the program by DOS interrupt 0x21 function 0x00.
+RETURNS:  never
+
+
+CALLING FORMAT:  INPORTB( , , ,port);
+		  port = port to read byte value from (0 to 65535)
+SIZE:  1 byte.
+FUNCTION:  reads a byte from a port.
+RETURNS:  AL = byte read
+
+
+CALLING FORMAT:  INPORTW( , , ,port);
+		  port = port to read word value from (0 to 65535)
+SIZE:  1 byte.
+FUNCTION:  reads a word from a port.
+RETURNS:  AX = word read
+
+
+CALLING FORMAT:  KBHIT();
+SIZE:  14 bytes.
+FUNCTION:  checks to see if a key is waiting to be read from the keyboard
+	   buffer.
+RETURNS:  AX == 0x0000 if no key is waiting or
+	  AX != 0x0000 if at least one key has been pressed
+
+
+CALLING FORMAT:  KEEP( , , ,offset);
+		  offset = offest of the last byte +1 of program to stay
+			   resident
+DOS REQUIRED:  1.0 +
+SIZE:  2 bytes.
+FUNCTION:  calls DOS interrupt 0x27 to terminate the program and keep the
+	   amount specified of it resident in memory.
+RETURNS:  nothing
+
+
+CALLING FORMAT:  KEYCHECK();
+DOS REQUIRED: 1.0 +
+SIZE:  4 bytes.
+FUNCTION:  calls a dos interrupt to check if a key is waiting to be read from
+	   the keyboard.
+RETURNS:  AH = undefined
+	  AL = 0x00 if no character is available or
+    	       0xFF if at least one character is available
+
+
+CALLING FORMAT:  LOAD8X8FONT();
+SIZE:  7 bytes.
+FUNCTION:  Loads the 8x8 text font.  This should only be called after a video
+	   mode change into a text mode.  On the EGA this function will
+	   change the number of text rows from 25 to 43.  On the VGA and
+	   higher this function will change the number text rows from 25 to
+	   50.  This function will have no effect on video cards below EGA.
+RETURNS:  AX,BX = undefined
+
+
+CALLING FORMAT:  LOAD8X14FONT();
+SIZE:  7 bytes.
+FUNCTION:  Loads the 8x14 text font.  This should only be called after a
+	   video mode change into a text mode.  This function will have no
+	   effect on video cards below EGA.
+RETURNS:  AX,BX = undefined
+
+
+CALLING FORMAT:  LOAD8X16FONT();
+SIZE:  7 bytes.
+FUNCTION:  Loads the 8x16 text font.  This should only be called after a
+	   video mode change into a text mode.  This function will have no
+	   effect on video cards below the MCGA.
+RETURNS:  AX,BX = undefined
+
+
+CALLING FORMAT:  MAXKEYRATE();
+SIZE:  7 bytes.
+FUNCTION:  Sets the keyboard repeat rate to maximum.  This function is only
+	   available with AT or higher keyboard BIOS.
+RETURNS:  AX = undefined
+	  BX = 0
+
+
+CALLING FORMAT:  NOSOUND();
+DEFINED IN:  SOUND.H--
+SIZE:  6 bytes.
+FUNCTION:  Turns off the internal IBM speaker.
+RETURNS:  AL = undefined
+
+
+CALLING FORMAT:  ORPIXEL19( ,x,colour,y);
+		  colour = colour of pixel desired ( 0..255)
+		  x = x coordinate of pixel (0..319)
+		  y = y coordinate of pixel (0..199)
+SIZE:  15 bytes.
+FUNCTION:  ORs a pixel to the screen in mode 19 (0x13) graphics mode.
+RETURNS:  AX,DX,BX = Undefined.
+	  ES = 0xA000 (VGA seg)
+
+
+CALLING FORMAT:  OUTPORTB(value, , ,port);
+		  value = byte value to write out
+		  port = port to write value to (0 to 65535)
+SIZE:  1 byte.
+FUNCTION:  Writes a byte to a port.
+RETURNS:  nothing
+
+
+CALLING FORMAT:  OUTPORTW(value, , ,port);
+		  value = word value to write out
+		  port = port to write value to (0 to 65535)
+SIZE:  1 byte.
+FUNCTION:  Writes a word to a port.
+RETURNS:  nothing
+
+
+CALLING FORMAT:  PASSTR( , , , ,cstringoffset,passtringoffset);
+		  cstringoffset = offset address of C type string.
+		  passtringoffset = offset address of Pascal type string.
+SIZE:  23 bytes.
+FUNCTION:  Copies a Pascal type string to a C type string.  A Pascal type 
+           string is a string whos first byte specifies the length of the
+           string.  A C type string is a string which is terminated with
+           the byte value zero.
+RETURN:  AX = length of the new string, not including the 0 terminator
+         CX = 0
+         ES = DS
+         DI,SI = undefined
+
+
+CALLING FORMAT:  PUTBRICK19( , ,xlen,ylen,screenloc,bufloc);
+		  xlen = the width of the block in bytes
+		  ylen = the length of the block in pixels
+		  screenloc = start memory location offset to write to
+		  bufloc = location of the buffer
+SIZE:  bytes.
+FUNCTION:  Puts the image of bytes from the buffer on to the current VGA
+	   graphics screen from at the location specified.
+RETURNS:  ES = DS
+	  SI = end of buffer
+	  AX,DI = undefined
+	  CX,DX = 0
+	  BX = xlen
+
+
+CALLING FORMAT:  PUTPIXEL(colour,page,x,y);
+		  colour = colour of pixel desired
+		  page = graphics page * 256 (usually 0)
+		  x = x coordinate of pixel
+		  y = y coordinate of pixel
+SIZE:  4 bytes.
+FUNCTION:  Writes a pixel to the screen when in a graphics mode.
+RETURNS:  AH = 0x0C
+
+
+CALLING FORMAT:  PUTPIXEL19( ,x,colour,y);
+		  colour = colour of pixel desired ( 0..255)
+		  x = x coordinate of pixel (0..319)
+		  y = y coordinate of pixel (0..199)
+SIZE:  15 bytes.
+FUNCTION:  Puts a pixel to the screen in mode 19 (0x13) graphics mode.
+RETURNS:  AX,DX,BX = Undefined.
+	  ES = 0xA000 (VGA seg)
+
+
+CALLING FORMAT:  REBOOT();
+SIZE:  2 bytes.
+FUNCTION:  Calls reboot interrupt 0x19 (just an INT 0x19 instruction).
+RETURNS:  should not return.
+
+
+CALLING FORMAT:  READSTRING( , , ,string);
+		  string = location of string to be read into,
+			   first byte contains maximum length,
+			   second byte will contain number of characters
+                           read, remaining bytes will contain the string
+                           read including the ending carrage return.
+DOS REQUIRED:  1.0 +
+SIZE:  4 bytes.
+FUNCTION:  reads a string from the keyboard by DOS interrupt.
+RETURNS:  AH = 10
+
+
+CALLING FORMAT:  SETATIMASK( ,readwritemask);
+		  readwritemask = memory page to select.
+SIZE:  36 bytes.
+FUNCTION:  Sets the current video memory page for memory read/write
+           operations for the ATI VGA Wonder card for its enhanced graphics
+           modes.  This function is only available on ATI VGA Wonder or
+           higher ATI graphics cards.
+RETURNS:  AX,BX,DX = undefined
+
+
+CALLING FORMAT:  SETBORDERCOLOR(color);
+		  color = color desired for border.
+SIZE:  7 bytes.
+FUNCTION:  Sets the border to the color specified.  This function is only 
+           available with PCjr, EGA, VGA or higher graphics cards.
+RETURNS:  AX,BX = undefined
+
+
+CALLING FORMAT:  SETCURRENTDIR(stringpath);
+		  stringpath = offset address of pathname string.
+DOS REQUIRED:  2.0 +
+SIZE:  10 bytes.
+FUNCTION:  Sets the current directory for the drive specified in the path 
+           string to the directory in the path string.
+RETURNS:  AX == 0 if successful
+          AX != 0 if unsuccessful
+          DX = stringpath
+
+
+CALLING FORMAT:  SETCURRENTDRIVE(drivecode);
+		  drivecode = drive number, 0 = A, 1 = B, etc.
+DOS REQUIRED:  1.0 +
+SIZE:  12 bytes.
+FUNCTION:  Sets the current drive to the value specified in drivecode.
+RETURNS:  AX == 0 if successful
+          AX != 0 if unsuccessful
+          DL = drivecode
+
+
+CALLING FORMAT:  SETDISPLAYPAGE(page);
+SIZE:  4 bytes.
+FUNCTION:  Sets the current display page for the current video mode.  
+           Total number of video pages for each video mode depends on the
+           installed graphics card.  Below is a list of available video pages
+           for each video mode and video card:
+             mode: 0x0,0x1     - 0 to 7 for CGA, EGA, MCGA, VGA, and XGA
+                   0x2,0x3     - 0 to 3 for CGA
+                               - 0 to 7 for EGA, MCGA, VGA, and XGA
+                   0x7         - 0 to 7 for EGA, VGA, and XGA
+                   0xD         - 0 to 7 for EGA, VGA, and XGA
+                   0xE         - 0 to 3 for EGA, VGA, and XGA
+                   0xF         - 0 to 1 for EGA, VGA, and XGA
+                   0x10        - 0 to 1 for EGA, VGA, and XGA
+RETURNS:  AX = undefined
+
+
+CALLING FORMAT:  SETINTVECT( ,intnum,segmentvalue,offsetvalue);
+		  intnum = number of the interrupt vector to get.
+		  segmentvalue = segment value for the new interrupt
+		  	         vector.
+		  offsetvalue = offset value for the new interrupt
+			        vector.
+SIZE:  17 bytes.
+FUNCTION:  Sets the specified interrupt vector with the address given.
+RETURNS:  AX,BX = undefined
+	  CX = segmentvalue
+	  DX = offsetvalue
+	  ES = 0x0000
+
+
+CALLING FORMAT:  SETSCREENOFFSET( ,offset);
+		  offset = value to set offset of the screen
+SIZE:  20 bytes.
+FUNCTION:  Sets the offset address of the video RAM for display.  This
+	   function will only work on CGA and higher colour graphics
+	   cards.
+RETURNS:  AL,DX = undefined
+
+
+CALLING FORMAT:  SETSCREENOFFSETM( ,offset);
+		  offset = value to set offset of the screen
+SIZE:  20 bytes.
+FUNCTION:  Sets the offset address of the video RAM for display.  This
+	   function will only work on monocrome graphics cards.
+RETURNS:  AL,DX = undefined
+
+
+CALLING FORMAT:  SETTEXTPOSITION( ,page, ,loc);
+		  page = desired display page * 256
+		  loc = row * 256 + column
+SIZE:  4 bytes.
+FUNCTION:  Sets the cursor to a location specified on the screen.
+RETURNS:  AH = 2
+
+
+CALLING FORMAT:  SETTICKINTERVAL( ,intervalsize);
+		  intervalsize = value sent to timer 0 (see below).
+SIZE:  14 bytes.
+FUNCTION:  Sets the interval time between pulses from PIT, which causes
+	   calls to INT 8h.  The initial value of the interval is 0xFFFF
+	   for 18.200 times a second.  A value of 0x7FFF is about 36.4
+	   times a second.  Changing this value has many side effects,
+	   speeding up of the system clock (but not the CMOS clock), faster
+	   shut off time of floppy drive motors and mutation of speed ratings
+	   from CPU testing programs.  Many things depend on the clock
+	   interrupt and I remove myself from any fault for system damage
+	   by changing this value, even though I feel that the worst that
+	   can happen is a system crash, but hard drives seem to crash when
+	   they want to...
+RETURNS:  AL = undefined.
+
+
+CALLING FORMAT:  SETVGADAC(first, ,numbertoset, , ,buf);
+		  first = first palette value to set (0 to 255).
+		  numbertoset = number of palette values to set times 3.
+		  buf = offset address of buffer to read from.
+SIZE:  9 bytes.
+FUNCTION:  Set the DAC register values on the VGA card, resulting in palette
+	   selection.  This will only work on a 80286 or higher processor
+	   with VGA or higher graphics card.
+RETURNS:  AX,DX,SI = undefined.
+NOTE:  This procedure executes 286 operations, 80286 or greater processor
+       required to execute.
+
+
+CALLING FORMAT:  SETVGAPALETTE( ,first,numbertoset,buffer);
+		  first = first colour register to set.
+		  numbertoset = number of palette values to set.
+		  buffer = offset address of buffer.
+SIZE:  9 bytes.
+FUNCTION:  Calls a BIOS interrupt to set the RGB palette values.  The buffer
+	   must be 3 times the number of colour values long in bytes.  This
+	   function will only work on VGA or higher graphics cards.
+RETURNS:  nothing.
+
+
+CALLING FORMAT:  SETVIDEOMODE(mode);
+	  mode = graphics mode value (see below):
+		   mode  X by Y  colours  type      graphics-card-required
+		 0   40x25      16    text       CGA,PCjr,EGA,MCGA,VGA
+		 1   40x25      16    text       CGA,PCjr,EGA,MCGA,VGA
+		 2   80x25      16    text       CGA,PCjr,EGA,MCGA,VGA
+		 3   80x25      16    text       CGA,PCjr,EGA,MCGA,VGA
+		 4   320x200     4  graphics     CGA,PCjr,EGA,MCGA,VGA
+		 5   320x200     4  graphics     CGA,PCjr,EGA,MCGA,VGA
+		 6   640x200     2  graphics     CGA,PCjr,EGA,MCGA,VGA
+		 7   80x25       2    text   MDA,         EGA,     VGA
+		 8   160x200    16  graphics         PCjr,
+		 9   320x200    16  graphics         PCjr,
+		10   640x200     4  graphics         PCjr,
+		13   320x200    16  graphics              EGA,     VGA
+		14   640x200    16  graphics              EGA,     VGA
+		15   640x350     2  graphics              EGA,     VGA
+		16   640x350    16  graphics              EGA,     VGA
+		17   640x480     2  graphics                  MCGA,VGA
+		18   640x480    16  graphics                       VGA
+		19   320x200   256  graphics                  MCGA,VGA
+		20   640x400    16  graphics Tecmar VGA/AD ONLY
+		22   800x600    16  graphics Tecmar VGA/AD ONLY
+		23   132x25     16    text   Tecmar VGA/AD ONLY
+		24   1024x768   16  graphics Tecmar VGA/AD ONLY
+		24   132x44      2    text   Tseng Labs EVA ONLY
+		25   132x25      2    text   Tseng Labs EVA ONLY
+		26   132x28      2    text   Tseng Labs EVA ONLY
+		26   640x350   256  graphics Tecmar VGA/AD ONLY
+		27   640x400   256  graphics Tecmar VGA/AD ONLY
+		28   640x480   256  graphics Tecmar VGA/AD ONLY
+		29   800x600   256  graphics Tecmar VGA/AD ONLY
+		34   132x44     16    text   Tseng Labs EVA ONLY
+		34   132x44     16    text   Ahead Systems EGA2001 ONLY
+		34   132x43     16    text   Allstar Peacock VGA ONLY
+		35   132x25     16    text   ATI EGA, ATI VGA ONLY
+		35   132x25     16    text   Tseng Labs EVA ONLY
+		35   132x25     16    text   Ahead Systems EGA2001 ONLY
+		35   132x28     16    text   Allstar Peacock VGA ONLY
+		36   132x28     16    text   Tseng Labs EVA ONLY
+		36   132x25     16    text   Allstar Peacock VGA ONLY
+		37   640x480    16  graphics VEGA VGA ONLY
+		38   640x480    16  graphics Ahead Systems EGA2001 ONLY
+		39   132x25      2    text   ATI EGA, ATI VGA ONLY
+		39   720x512    16  graphics Genoa or VEGA VGA ONLY
+		41   800x600    16  graphics Orchid,STB,Genoa,Sigma,VEGA ONLY
+		41   800x600    16  graphics Allstar Peacock VGA ONLY
+		42   100x40     16    text   Allstar Peacock VGA ONLY
+		42   100x40     16    text   Orchid Prodesigner VGA ONLY
+		45   640x350   256  graphics Genoa,STB,VEGA VGA ONLY
+		46   640x480   256  graphics Orchid,STB,Genoa,Sigma,VEGA ONLY
+		47   720x512   256  graphics Genoa or VEGA VGA ONLY
+		48   800x600   256  graphics Orchid,STB,Genoa,Sigma,VEGA ONLY
+		51   132x44     16    text   ATI EGA or ATI VGA ONLY
+		54   960x720    16  graphics STB or VEGA VGA
+		55   132x44      2    text   ATI EGA or ATI VGA ONLY
+		55   1024x768   16  graphics Orchid,STB,Genoa,Sigma,VEGA ONLY
+		65   132x25     16    text   Tatung, Video7, VEGA VGA ONLY
+		66   132x43     16    text   Tatung, Video7, VEGA VGA ONLY
+		67   80x60      16    text   Tatung, Video7, VEGA VGA ONLY
+		68   100x60     16    text   Tatung, Video7, VEGA VGA ONLY
+		69   132x28     16    text   Tatung, Video7, VEGA VGA ONLY
+		77   120x25     16    text   VEGA VGA ONLY
+		78   120x43     16    text   VEGA VGA ONLY
+		79   132x25     16    text   VEGA VGA ONLY
+		80   80x43       2    text   VEGA VGA ONLY
+		80   132x25      2    text   Ahead Systems EGA2001 ONLY
+		81   80x34      16    text   ATI EGA ONLY
+		81   132x25      2    text   VEGA VGA ONLY
+		82   132x44      2    text   Ahead Systems EGA2001 ONLY
+		82   132x43      2    text   VEGA VGA ONLY
+		82   94x29      16    text   ATI EGA Wonder ONLY
+		83   800x600    16  graphics ATI EGA or ATI VGA ONLY
+		84   800x600    16  graphics ATI EGA, ATI VGA ONLY
+		84   132x43     16    text   Paradise VGA,Taxan 565 EGA ONLY
+		84   132x43     16    text   AST VGA Plus ONLY
+		84   132x43     16    text   Hewlett-Packard D1180A ONLY
+		85   132x25     16    text   Paradise VGA,Taxan 565 EGA ONLY
+		85   132x25     16    text   AST VGA Plus ONLY
+		85   132x25     16    text   Hewlett-Packard D1180A ONLY
+		86   800x600    16  graphics ATI EGA or ATI VGA ONLY
+		86   800x600    16  graphics Paradise or AT&T VDC600 ONLY
+		86   800x600    16  graphics AST VGA Plus or Compaq VGA ONLY
+		86   800x600    16  graphics Dell VGA ONLY
+		86   800x600    16  graphics Hewlett-Packard D1180A ONLY
+		89   800x600     2  graphics Paradise, AT&T VDC600 ONLY
+		89   800x600     2  graphics ATI VIP, AST VGA Plus ONLY
+		89   800x600     2  graphics Compaq VGA, Dell VGA ONLY
+		89   800x600     2  graphics Hewlett-Packard D1180A ONLY
+		94   640x400   256  graphics Paradise VGA or VEGA VGA ONLY
+		94   640x400   256  graphics AST VGA Plus, Compaq VGA ONLY
+		94   640x400   256  graphics Dell VGA or AT&T VDC600 ONLY
+		95   640x480   256  graphics AST VGA Plus, Compaq VGA ONLY
+		95   640x480   256  graphics Dell VGA or AT&T VDC600 ONLY
+		95   640x480   256  graphics Paradise VGA ONLY
+		96   752x410    16  graphics VEGA VGA,Tatung VGA,Video7 ONLY
+		97   720x540    16  graphics VEGA VGA,Tatung VGA,Video7 ONLY
+		97   640x400   256  graphics ATI VGA ONLY
+		98   640x480   256  graphics ATI VGA ONLY
+		98   800x600    16  graphics VEGA VGA,Tatung VGA,Video7 ONLY
+		99   800x600   256  graphics ATI VGA ONLY
+		99   1024x768    2  graphics Video7 V-RAM VGA ONLY
+	       100   1024x768    4  graphics Video7 V-RAM VGA ONLY
+	       101   1024x768   16  graphics ATI VGA, Video7 V-RAM VGA ONLY
+	       102   640x400   256  graphics Tatung VGA, Video7 V-RAM ONLY
+	       103   640x480   256  graphics Video7 V-RAM VGA ONLY
+	       103   1024x768    4  graphics ATI VGA Wonder ONLY
+	       105   720x540   256  graphics Video7 V-RAM VGA ONLY
+	       106   800x600    16  graphics VESA standard interface ONLY
+	       124   512x512    16  graphics Genoa ONLY
+	       125   512x512   256  graphics Genoa ONLY
+DEFINED IN:  VIDEO.H--
+SIZE:  4 bytes.
+FUNCTION:  Sets the current video mode by BIOS interrupt.
+RETURNS:  nothing
+
+
+CALLING FORMAT:  SHIFTSTATUS();
+SIZE:  9 bytes.
+FUNCTION:  returns the current state of the shift, ctrl, alt, and other keys.
+RETURNS:  AX = bit 0 =1 if right shift key is depressed
+    	       bit 1 =1 if left shift key is depressed
+	       bit 2 =1 if control key is depressed
+	       bit 3 =1 if alt key is depressed
+	       bit 4 =1 if scroll lock state is on
+	       bit 5 =1 if number lock state is on
+	       bit 6 =1 if caps lock state is on
+	       bit 7 =1 if insert state is on
+	       bit 8 = undefined
+	       bit 9 = undefined
+	       bit 10 = undefined
+	       bit 11 =1 if control number lock state is on
+	       bit 12 =1 if scroll lock key is depressed
+	       bit 13 =1 if number lock key is depressed
+	       bit 14 =1 if caps lock key is depressed
+	       bit 15 =1 if insert key is depressed
+	  ES = 0x0000
+
+
+CALLING FORMAT:  SOUND(frequency);
+		  frequency = frequency of sound desired in Hz.
+DEFINED IN:  SOUND.H--
+SIZE:  30 bytes.
+FUNCTION:  Starts the internal IBM speaker (wow) to emit a sound at the
+           desired frequency (aprox. range 50 to 12000 Hz).
+RETURNS:  AX,BX,DX = undefined
+
+
+CALLING FORMAT:  STRCAT( , , , ,deststrffset,sourcestroffset);
+		  deststroffset = offset address of destination string.
+		  sourcestroffset = offset address of source string.
+SIZE:  23 bytes.
+FUNCTION:  Copies the source string on to the end of the destination 
+           string.
+RETURNS:  AX,BX,CX,DI,SI = undefined.
+
+
+CALLING FORMAT:  STRLEN(stroffset);
+		  stroffset = memory location of string
+SIZE:  13 bytes.
+FUNCTION:  Calculates the length of the string which is terminated by the
+           byte value of zero.
+RETURNS:  AX and BX = length of string in bytes excluding terminating byte.
+         
+
+CALLING FORMAT:  STRPAS( , , , ,passtringoffset,cstringoffset);
+		  passtringoffset = offset address of Pascal type string.
+		  cstringoffset = offset address of C type string.
+SIZE:  24 bytes.
+FUNCTION:  Copies a C type string to a Pascal type string.  A Pascal type 
+           string is a string whos first byte specifies the length of the
+           string.  A C type string is a string which is terminated with
+           the byte value zero.
+RETURNS:  AX,BX,CX,DI,SI = undefined.
+
+
+CALLING FORMAT:  SUBPIXEL19( ,x,colour,y);
+		  colour = colour of pixel desired ( 0..255)
+		  x = x coordinate of pixel (0..319)
+		  y = y coordinate of pixel (0..199)
+SIZE:  15 bytes.
+FUNCTION:  subtracts a pixel from the screen in mode 19 (0x13) graphics mode.
+RETURNS:  AX,DX,BX = undefined
+	  ES = 0xA000 (VGA seg)
+
+
+CALLING FORMAT:  TEXTROWS();
+SIZE:  8 bytes.
+FUNCTION:  Returns the number of text rows on screen minus one.
+RETURNS:  AL = number of text rows - 1
+	  ES = 0x0000
+
+
+CALLING FORMAT:  TURNOFFCHAIN4();
+SIZE:  53 bytes.
+FUNCTION:  Disactivates the chain 4 memory organization for video mode
+           320x200 256 colours.  Thus allowing all 4 memory planes to be
+           addressed.
+RETURNS:  DX,AX = undefined
+
+
+CALLING FORMAT:  UNBLANKVGA();
+SIZE:  6 bytes.
+FUNCTION:  Restores the screen after a call to BLANKVGA().  This is done by
+	   by resetting the DAC mask register back to 0xFF.
+RETURNS:  AL = 0xFF
+	  DX = 0x3C6
+
+
+CALLING FORMAT:  WARMBOOT();
+SIZE:  15 bytes.
+FUNCTION:  Warm boots the computer.
+RETURNS:  Never Ever
+
+
+CALLING FORMAT:  WAITVSYNC();
+SIZE:  13 bytes.
+FUNCTION:  Waits for the leading edge of vertical sync pulse, marking the
+	   beginning of the vertical non-display period.
+RETURNS:  AX,DX undefined.
+
+
+CALLING FORMAT:  WINDOWDOWN(numoflines,attribute,upperleftloc,lowerrightloc);
+		  numoflines = number of lines to scroll, 1 to 255
+		  attribute = attribute to be used for blanked area
+		  upperleftloc = CH =Y coordinate + CL =X coordinate of the
+				 upper left corner of the window
+	 	  lowerrightloc = DH =Y coordinate + DL =X coordinate of the
+				  upper left corner of the window
+DEFINED IN:  WRITE.H--
+SIZE:  7 bytes.
+FUNCTION:  scrolls a specified window down a number of lines and initializes
+	   the new lines with the attribute given.
+RETURNS:  AH = 0x06
+	  BH = attribute
+
+
+CALLING FORMAT:  WINDOWUP(numoflines,attribute,upperleftloc,lowerrightloc);
+		  numoflines = number of lines to scroll, 1 to 255
+		  attribute = attribute to be used for blanked area
+		  upperleftloc = CH =Y coordinate + CL =X coordinate of the
+				 upper left corner of the window
+		  lowerrightloc = DH =Y coordinate + DL =X coordinate of the
+				  upper left corner of the window
+DEFINED IN:  WRITE.H--
+SIZE:  7 bytes.
+FUNCTION:  scrolls a specified window up a number of lines and initializes
+	   the new lines with the attribute given.
+RETURNS:  AH = 0x06
+	  BH = attribute
+
+
+CALLING FORMAT:  WORDTODIGITS(number,stringloc);
+		  number = word to be converted to digits string
+		  stringloc = location of string
+SIZE:  59 bytes.
+FUNCTION:  converts a word value to 5 decimal digits and a NULL terminating
+	   character.
+RETURNS:  CX,DX = undefined
+	  AX = AX % 10
+
+
+CALLING FORMAT:  WRITE(character);
+ 		  character = ASCII character code to write.
+DEFINED IN:  WRITE.H--
+SIZE:  7 bytes.
+FUNCTION:  Writes a single character to video page 0 using a BIOS
+	   interrupt.
+RETURNS:  AX,BX = undefined
+
+
+CALLING FORMAT:  WRITEDIGITS(wordvalue);
+		  wordvalue = number to be printed.
+DEFINED IN:  WRITE.H--
+SIZE:  70 bytes.
+FUNCTION:  Writes the specified number as a sequence of 5 digits to video
+           page 0 using a BIOS interrupt.
+RETURNS:  AX,BX,CX,DX = Undefined.
+
+
+CALLING FORMAT:  WRITEINT(intvalue);
+		  intvalue = number to be printed.
+DEFINED IN:  WRITE.H--
+SIZE:  107 bytes.
+FUNCTION:  Writes the specified number to video page 0 using a BIOS
+           interrupt.
+RETURNS:  AX,BX,CX,DX = Undefined.
+
+
+CALLING FORMAT:  WRITELN();
+DEFINED IN:  WRITE.H--
+SIZE:  12 bytes.
+FUNCTION:  Writes a carrage return and linefeed to video page 0 using a BIOS
+           interrupt.  This results in the cursor being moved to the
+           beginning of the next line.
+RETURNS:  AX,BX = undefined
+
+
+CALLING FORMAT:  WRITESTR(stringloc);
+		  stringloc = address of 0 terminating string to be printed.
+DEFINED IN:  WRITE.H--
+SIZE:  18 bytes.
+FUNCTION:  Writes the specified string to video page 0 using a BIOS
+           interrupt.
+RETURNS:  AX,BX = Undefined.
+
+
+CALLING FORMAT:  WRITEWORD(wordvalue);
+		  wordvalue = number to be printed.
+DEFINED IN:  WRITE.H--
+SIZE:  91 bytes.
+FUNCTION:  Writes the specified number to video page 0 using a BIOS
+           interrupt.
+RETURNS:  AX,BX,CX,DX = Undefined.
+
+
+CALLING FORMAT:  XLINE19(x,y,length,colour);
+		  x = x coordinate of start of line (0..319)
+		  y = y coordinate of start of line (0..199)
+                  length = pixel lenght of line (1..200)
+		  colour = colour of pixel desired (0..255)
+SIZE:  20 bytes.
+FUNCTION:  Draws a horizontal line to the screen in mode 19 (0x13) graphics
+           mode of the specified length and colour.
+RETURNS:  AX,BX,DX,DI = Undefined.
+          CX = 0
+	  ES = 0xA000 (VGA seg)
+
+
+CALLING FORMAT:  XORPIXEL19( ,x,colour,y);
+		  colour = colour of pixel desired (0..255)
+		  x = x coordinate of pixel (0..319)
+		  y = y coordinate of pixel (0..199)
+SIZE:  15 bytes.
+FUNCTION:  XORs a pixel to the screen in mode 19 (0x13) graphics mode.
+RETURNS:  AX,DX,BX = Undefined.
+	  ES = 0xA000 (VGA seg)
+
+
+CALLING FORMAT:  YLINE19(x,y,length,colour);
+		  x = x coordinate of start of line (0..319)
+		  y = y coordinate of start of line (0..199)
+                  length = pixel lenght of line (1..320)
+		  colour = colour of pixel desired (0..255)
+SIZE:  25 bytes.
+FUNCTION:  Draws a vertical line to the screen in mode 19 (0x13) graphics
+           mode of the specified length and colour.
+RETURNS:  AX,BX,DX,DI = Undefined.
+          CX = 0
+	  ES = 0xA000 (VGA seg)
+
+
+/* end of REGPROCS.DOC */

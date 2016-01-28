@@ -1,0 +1,273 @@
+/*
+    SPHINX Programming (C) 1993
+    NAME:  KEYCODES.H--
+    DESCRIPTION:  This file contains constant definitions for keyboard
+                  related operations, and the some of the procedures that
+                  may use these definitions.
+    LAST MODIFIED:  29 Nov 1993
+    PROCEDURES DEFINED IN THIS FILE:
+        : word BIOSEKEYCHECK()
+        : word BIOSEREADKEY()
+        : word BIOSKEYCHECK()
+        : byte BIOSPUSHKEY(keycode)
+        : word BIOSREADKEY()
+        : byte BIOSSHIFT()
+*/
+
+
+: word BIOSEKEYCHECK ()
+/* Returns the scan code of the next key waiting on the keyboard
+   buffer, but does not remove the key from the buffer.
+   Returns 0 if no key strokes are waiting to be read.
+   This function handles enchanced keys like <F11> and <F12>, but AT or
+   higher BIOS is required to use this function.
+*/
+{
+AH = 0x11;
+$ INT 0x16
+IF( ZEROFLAG )
+    AX = 0;
+}
+
+
+: word BIOSEREADKEY ()
+/* Returns the scan code of the next key waiting on the keyboard
+   buffer, and removes the key from the buffer.
+   If no key strokes are waiting to be read, this function will
+   wait until one is available.
+   This function handles enchanced keys like <F11> and <F12>, but AT or
+   higher BIOS is required to use this function.
+*/
+{
+AH = 0x10;
+$ INT 0x16
+}
+
+
+: word BIOSKEYCHECK ()
+/* Returns the scan code of the next key waiting on the keyboard
+   buffer, but does not remove the key from the buffer.
+   Returns 0 if no key strokes are waiting to be read.
+*/
+{
+AH = 0x1;
+$ INT 0x16
+IF( ZEROFLAG )
+    AX = 0;
+}
+
+
+: byte BIOSPUSHKEY ()    // AX = scan code of key to push
+/* Pushes a scan code of a key onto the keyboard buffer.
+   Returns 0 if the key was successfully added to the buffer, or 1 if the
+   keyboard buffer is full and the key could not be added.
+   This function handles enchanced keys like <F11> and <F12>.
+   AT or higher BIOS is required to use this function.
+*/
+{
+CX = AX;
+AH = 0x5;
+$ INT 0x16
+}
+
+
+: word BIOSREADKEY ()
+/* Returns the scan code of the next key waiting on the keyboard
+   buffer, and removes the key from the buffer.
+   If no key strokes are waiting to be read, this function will
+   wait until one is available.
+*/
+{
+AH = 0x0;
+$ INT 0x16
+}
+
+
+: byte BIOSSHIFT ()
+/* Returns the status of the shift keys.
+   AL will be set as follows:
+      bit   significance (if set)
+       0    right shift key is down   
+       1    left shift key is down   
+       2    ctrl key is down   
+       3    alt key is down   
+       4    scroll lock is on   
+       5    num lock is on   
+       6    caps lock is on   
+       7    insert is on   
+*/
+{
+AH = 0x2;
+$ INT 0x16
+}
+
+
+
+// 16 bit key scan code values
+
+?define  k_up         18432
+?define  k_down       20480
+?define  k_left       19200
+?define  k_right      19712
+?define  k_home       18176
+?define  k_end        20224
+?define  k_pageup     18688
+?define  k_pagedown   20736
+
+?define  k_num1      0x4F31
+?define  k_num2      0x5032
+?define  k_num3      0x5133
+?define  k_num4      0x4B34
+?define  k_num5      0x4C35
+?define  k_num6      0x4D36
+?define  k_num7      0x4737
+?define  k_num8      0x4838
+?define  k_num9      0x4939
+?define  k_num0      0x5230
+?define  k_numminus  0x4A2D
+?define  k_numplus   0x4E2B
+?define  k_numperiod 0x532E
+
+?define  k_esc               283
+?define  k_return           7181
+?define  k_ctrlreturn     0x1C0A
+?define  k_backspace        3592
+?define  k_ctrlbackspace  0x0E7F
+?define  k_delete          21248
+?define  k_tab              3849
+?define  k_shifttab       0x0F00
+?define  k_space           14624
+?define  k_insert          20992
+
+?define  k_F1       15104
+?define  k_F2       15360
+?define  k_F3       15616
+?define  k_F4       15872
+?define  k_F5       16128
+?define  k_F6       16384
+?define  k_F7       16640
+?define  k_F8       16896
+?define  k_F9       17152
+?define  k_F10      17408
+?define  k_F11      34048   // BIOSEREADKEY required, not BIOSREADKEY
+?define  k_F12      34304   // BIOSEREADKEY required, not BIOSREADKEY
+
+?define  k_1          561
+?define  k_2          818
+?define  k_3         1075
+?define  k_4         1332
+?define  k_5         1589
+?define  k_6         1846
+?define  k_7         2103
+?define  k_8         2360
+?define  k_9         2617
+?define  k_0         2864
+
+
+/*
+    Key      Normal         Shift          Control        Alt
+
+    1!       0231 '1'       0221 '!'        --            7800
+    2@       0332 '2'       0340 '@'       0300           7900
+    3#       0433 '3'       0423 '#'        --            7A00
+    4$       0534 '4'       0524 '$'        --            7B00
+    5%       0635 '5'       0625 '%'        --            7C00
+    6^       0736 '6'       075E '^'       071E           7D00
+    7&       0837 '7'       0826 '&'        --            7E00
+    8*       0938 '8'       092A '*'        --            7F00
+    9(       0A39 '9'       0A28 '('        --            8000
+    0)       0B30 '0'       0B29 ')'        --            8100
+    -_       0C2D '-'       0C5F '_'       0C1F           8200
+    =+       0D3D '='       0D2B '+'        --            8300
+    q        1071 'q'       1051 'Q'       1011           1000
+    w        1177 'w'       1157 'W'       1117           1100
+    e        1265 'e'       1245 'E'       1205           1200
+    r        1372 'r'       1352 'R'       1312           1300
+    t        1474 't'       1454 'T'       1414           1400
+    y        1579 'y'       1559 'Y'       1519           1500
+    u        1675 'u'       1655 'U'       1615           1600
+    i        1769 'i'       1749 'I'       1709           1700
+    o        186F 'o'       184F 'O'       180F           1800
+    p        1970 'p'       1950 'P'       1910           1900
+    [{       1A5B '['       1A7B '{'       1A1B            --
+    ]}       1B5D ']'       1B7D '}'       1B1D            --
+    a        1E61 'a'       1E41 'A'       1E01           1E00
+    s        1F73 's'       1F53 'S'       1F13           1F00
+    d        2064 'd'       2044 'D'       2004           2000
+    f        2166 'f'       2146 'F'       2106           2100
+    g        2267 'g'       2247 'G'       2207           2200
+    h        2368 'h'       2348 'H'       2308           2300
+    j        246A 'j'       244A 'J'       240A           2400
+    k        256B 'k'       254B 'K'       250B           2500
+    l        266C 'l'       264C 'L'       260C           2600
+    ;:       273B ';'       273A ':'        --             --
+    '"       2827 '''       2822 '"'        --             --
+    `~       2960 '`'       297E '~'        --             --
+    \|       2B5C '\'       2B7C '|'       2B1C            --
+    z        2C7A 'z'       2C5A 'Z'       2C1A           2C00
+    x        2D78 'x'       2D58 'X'       2D18           2D00
+    c        2E63 'c'       2E43 'C'       2E03           2E00
+    v        2F76 'v'       2F56 'V'       2F16           2F00
+    b        3062 'b'       3042 'B'       3002           3000
+    n        316E 'n'       314E 'N'       310E           3100
+    m        326D 'm'       324D 'M'       320D           3200
+    ,<       332C ','       333C '<'        --             --
+    .>       342E '.'       343E '>'        --             --
+    /?       352F '/'       353F '?'        --             --
+    PrtSc    372A '*'        --            7200            --
+    F1       3B00           5400           5E00           6800
+    F2       3C00           5500           5F00           6900
+    F3       3D00           5600           6000           6A00
+    F4       3E00           5700           6100           6B00
+    F5       3F00           5800           6200           6C00
+    F6       4000           5900           6300           6D00
+    F7       4100           5A00           6400           6E00
+    F8       4200           5B00           6500           6F00
+    F9       4300           5C00           6600           7000
+    F10      4400           5D00           6700           7100
+*/
+
+
+
+?define  KEYBOARD_INT    0x9
+?define  KEYBOARD_PORT  0x60
+
+
+// define the keyboard port 0x60 key make (depress) scan codes
+
+enum { s_esc=1,s_1,s_2,s_3,s_4,s_5,s_6,s_7,s_8,s_9,s_0,s_minus,s_equals,
+       s_backspace,s_tab,s_q,s_w,s_e,s_r,s_t,s_y,s_u,s_i,s_o,s_p,
+       s_opensquare,s_closesquare,s_return,s_ctrl,s_a,s_s,s_d,s_f,s_g,
+       s_h,s_j,s_k,s_l,s_semicolon,s_quote,s_tilda,s_leftshift,
+       s_backslash,s_z,s_x,s_c,s_v,s_b,s_n,s_m,s_camma,s_period,s_slash,
+       s_rightshift,s_printscreen,s_alt,s_space,s_capslock,
+       s_f1,s_f2,s_f3,s_f4,s_f5,s_f6,s_f7,s_f8,s_f9,s_f10,
+       s_numlock,s_scrolllock,s_home,s_up,s_pageup,s_numminus,s_left,
+       s_num5,s_right,s_numplus,s_end,s_down,s_pagedown,s_insert,
+       s_delete,s_f11=87,s_f12=88 };
+
+// define the keyboard port 0x60 key break (release) scan codes
+
+enum { sr_esc=129,sr_1,sr_2,sr_3,sr_4,sr_5,sr_6,sr_7,sr_8,sr_9,sr_0,
+       sr_minus,sr_equals,sr_backspace,sr_tab,sr_q,sr_w,sr_e,sr_r,sr_t,
+       sr_y,sr_u,sr_i,sr_o,sr_p,sr_opensquare,sr_closesquare,sr_return,
+       sr_ctrl,sr_a,sr_s,sr_d,sr_f,sr_g,sr_h,sr_j,sr_k,sr_l,sr_semicolon,
+       sr_quote,sr_tilda,sr_leftshift,sr_backslash,sr_z,sr_x,sr_c,sr_v,
+       sr_b,sr_n,sr_m,sr_camma,sr_period,sr_slash,sr_rightshift,
+       sr_printscreen,sr_alt,sr_space,sr_capslock,sr_f1,sr_f2,sr_f3,sr_f4,
+       sr_f5,sr_f6,sr_f7,sr_f8,sr_f9,sr_f10,sr_numlock,sr_scrolllock,
+       sr_home,sr_up,sr_pageup,sr_numminus,sr_left,sr_num5,sr_right,
+       sr_numplus,sr_end,sr_down,sr_pagedown,sr_insert,sr_delete,
+       sr_f11=87+128,sr_f12=88+128 };
+
+
+// define some ASCII values
+
+enum { ascii_bell=7, ascii_backspace, ascii_tab, ascii_linefeed,
+       ascii_formfeed=12, ascii_return,
+       ascii_EOF=26, ascii_escape,
+       ascii_space=32,
+       ascii_delete=127 };
+
+
+/* end of KEYCODES.H-- */

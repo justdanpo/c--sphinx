@@ -1,0 +1,254 @@
+/*
+    SPHINX C-- Example File
+    NAME:  BOUNCE.C--
+    DESCRIPTION:  This program demonstrates VGA palette cycling, with
+                  bouncing lines and boxes, and several fancy methods of 
+                  clearing the screen.
+    RUNFILE SIZE:  2136 bytes.
+    NOTE:  80286 or greater CPU required, and MCGA, VGA or better graphics
+           card required.
+*/
+
+? print "Building BOUNCE.COM, a VGA bouncing line demo.  80286+ required.\n"
+
+? assumeDSSS TRUE        // assume DS == SS 
+? stack 4096             // set stack size
+? resize TRUE            // resize program memory block 
+? use80286               // use 80286 instruction optimization
+? parsecommandline FALSE // don't bother parsing the command line parameters
+
+?include "KEYCODES.H--"   // get k_esc definition
+?include "VIDEO.H--"      // get video mode definitions
+?include "VGA.H--"        // get video mode 19 graphics procedures
+?include "WRITE.H--"      // get WRITESTR procedure
+?include "RANDOM.H--"     // get RAND procedure
+?include "DOS.H--"        // get EXIT procedure
+
+?define CHANGE_RANGE   2    /* random range of palette change */
+?define CLEARTYPES     9    /* number of screen clearing techniques */ 
+
+?define PALSIZE    256*3    /* size of palette buffer 256 colours * RGB */
+byte palette[PALSIZE];      /* buffer for palette */
+
+?define XMAX    320  // width of the screen
+?define YMAX    200  // length of the screen
+?define LINESPEED 4  // number of lines to draw before each palette shift
+?define BOXSPEED  6  // number of boxes to draw before each palette shift
+
+
+void main()
+{
+IF( byte @GETCPU() < 2 )    /* check if 80286 instructions available */
+    {WRITESTR("80286 or greater CPU required.");
+    EXIT(1);}
+@ SETVIDEOMODE( vid_320x200_256 );    /* set video mode */
+IF(byte @GETVIDEOMODE() != vid_320x200_256)  /* check if entered the mode */
+    {WRITESTR("Unable to enter 256 colour mode, VGA required.");
+    EXIT(1);}
+
+@ RANDOMIZE();   /* seed the random number generator with clock ticks */
+
+FANCYCLEAR(7);
+do {
+    IF( BIOSKEYCHECK() == 0 )
+        {IF(RAND()%10 >= 5) 
+            fancylines();
+        ELSE fancysquares();
+        FANCYCLEAR(RAND()%CLEARTYPES); 
+        }
+    } while( BIOSEREADKEY() <> k_esc );  // keep going until <ESC> is pressed
+
+@ SETVIDEOMODE( vid_text80c );    /* return to text mode */
+WRITESTR("SPHINX Programming 1994");
+}
+
+
+void fancylines ()    // do the bouncing lines
+byte color,i;
+int xloc,yloc;
+word xgo,ygo;
+int xloc2,yloc2;
+word xgo2,ygo2;
+{xloc = XMAX /3;
+xloc += RAND() % 40;
+yloc = YMAX /2;
+xloc2 = XMAX /3;
+xloc2 += RAND() % 40;
+yloc2 = YMAX /3;
+yloc2 += RAND() % 40;
+xgo = 1;
+ygo = 1;
+color = 66;
+xgo2 = RAND()%2+1;
+ygo2 = 1;
+
+do {
+    i = 0; 
+    advancepalette();
+    do {
+        line19(xloc/4,yloc/4,xloc2/4,yloc2/4,color);
+        color--;
+        IF( color == 0 )
+            color--;
+        xloc += xgo;
+        yloc += ygo;
+        IF( xloc < 0 )
+            {xloc -= xgo;
+            xgo = RAND()%3+1;}
+        IF( xloc >= XMAX*4 )
+            {xloc -= xgo;
+            xgo = RAND()%3-3;}
+        IF( yloc < 0 )
+            {yloc -= ygo;
+            ygo = RAND()%3+1;}
+        IF( yloc >= YMAX*4 )
+            {yloc -= ygo;
+            ygo = RAND()%3-3;}
+        xloc2 += xgo2;
+        yloc2 += ygo2;
+        IF( xloc2 < 0 )
+            {xloc2 -= xgo2;
+            xgo2 = RAND()%3+1;}
+        IF( xloc2 >= XMAX*4 )
+            {xloc2 -= xgo2;
+            xgo2 = RAND()%3-3;}
+        IF( yloc2 < 0 )
+            {yloc2 -= ygo2;
+            ygo2 = RAND()%3+1;}
+        IF( yloc2 >= YMAX*4 )
+            {yloc2 -= ygo2;
+            ygo2 = RAND()%3-3;}
+        i++;
+        } while( i < LINESPEED );
+    } while( BIOSEKEYCHECK() == 0 );
+}
+
+
+void fancysquares ()    // do the bouncing boxes
+word xsize,ysize;
+byte color;
+word xloc,yloc;
+int xgo,ygo;
+byte i,squares;
+word count;
+{color = 66;
+xgo = 1;
+ygo = 1;
+squares = RAND() %4;
+xsize = RAND() %60 +1;
+ysize = xsize;
+IF(xsize > 45)
+    squares = 0;
+xloc = XMAX /3;
+xloc += RAND() % 40;
+yloc = YMAX /2;
+
+do {
+    advancepalette();
+    i = 0;
+    do {
+        IF( squares >= 3 )
+            box19(xloc,yloc,xsize,ysize,color);
+        IF( squares >= 2 )
+            box19(XMAX-xloc-xsize,YMAX-yloc-ysize,xsize,ysize,color);
+        IF( squares >= 1 )
+            box19(xloc,YMAX-xsize-yloc,xsize,ysize,color);
+        box19(XMAX-xsize-xloc,yloc,xsize,ysize,color);
+        color++;
+        IF( color == 0 )
+            color++;
+        xloc += xgo;
+        yloc += ygo;
+        AX = XMAX - xsize;
+        IF( xloc > AX )
+            {-xgo;
+            xloc += xgo;
+            }
+        AX = YMAX - ysize;
+        IF( yloc > AX )
+            {-ygo;
+            yloc += ygo;
+            }
+        i++;
+        } while( i < BOXSPEED );
+    } while( BIOSEKEYCHECK() == 0 );
+}
+
+
+void advancepalette ()   // shift the palette forward one
+{@ COPYFAR(DS,#palette[3],DS,#palette[6],PALSIZE-6);
+palette[PALSIZE-3] += RAND() % CHANGE_RANGE;
+palette[PALSIZE-2] += RAND() % CHANGE_RANGE;
+palette[PALSIZE-1] += RAND() % CHANGE_RANGE;
+@ WAITVSYNC();
+@ SETVGADAC(0, ,PALSIZE, , ,#palette);
+}
+
+
+void FANCYCLEAR ()   // AL = method to clear the screen by
+word i;
+{
+IF( AL == 0 )
+    CLEARSCREEN19();
+else IF( AL == 1 )
+    {i = 0;
+    do {advancepalette();
+        line19(0,0,319,i,255-i);
+        line19(319,199,0,199-i,255-i);
+        i++;
+        } while ( i < 200 );
+    }
+else IF( AL == 2 )
+    {i = 0;
+    do {advancepalette();
+        line19(i,0,i,199,255-i);
+        line19(319-i,0,319-i,199,255-i);
+        i++;
+        } while ( i < 160 );
+    }
+else IF( AL == 3 )
+    {i = 0;
+    do {advancepalette();
+        line19(0,i,319,i,255-i);
+        line19(0,199-i,319,199-i,255-i);
+        i++;
+        } while ( i < 100 );
+    }
+else IF( AL == 4 )
+    {i = 0;
+    do {advancepalette();
+        line19(0,i,319,i,255-i);
+        i++;
+        } while ( i < 200 );
+    }
+else IF( AL == 5 )
+    {i = 0;
+    do {advancepalette();
+        line19(0,199-i,319,199-i,255-i);
+        i++;
+        } while ( i < 200 );
+    }
+else IF( AL == 6 )
+    {i = 0;
+    do {advancepalette();
+        box19(i,i,160-i*2,100-i*2,255-i);
+        i++;
+        } while( i < 100 );
+    }
+else IF( AL == 7 )
+    {i = 0;
+    do {advancepalette();
+        bar19(i%16*20,i/16*20,20,20,255-i);
+        i++;
+        } while( i < 16*10 );
+    }
+ELSE{i = 0;
+    do {advancepalette();
+        line19(319,0,0,i,255-i);
+        line19(0,199,319,199-i,255-i);
+        i++;
+        } while ( i < 200 );
+    }
+}
+
+/* end of BOUNCE.C-- */

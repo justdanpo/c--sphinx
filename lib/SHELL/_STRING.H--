@@ -1,0 +1,130 @@
+?warning FALSE
+
+struct _STR_
+{
+	int str;	//адр строки
+	int width;	//длина строки
+	int cpos;	//положение курсора
+	int wrow,wcol;	//координаты в окне
+}cstr;
+
+byte _insert=FALSE;	//режим вставки
+
+/*****************************************************************************
+* .NAME   : STANDARD_EDIT_HANDLER
+* .TITLE  : Обработка клавиш при редактировании.
+*****************************************************************************/
+void Edit_String(int xch)
+{
+/* обработка управляющих клавиш */
+	AX=xch&0xff00;
+	switch(AX){
+		case k_insert:
+			IF(_insert==FALSE)AL=TRUE;
+			ELSE AL=FALSE;
+			_insert=AL;
+			break;
+/* вправо на символ? */
+		CASE k_right:
+			AX=cstr.cpos;
+			AX++;
+/* выход за край */
+			IF(AX>=cstr.width)AX--;
+			cstr.cpos=AX;
+			break;
+/* влево на символ? */
+		CASE k_left:
+			AX=cstr.cpos;
+			AX--;
+/* выход за край */
+			IF(MINUSFLAG)AX++;
+			cstr.cpos=AX;
+			break;
+/* переход на начало строки? */
+		CASE k_home:
+/* просмотр с начала строки до первого не пробела */
+			FOR(DI=0;DI<cstr.width;DI++){
+				IF(DSBYTE[cstr.str+DI]!=' ')BREAK;
+			}
+/* если все пробелы, то переход на начало */
+			IF(DI==cstr.width)DI=0;
+			cstr.cpos=DI;
+			break;
+/* переход на конец? */
+		CASE k_end:
+/* просмотр с конца строки до первого не пробела */
+			FOR(DI=cstr.width-1;(int DI>=0)&&(DSBYTE[cstr.str+DI]==' ');DI--);
+			DI++;
+			IF(int DI>=cstr.width)DI=cstr.width-1;
+			cstr.cpos=DI;
+			break;
+/* удалить символ слева от курсора? */
+		case 0xe00://k_backspace:
+/* если в начале строки стоит - не удаляем */
+			IF(cstr.cpos!=0){
+/* курсор влево */
+				cstr.cpos--;
+				SI=cstr.str+cstr.cpos;
+				DSBYTE[SI]=' ';
+/* если режим вставки, то сдвигаем строку влево */
+				IF(_insert==FALSE)STRSHL(SI,,1);
+			}
+			BREAK;
+/* удалить символ над курсором? */
+		case k_delete:
+/* курсор влево */
+			SI=cstr.str+cstr.cpos;
+			DSBYTE[SI]=' ';
+/* если режим вставки, то сдвигаем строку влево */
+			IF(_insert==FALSE)STRSHL(SI,,1);
+			BREAK;
+/* обычный символ? */
+		case k_tab:
+		case k_shifttab:
+		case 0x1C00:
+//		case 0:
+			RETURN;
+		default:
+			IF(SSBYTE[#xch+1]>=s_f1)RETURN;
+// если вставка, то сдвинуть строку вправо
+			IF(_insert==FALSE)strshr(cstr.str+cstr.cpos,1);
+// записать символ
+			DSBYTE[cstr.str+cstr.cpos]=xch;
+			cstr.cpos++;
+			IF(cstr.cpos>=cstr.width)cstr.cpos=cstr.width-1;
+	}
+	Event.what=evNothing;
+}
+
+/*****************************************************************************
+* .NAME   : Show
+* .TITLE  : Показывает поле.
+*****************************************************************************/
+void StringShow(int this)
+int attr;
+{
+// определение цвета
+	AX=_scheme.schInactiveGet[Window.scheme];
+	IF(this)AX=_scheme.schActiveGet[Window.scheme];
+	attr=AX;
+/* уберем пробелы из конца строки */
+	STRTRIM(cstr.str);
+/* выводим ее */
+	Say(cstr.wrow,cstr.wcol,attr,cstr.str);
+/* оставшуюся часть заполняем точечками */
+	wfill(cstr.wrow,STRLEN(cstr.str)+cstr.wcol,cstr.wrow,cstr.wcol+cstr.width-1,
+        _chars.field1,attr);
+/* длину строки устанавливаем в нужную */
+	STRSETSZ(cstr.str,,cstr.width);
+/* курсорчик покажем или не покажем */
+/* спрятать курсор? */
+	IF(this==FALSE)HIDECUR();
+	ELSE{
+/* позиционируем курсор */
+		wgotoxy(cstr.wrow,cstr.wcol+cstr.cpos);
+/* восстановим курсор */
+		AX=0X107;
+		IF(_insert==FALSE)AH+=0X5;
+		SHOWCUR();
+	}
+}

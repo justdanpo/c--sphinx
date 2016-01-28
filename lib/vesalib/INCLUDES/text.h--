@@ -1,0 +1,170 @@
+/*
+    Mikael Nilsson Purple Prophet  (C)opyright 1999.
+    TITLE:  TEXT.H--
+    DESCRIPTION:  This file contains a collection of procedures for writing
+                  text in VESA(640x480x256, 800x600x256, 1024x768x256)
+
+    LAST UPDATED: 7 april 2000
+
+    PROCEDURES DEFINED IN THIS FILE:
+
+	void charoutVESA(word fonthandle,x,y,
+             charcol,backgrndcol,transparent,char)
+	word getfontwidth(word fonthandle)
+	word getfontheight(word fonthandle)
+	word loadfont(word filename)
+	void textoutVESA(word fonthandle; int x,y;
+             word charcol,backgrndcol,transparent;
+             int deltax,deltay; word stringseg,stringpek)
+
+*/
+
+#ifndef _TEXTOUT_
+#define _TEXTOUT_ TRUE
+#warning FALSE
+
+:void charoutVESA(word fontplace,x,y,charcolor,backgrndcol,transp,textchar)
+
+word xloop,yloop;
+word fontwidth,fontheight,totalwidth;
+byte color;
+byte buffert[1024]; // OBS! Maximum character size is 32*32 pixels
+		// if you want bigger character increase buffer[width*height]
+{
+	$push SI
+	ES=fontplace;
+	totalwidth=ESWORD[0];
+	fontwidth=AX/96;
+	fontheight=ESWORD[2];
+	BX=textchar-32*fontwidth+4;
+	SI=#buffert;
+	yloop=0;
+	do{
+		xloop=0;
+		do{
+			color=ESBYTE[BX];
+			BX++;
+//---------------------
+			IF(color!=0)AL=charcolor;
+			ELSE{
+				IF(transp==0)AL=backgrndcol;
+				ELSE AL=0;
+			}
+			DSBYTE[SI]=AL;
+//-----------------
+			SI++;
+			xloop++;
+		}while(xloop<fontwidth);
+		AX=totalwidth-fontwidth;
+		BX+=AX;
+		yloop++;
+	}while(yloop<fontheight);
+	putimageVESA(x,y,fontwidth,fontheight,DS,#buffert,transp);
+	$pop SI
+}
+
+:word getfontwidth(word fonthandle)
+{
+	ES=fonthandle;
+	return ESWORD[0]/96;
+}
+
+:word getfontheight(word fonthandle)
+{
+	ES=fonthandle;
+	return(ESWORD[2]);
+}
+
+:word loadfont(word filename)
+struct{
+	word xsize,ysize;
+}fontsize;
+word fontseg;
+word filehandle;
+word fontlen;
+{
+	filehandle = open(filename,F_READ);  /* open file for reading */
+	IF(AX == 0){                    /* if file did not open */
+		WRITESTR("Unable to open file.\n"); /* display error message */
+		EXIT(0);
+	}
+	IF( readfar(filehandle,DS,#fontsize,sizeof(fontsize)) != sizeof(fontsize) ){
+		WRITESTR("Error Reading from file.\n");
+		EXIT(0);
+	}
+	fontlen=fontsize.xsize*fontsize.ysize;
+	fontseg=GETMEM(AX/16+1);
+	IF(AX==0){
+		WRITESTR("Unable to allocate font memory.\n");
+		EXIT(0);
+	}
+	ES=AX;
+	ESWORD[0]=fontsize.xsize;
+	ESWORD[2]=fontsize.ysize;
+	IF( readfar(filehandle,fontseg,4,fontlen) != fontlen ){
+		WRITESTR("Error Reading from file.\n");
+		EXIT(0);
+	}
+	IF( close(filehandle) != 0 ){  /* close the file */
+		WRITESTR("Error closing file.\n");
+		EXIT(0);
+	}
+	return(fontseg);
+}
+
+:void textoutVESA(word fontplace; int x,y;word charcolor,backgrndcol
+		,transp; int deltax,deltay; word stringseg,stringpoint)
+word xloop,yloop;
+word fontwidth,fontheight,totalwidth;
+word loopstr;
+byte textchar;
+byte color;
+byte buffert[1024]; // OBS! Maximum character size is 32*32 pixels
+		// if you want bigger character increase buffer[width*height]
+{
+	$push SI
+	ES=fontplace;
+	totalwidth=ESWORD[0];
+	fontwidth=AX/96;
+	fontheight=ESWORD[2];
+	ES=stringseg;
+	BX=stringpoint;
+	textchar=ESBYTE[BX];
+	loopstr=0;
+	do{
+		BX=textchar-32*fontwidth+4;
+		SI=#buffert;
+		yloop=0;
+		do{
+			xloop=0;
+			do{
+				ES=fontplace;
+				color=ESBYTE[BX];
+				BX++;
+//---------------------
+				IF(color!=0)AL=charcolor;
+				ELSE{
+					IF(transp==0)AL=backgrndcol;
+					ELSE AL=0;
+				}
+				DSBYTE[SI]=AL;
+//-----------------
+				SI++;
+				xloop++;
+			}while(xloop<fontwidth);
+			AX=totalwidth-fontwidth;
+			BX+=AX;
+			yloop++;
+		}while(yloop<fontheight);
+		x+=deltax*fontwidth;
+		y+=deltay*fontheight;
+		putimageVESA(x,y,fontwidth,fontheight,DS,#buffert,transp);
+		loopstr++;
+		ES=stringseg;
+		BX=stringpoint+loopstr;
+		textchar=ESBYTE[BX];
+	}while(textchar!=0);
+	$pop SI
+}
+
+#endif

@@ -1,0 +1,25 @@
+/*
+    NAME:  BOOT.C--
+    DESCRIPTION:  Simple SPHINX C-- program that cold boots or warm boots
+                  your computer.
+*/
+
+?include "KEYCODES.H--"
+?include "WRITE.H--"
+?include "SYSTEM.H--"
+
+byte message = "\nPress: <RETURN> To Cold Boot Your Computer,"
+               "\n       <SPACE> To Warm Boot Your Computer,"
+               "\n       <ESC> To Abort.\n";
+
+main()
+{
+WRITESTR(#message);
+AX = @ BIOSREADKEY();
+IF( AX == k_return )
+    @ COLDBOOT();   /* insert COLDBOOT code as a macro (because of the '@') */
+ELSE IF( AX == k_space )
+    @ WARMBOOT();
+}
+
+/* end of BOOT.C-- */

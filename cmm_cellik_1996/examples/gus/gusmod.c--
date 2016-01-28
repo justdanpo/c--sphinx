@@ -1,0 +1,58 @@
+/*
+    NAME:  GUSMOD.C--
+    DESCRIPTION:  Demo program for playing Amiga Format MOD files on a Gravis
+                  Ultra Sound.  The EURO_MOD.EXE driver must be used with
+                  this program.  After compiling, type the following at the
+                  DOS prompt to run:
+                     EURO_MOD GUSMOD.COM
+                  Be sure that the *.MOD data files are found.  No error
+                  checking is made, and if the file is not found, the program
+                  will crash.
+                  This demo will not work on crappy Sound Blasters, get a GUS
+                  and find out why Sound Blasters should be scrapped.
+*/
+
+?parsecommandline  FALSE
+?resize TRUE
+
+?include "KEYCODES.H--"
+?include "WRITE.H--"
+?include "GUSMOD.H--"
+
+
+?define MODFILE "HYPN.MOD"
+
+main ()
+byte quit;
+{
+WRITESTR("\nC-- MOD file player demo for Gravis Ultra Sound");
+WRITESTR("\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n");
+WRITESTR("Initializing...\n");
+GUS_MOD_INIT();
+WRITESTR("Loading MOD File (");
+WRITESTR(MODFILE);
+WRITESTR(")...\n");
+GUS_MOD_LOAD(MODFILE);
+
+WRITESTR("MOD file loaded, press any key to start playing\n");
+quit = FALSE;
+
+do {
+    BIOSREADKEY();
+    GUS_MOD_PLAY();
+    WRITESTR("Playing, press <SPACE> to pause, any other key to stop...\n");
+    IF( BIOSREADKEY() == k_space )
+        {GUS_MOD_STOP();
+        WRITESTR("Paused, press any key to restart...\n");
+        }
+    ELSE quit = TRUE;
+    } while( quit == FALSE );
+
+GUS_MOD_STOP();
+WRITESTR("Shutting Down.\n");
+GUS_MOD_SHUTDOWN();
+
+WRITESTR("done.\n");
+}
+
+/* end of GUSMOD.C-- */

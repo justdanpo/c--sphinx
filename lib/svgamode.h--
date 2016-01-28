@@ -1,0 +1,378 @@
+/*************************** SVGA ********************************
+
+	Библиотека для работы с видеокартой в SVGA-режимах.
+
+word GETVESAINFO()       ВОЗВРАЩАЕТ ИНФОРМАЦИЮ О VESA
+word GETVESAMODEINFO()   ВОЗВРАЩАЕТ ИНФОРМАЦИЮ О РЕЖИМЕ
+word SETVESAMODE()       УСТАНАВЛИВАЕТ ТРЕБУЕМЫЙ РЕЖИМ
+word GETVESAMODE()       ВОЗВРАЩАЕТ УСТАНОВЛЕННЫЙ РЕЖИМ
+word GETVESAHARDBUFSIZ() ВОЗВР РАЗМЕР БУФЕРА,НЕОБХОДИМОГО ДЛЯ СОХРАНЕНИЯ
+                         ИНФОРМАЦИИ О СОСТОЯНИИ ВИДЕОКАРТЫ
+word SAVVESASTATE()      СОХРАНЕНИЕ ИЛИ ВОСТАНОВЛЕНИЕ СОСТОЯНИЯ ВИДЕОКАРТЫ
+word VIDMEMVESACTRL()    ВОЗВРАЩАЕТ ИЛИ УСТАНАВЛИВАЕТ АДРЕС ОКНА В ВИДЕОПАМЯТИ
+word LOGSCANLINVESALEN() УСТАНАВЛИВАЕТ ИЛИ ПОЛУЧАЕТ ЛОГИЧЕСКУЮ ДЛИНУ СТРОКИ
+word DISPSTRTVESA()      УСТАНОВКА ИЛИ ПОЛУЧЕНИЕ РЕГИОНА ОТОБРАЖЕНИЯ
+word DACPALVESACTRL()    УСТАНОВКА ИЛИ ПОЛУЧЕНИЕ ШИРИНЫ DAC-РЕГИСТРОВ
+void CLEARSCREENSVGA()   Очистить экран
+void PutPixelSVGA(word x,y;byte c) Записать пиксел
+byte GetPixelSVGA(word x,y) Считать пиксел
+
+
+******************************************************************/
+
+?ifndef _SVGAMODE_
+?define _SVGAMODE_ TRUE
+?warning FALSE
+
+enum{ v640x400x256=0x100,v640x480x256,  v800x600x16,   v800x600x256,
+      v1024x768x16,      v1024x768x256, v1280x1024x16, v1280x1024x256,
+      v80x60text,        v132x25text,   v132x43text,   v132x50text,
+      v132x60text,       v320x200x32K,  v320x200x64K,  v320x200x16M,
+      v640x480x32K,      v640x480x64K,  v640x480x16M,  v800x600x32K,
+      v800x600x64K,      v800x600x16M,  v1024x768x32K, v1024x768x64K,
+      v1024x768x16M,     v1280x1024x32K,v1280x1024x64K,v1280x1024x16M};
+
+//СТРУКТУРА ИНФОРМАЦИИ О РЕЖИМЕ
+struct _VESAMODEINFO_
+{
+  word modeattr;  //флаги атрибутов режима
+  byte winAatt;   //флаги атрибутов окон
+  byte winBatt;
+  word wingran;   //единица перемещения окна в видеопамяти в килобайтах
+  word winsize;   //размер окна в килобайтах
+  word stasegA;   //сегментные адреса окон
+  word stasegB;
+  word winposfun[2]; //адрес входа  в ax=0x4f05
+  word bytperlin;	//число байтов на строку
+  word widpix;    //ширина в пикселах
+  word higpix;    //длина в пикселах
+  byte widccpix;  //ширина символа в пикселах
+  byte higccpix;  //высота символа в пикселах
+  byte nmemplan;	//число слоев памяти
+  byte nbitpix;	  //число бит на пиксел
+  byte nbanks;    //число банков памяти
+  byte memmodel;  //тип модели памяти
+  byte sizbank;   //размер банка в kb
+  byte npages;    //число страниц
+  byte rez; //резерв
+  byte redmasksize;  //размер красной маски в битах
+  byte regfieldpos;  //битовая позиция красной маски
+  byte greenmasksize;//размер зеленой маски в битах
+  byte greenfieldpos;//битовая позиция зеленой маски
+  byte bluemasksize; //размер синей маски в битах
+  byte bluefieldpos; //битовая позиция синей маски
+  byte resmasksize;  //размер зарезервир. маски в битах
+  byte resfieldpos;  //битовая позиция зарезерв. маски
+  byte colormodeinfo;//атрибуты режима непоср. цветов
+  dword padr;   //физический адрес линейного буфера
+  dword pstart; //указатель на начало смещения экранной памяти
+  word sizescr; //размер в кб
+  byte rez2[206];
+};
+
+struct _VESAINFO_
+{
+  byte sign[4]; //сигнатура "VESA"
+  word vers;    //версия
+  dword OEMinfo;//адрес информации производителя
+  dword flag;   //флаги окружения
+  dword modes;	//указатель на поддерживаемые режимы
+  word memory;	//число 64kb блоков на плате
+  byte rez[236];
+};
+
+dword sizegranul=65536; //размер гранулы
+dword sizewin=65536;    //размер окна видепамяти
+word xsizescreen=640;
+word ysizescreen=400;
+word CurBank=0;
+
+//флаги атрибутов режима
+?define ma_modesupp  1  //поддерживается
+?define ma_optavail  2  //дополнительная информация присутствует
+?define ma_biosout   4  //вывод через биос возможен
+?define ma_color     8  //цветной
+?define ma_graph     0x10 //графический
+?define ma_noVGA     0x20 //режим не VGA совместимый
+?define ma_nosvbank  0x40 //режим не поддерживает переключение банков
+?define ma_lineframe 0x80 //режим линейного буфера поддерживается
+
+//флаги атрибутов окон
+?define wa_exist  1   //окно существует
+?define wa_read   2   //окно для чтения
+?define wa_write  4   //окно для записи
+
+//типы моделей памяти
+?define mm_text      0
+?define mm_cga       1
+?define mm_hgc       2  //модель режима hercules
+?define mm_ega       3
+?define mm_gra256    4
+?define mm_sequ256   5
+?define mm_trueclr   6  //24-битная модель
+?define mm_yuv       7  // модель YUV(яркость,насыщенность)
+?define mm_vesaresrv 8  //8-15 резерв
+?define mm_oem       16 //16-255 модели производителей
+
+//ФЛАГИ СОХРАНЕНИЯ/ВОСТАНОВЛЕНИЯ СОСТОЯНИЯ ДЛЯ SAVVESASTATE
+?define srs_vidhard    1 //Сохр./восст. аппаратного состояния
+?define srs_vidbiosdat 2 //Сохр./восст. состояния данных видео BIOS
+?define srs_viddac     4 //Сохр./восст. состояния видео-DAC
+?define srs_svga       8 //Сохр./восст. состояния Super VGA
+?define srs_all      0xf
+
+
+:word GETVESAINFO()
+/*ВОЗВРАЩАЕТ ИНФОРМАЦИЮ О VESA
+ВХОД: AX-СМЕЩЕНИЕ СТРУКТУРЫ ДЛЯ ИНФОРМАЦИИ
+ВЫХОД: AX=0-VESA НЕ ПОДДЕРЖ
+*/
+{
+?ifdef codesize
+  DI><AX;
+?else
+  DI=AX;
+?endif
+  ES=DS;
+  AX=0X4F00;
+  $INT  0X10
+  IF(AX!=0X4F)AX=0;
+}
+
+:word GETVESAMODEINFO()
+/*ВОЗВРАЩАЕТ ИНФОРМАЦИЮ О РЕЖИМЕ
+ВХОД: AX-СМЕЩЕНИЕ СТРУКТУРЫ ДЛЯ ИНФОРМАЦИИ
+      CX-РЕЖИМ VESA
+ВЫХОД: AX=0-VESA НЕ ПОДДЕРЖ
+*/
+{
+?ifdef codesize
+  DI><AX;
+?else
+  DI=AX;
+?endif
+  ES=DS;
+  AX=0X4F01;
+  $INT 0X10
+  IF(AX!=0X4F)AX=0;
+}
+
+:word SETVESAMODE()
+/*УСТАНАВЛИВАЕТ ТРЕБУЕМЫЙ РЕЖИМ
+ВХОД: AX-ВИДЕОРЕЖИМ
+      BX=FALSE-БЕЗ ОЧИСТКИ ЭКРАНА
+ВЫХОД: AX=0 - ОШИБКА
+*/
+struct _VESAMODEINFO_ info;
+{
+  $push AX
+  AX><BX;
+  AL|=AH;
+  IF(ZEROFLAG)BX|=0X8000;
+  AX=0X4F02;
+  $INT 0X10
+  $pop CX
+  IF(AX==0X4F){
+    DI=#info;
+    ES=SS;
+    AX=0X4F01;
+    $INT 0X10
+    IF(AX==0x4F){
+      sizegranul=info.wingran<<10;
+      xsizescreen=info.widpix;
+      ysizescreen=info.higpix;
+      sizewin=info.winsize<<10;
+      CurBank=0;
+    }
+  }
+  ELSE AX=0;
+}
+
+:word GETVESAMODE()
+/*ВОЗВРАЩАЕТ УСТАНОВЛЕННЫЙ РЕЖИМ
+AX-УСТАНОВЛЕНЫЙ РЕЖИМ ИЛИ 0 ПРИ ОШИБКЕ
+*/
+{
+  AX=0X4F03;
+  $INT 0X10
+  IF(AX!=0X4F)AX=0;
+  ELSE
+?ifdef codesize
+  AX><BX;
+?else
+  AX=BX;
+?endif
+}
+
+:word GETVESAHARDBUFSIZ()
+/*ВОЗВР РАЗМЕР БУФЕРА,НЕОБХОДИМОГО ДЛЯ СОХРАНЕНИЯ ИНФОРМАЦИИ О СОСТОЯНИИ
+ВИДЕОКАРТЫ
+ВХОД: CX-ФЛАГИ СОХР/ВОСТ СОСТОЯНИЯ
+ВЫХОД AX=0-ОШИБКА
+*/
+{
+  DL=0;
+  AX=0X4F04;
+  $INT 0X10
+  IF(AX!=0X4F)AX=0;
+  ELSE
+?ifdef codesize
+  AX><BX;
+?else
+  AX=BX;
+?endif
+}
+
+:word SAVVESASTATE()
+/*СОХРАНЕНИЕ ИЛИ ВОСТАНОВЛЕНИЕ СОСТОЯНИЯ ВИДЕОКАРТЫ
+ВХОД: AX-СЕГМЕНТ БУФЕРА ДЛЯ ИНФОРМАЦИИ
+      BX-СМЕЩЕНИЕ БУФЕРА
+      CX-ФЛАГИ СОХР/ВОСТ СОСТОЯНИЯ
+      DX-РЕЖИМ 0-СОХРАНИТЬ
+               1-ВОСТАНОВИТЬ
+*/
+{
+  ES=AX;
+  DL++;
+  AX=0X4F04;
+  $INT 0X10
+  IF(AX!=0X4F)AX=0;
+}
+
+:word VIDMEMVESACTRL()
+/*ВОЗВРАЩАЕТ ИЛИ УСТАНАВЛИВАЕТ АДРЕС ОКНА В ВИДЕОПАМЯТИ
+ВХОД:AX-ПОЛОЖЕНИЕ ОКНА В ЕДИНИЦАХ КРАТНЫХ WINGRAN
+     BX-НОМЕР ОКНА 0-A 1-B
+ВЫХОД:AX=0-ОШИБКА
+*/
+{
+?ifdef codesize
+  DX><AX;
+?else
+  DX=AX;
+?endif
+  AX=0X4F05;
+  $INT 0X10
+  IF(AX!=0X4F)AX=0;
+}
+
+:word LOGSCANLINVESALEN()
+/*УСТАНАВЛИВАЕТ ИЛИ ПОЛУЧАЕТ ЛОГИЧЕСКУЮ ДЛИНУ СТРОКИ
+ВХОД:BX=0-УСТАНОВИТЬ 1-ПОЛУЧИТЬ
+     CX-НОВАЯ ШИРИНА
+ВЫХОД:AX=0-ОШИБКА
+      BX-БАЙТ НА СТРОКУ
+      CX-НОВАЯ ШИРИНА
+      DX- МАКСИМАЛЬНАЯ ШИРИНА СТРОКИ
+*/
+{
+  AX=0X4F06;
+  $INT 0X10
+  IF(AX!=0X4F)AX=0;
+}
+
+:word DISPSTRTVESA()
+/*УСТАНОВКА ИЛИ ПОЛУЧЕНИЕ РЕГИОНА ОТОБРАЖЕНИЯ
+ВХОД:BX=0-УСТАНОВИТЬ 1-ПОЛУЧИТЬ
+     CX-Первый высвечиваемый пиксел в строке
+     DX-Первая высвечиваемая строка
+ВЫХОД:AX=0-ОШИБКА
+      CX- ?
+      DX- ?
+*/
+
+{
+  AX=0X4F07;
+  $INT 0X10
+  IF(AX!=0X4F)AX=0;
+}
+
+:word DACPALVESACTRL()
+/*УСТАНОВКА ИЛИ ПОЛУЧЕНИЕ ШИРИНЫ DAC-РЕГИСТРОВ
+ВХОД:BX=0-УСТАНОВИТЬ 1-ПОЛУЧИТЬ
+     AX-ШИРИНА DAC РЕГИСТРА
+ВЫХОД:AX=0-ОШИБКА
+      иначе BH-ШИРИНА РЕГИСТРА DAC
+*/
+{
+  BH=AL;
+  AX=0X4F08;
+  $INT 0X10
+  IF(AX!=0X4F)AX=0;
+}
+
+:void CLEARSCREENSVGA()
+{
+  EAX=xsizescreen*ysizescreen;
+?ifdef codesize
+  ESI><EAX;
+?else
+  ESI=EAX;
+?endif
+  ES=0xA000;
+  FOR(ECX=0;ECX<ESI;ECX+=sizewin){
+    $push ECX
+?ifdef codesize
+    ECX><EAX;
+?else
+    EAX=ECX;
+?endif
+    ECX=sizegranul;
+    EDX=0;
+    $div ECX
+?ifdef codesize
+    DX><AX;
+?else
+    DX=AX;
+?endif
+    AX=0x4F05;
+    BX=0;
+    $INT 0x10
+    ECX>>=2;
+    EAX=0;
+    DI=0;
+    $REPZ
+    $STOSD
+    $POP ECX
+  }
+}
+
+:void PutPixelSVGA(word x,y;byte c)
+{
+  ES=0xA000;
+  EAX=xsizescreen*y+x/sizegranul;
+  DI=DX;
+  IF(AX!=CurBank){
+    CurBank=AX;
+?ifdef codesize
+    DX><AX;
+?else
+    DX=AX;
+?endif
+    AX=0x4F05;
+    BX=0;
+    $INT 0x10
+  }
+  ESBYTE[DI]=c;
+}
+
+:byte GetPixelSVGA(word x,y)
+{
+  ES=0xA000;
+  EAX=xsizescreen*y+x/sizegranul;
+  DI=DX;
+  IF(AX!=CurBank){
+    CurBank=AX;
+?ifdef codesize
+    DX><AX;
+?else
+    DX=AX;
+?endif
+    AX=0x4F05;
+    BX=0;
+    $INT 0x10
+  }
+  AL=ESBYTE[DI];
+}
+
+?endif

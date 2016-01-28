@@ -1,0 +1,344 @@
+/*****************************************************************************
+ Sphinx C-- library (C) 2000.
+ FILE:        IO.HMM
+ DESCRIPTION: inline procedures and defines.
+ LAST MODIFIED: 24.12.00 12:26
+ -----------------------------------------------------------------------------
+ FUNCTIONS:
+void CHMOD(unsigned int DX,CX)
+void CLOSE (handl)
+int  CREAT(unsigned int DX,CX)
+int  CREATENEW(unsigned int DX,CX)
+int  CREATETEMP(unsigned int DX,CX)
+int  FREAD(BX,unsigned int DX,CX)
+int  FWRITE(BX,unsigned int DX,CX)
+long LFILELENGTH(handl)
+void LLSEEK (handl,ofs32,mode)
+void LSEEK (handl,hofs,lofs,mode)
+word LSEEKEND (handl)
+void LSEEKSET (handl,hofs,lofs)
+long LTELL (handl)
+int  OPEN(unsigned int DX,AL)
+word TELL (handl)
+word READATR(unsigned int DX)
+void UNLINK(unsigned int DX)
+void RENAME(unsigned int DX,unsigned int DI)
+
+ ***************************************************************************/
+
+/* access to file  */
+#define O_RDONLY    0
+#define O_WRONLY    1
+#define O_RDWR      2
+#define O_ACCMODE   3       /* mask for file access modes */
+
+/*****************************************************************************
+* TITLE : int OPEN(unsigned int DX,AL)
+* DESCR : Open file (work in 32-bit DOS)
+* PARAMS: input: DX - file name
+*       :        AL - access
+*       : output: CF clear if successful
+*       :         AX = file handle
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline int CARRYFLAG OPEN((E)DX,AL)
+{
+	AH=0x3D;
+	$int 0x21
+}
+
+/*****************************************************************************
+* TITLE : CLOSE(BX)
+* DESCR : close file (work in 32-bit DOS)
+* PARAMS: input: BX - file handle
+*       : output: CF clear if successful
+*       :         AX destroyed
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline void CARRYFLAG CLOSE((E)BX)
+{
+	AH=0x3E;
+	$int 0x21
+}
+
+/*****************************************************************************
+* TITLE : int CREAT(unsigned int DX,CX)
+* DESCR : Create Or Truncate File (work in 32-bit DOS)
+* PARAMS: input: DX - file name
+*       :        CX - file attributes
+*       : output: CF clear if successful
+*       :         AX = file handle
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline int CARRYFLAG CREAT((E)DX,CX)
+{
+	AH=0x3C;
+	$int 0x21
+}
+
+/*****************************************************************************
+* TITLE : word TELL(BX)
+* DESCR : Get current file position
+* PARAMS: input: BX - file handle
+*       : output: CF clear if successful
+*       :         DX:AX - file position
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline word CARRYFLAG TELL((E)BX)
+{
+	AX=0X4201;
+	(E)CX=0;
+	(E)DX=(E)CX;
+	$INT 0X21
+}
+
+/*****************************************************************************
+* TITLE : long LTELL(BX)
+* DESCR : Get current file position
+* PARAMS: input: BX - file handle
+*       : output: CF clear if successful
+*       :         EAX - file position
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline long CARRYFLAG LTELL((E)BX)
+{
+	TELL();
+	$push DX,AX
+	$pop EAX
+}
+
+/*****************************************************************************
+* TITLE : LSEEK(BX,CX,DX,AL)
+* DESCR : Set Current File Position
+* PARAMS: input: BX - file handle
+*       :        AL = origin of move
+*       :             00 start of file
+*       :             01 current file position
+*       :             02 end of file
+*       :        CX:DX = (signed) offset from origin of new file position
+*       : output: CF clear if successful
+*       :         DX:AX - new file position
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline void CARRYFLAG LSEEK((E)BX,(E)CX,(E)DX,AL)
+{
+	AH=0x42;
+	$INT 0x21
+}
+
+/*****************************************************************************
+* TITLE : LLSEEK(BX,EDX,AL)
+* DESCR : Set Current File Position
+* PARAMS: input: BX - file handle
+*       :        AL = origin of move
+*       :             00 start of file
+*       :             01 current file position
+*       :             02 end of file
+*       :        EDX = (signed) offset from origin of new file position
+*       : output: CF clear if successful
+*       :         DX:AX - new file position
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline void CARRYFLAG LLSEEK((E)BX,EDX,AL)
+{
+	$PUSH EDX
+	$POP CX
+	$POP CX
+	AH=0x42;
+	$INT 0x21
+}
+
+/*****************************************************************************
+* TITLE : void LSEEKSET(BX,CX,DX)
+* DESCR : Set new position from start file
+* PARAMS: input: BX - file handle
+*       :        CX:DX = (signed) offset from origin of new file position
+*       : output: CF clear if successful
+*       :         DX:AX - new file position
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline void CARRYFLAG LSEEKSET((E)BX,(E)CX,(E)DX)
+{
+	AX=0x4200;
+	$INT 0x21
+}
+
+/*****************************************************************************
+* TITLE : word LSEEKEND(BX)
+* DESCR : Set position file to end
+* PARAMS: input: BX - file handle
+*       : output: CF clear if successful
+*       :         DX:AX - new file position
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline word CARRYFLAG LSEEKEND((E)BX)
+{
+	AX=0X4202;
+	(E)CX=0;
+	(E)DX=0;
+	$INT 0X21
+}
+
+/*****************************************************************************
+* TITLE : long LFILELENGTH(BX)
+* DESCR : Get file length
+* PARAMS: input: BX - file handle
+*       : output: CF clear if successful
+*       :         EAX - file length
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline long CARRYFLAG LFILELENGTH((E)BX)
+{
+	LSEEKEND();
+	$push DX,AX
+	$pop EAX
+}
+
+/*****************************************************************************
+* TITLE : int FREAD(BX,unsigned int DX,CX)
+* DESCR : read from file (work in 32-bit DOS)
+* PARAMS: input: BX - file handle
+*       :        CX = number of bytes to read
+*       :        DX -> buffer for data
+*       : output: CF clear if successful
+*       :         AX = number of bytes actually read
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline int CARRYFLAG FREAD((E)BX,(E)DX,(E)CX)
+{
+	AH=0x3F;
+	$int 0x21
+}
+
+/*****************************************************************************
+* TITLE : int FWRITE(BX,unsigned int DX,CX)
+* DESCR : write to file (work in 32-bit DOS)
+* PARAMS: input: BX - file handle
+*       :        CX = number of bytes to write
+*       :        DX -> buffer for data
+*       : output: CF clear if successful
+*       :         AX = number of bytes actually written
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline int CARRYFLAG FWRITE((E)BX,(E)DX,(E)CX)
+{
+	AH=0x40;
+	$int 0x21
+}
+
+/*****************************************************************************
+* TITLE : void CHMOD(unsigned int DX,CX)
+* DESCR : Set File Attributes (work in 32-bit DOS)
+* PARAMS: input: CX = new file attributes
+*       :        DX = filename
+*       : output: CF clear if successful
+*       :         AX destroyed
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline void CARRYFLAG CHMOD((E)DX,CX)
+{
+	AX=0X4301;
+	$INT 0X21
+}
+
+/*****************************************************************************
+* TITLE : word READATR(unsigned int DX)
+* DESCR : Get File Attributes (work in 32-bit DOS)
+* PARAMS: input: DX = filename
+*       : output: CF clear if successful
+*       :         AX = file attributes
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline word CARRYFLAG READATR((E)DX)
+{
+	AX=0X4300;
+	$INT 0X21
+	IF(NOTCARRYFLAG){
+?ifdef codesize
+		CX><AX;
+?else
+		AX=CX;
+?endif
+	}
+}
+
+/*****************************************************************************
+* TITLE : int CREATENEW(unsigned int DX,CX)
+* DESCR : Create New File (work in 32-bit DOS)
+* PARAMS: input: CX = file attributes
+*       :        DX = filename
+*       : output: CF clear if successful
+*       :         AX = file handle opened for read/write in compatibility mode
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline int CARRYFLAG CREATENEW((E)DX,CX)
+{
+	AH=0X5B;
+	$INT 0X21
+}
+
+/*****************************************************************************
+* TITLE : int CREATETEMP(unsigned int DX,CX)
+* DESCR : Create Temporary File (work in 32-bit DOS)
+* PARAMS: input: CX = file attribute
+*       :        DX = path ending with a '\' + 13 zero bytes to receive the
+*       :              generated filename
+*       : output: CF clear if successful
+*       :         AX = file handle opened for read/write in compatibility mode
+*       :         DX pathname extended with generated name for temporary file
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline int CARRYFLAG CREATETEMP((E)DX,CX)
+{
+	AH=0X5A;
+	$INT 0X21
+}
+
+/*****************************************************************************
+* TITLE : void UNLINK(unsigned int DX)
+* DESCR : Delete File (work in 32-bit DOS)
+* PARAMS: input: DX - file name
+*       : output: CF clear if successful
+*       :         AX destroyed (DOS 3.3)
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline void CARRYFLAG UNLINK((E)DX)
+{
+	AH=0x41;
+	$int 0x21
+}
+
+/*****************************************************************************
+* TITLE : void RENAME(unsigned int DX,unsigned int DI)
+* DESCR : Rename file (work in 32-bit DOS)
+* PARAMS: input: DX = filename of existing file (no wildcards)
+*       :        DI = new filename (no wildcards)
+*       : output: CF clear if successful
+*       :         CF set on error
+*       :         AX = error code
+*****************************************************************************/
+inline void CARRYFLAG RENAME((E)DX,(E)DI)
+{
+	ES=DS;
+	$ MOV AH,0x56
+	$ INT 0x21
+}
+
+/* enf of IO.HMM */

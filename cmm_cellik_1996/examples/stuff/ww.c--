@@ -1,0 +1,627 @@
+/*
+    NAME:  WW.C--
+    DESCRIPTION:  World War game with random map generaion.
+*/
+
+?use80286     // hey, why not?
+?resize     TRUE
+?assumeDSSS FALSE
+?parsecommandline TRUE
+?stack 4096
+
+?include "RANDOM.H--"
+?include "VIDEO.H--"
+?include "WRITE.H--"
+?include "MOUSE.H--"
+?include "FILE.H--"
+?include "DOS.H--"
+?include "KEYCODES.H--"
+?include "STRING.H--"
+
+?define LOGICALSCREENWIDTH    512
+?define LOGICALSCREENHEIGHT   512
+?define THECLEARCOLOR         31
+?include "VGAX.H--"
+
+
+word mousex,mousey;
+byte mousebuttons;
+
+
+?define MAXPLAYERS 10
+word players;     // number of players
+word playersturn = 0;   // current players turn
+byte player_color[MAXPLAYERS] = {9,4,2,5,15,1,14,13,10,11};
+
+
+
+// input file types
+enum {ft_error,ft_world,ft_game};
+
+?define PALSIZE 256*3
+byte palette[PALSIZE] = FROM "..\\TINYDRAW.PAL";
+
+byte font = FROM "..\\ROCK.FON";
+
+byte landicon = FROM "LANDFLAG.III";
+byte mouseicon = FROM "WWMOUSE.III";
+
+?define  MAXNATIONS  255  // 255 is the maximum max value
+// for example:  for a 10 nation world, entries 246 to 255 will be used.
+word nations;     // must be a word or int
+byte nationflags[MAXNATIONS+1];          // position 0 used as counter
+byte nation_sea[MAXNATIONS+1];           // unused but stored for future
+word xs[MAXNATIONS+1],ys[MAXNATIONS+1];  // location of info box
+byte nation_owner[MAXNATIONS+1] = MAXPLAYERS;   // player number of owner
+byte nation_income[MAXNATIONS+1];        // income in credits
+byte nation_troops[MAXNATIONS+1];        // based troops
+byte nation_tanks[MAXNATIONS+1];         // based tanks
+byte nation_fighters[MAXNATIONS+1];      // based fighters
+byte nation_bombers[MAXNATIONS+1];       // based bombers
+byte nation_helicopters[MAXNATIONS+1];   // based helicopters
+
+byte nation_troops_0[MAXNATIONS+1];    // attacking troops with range 0
+byte nation_tanks_0[MAXNATIONS+1];     // attacking tanks with range 0
+byte nation_tanks_1[MAXNATIONS+1];     // attacking tanks with range 1
+byte nation_fighters_0[MAXNATIONS+1];  // attacking fighters with range 0
+byte nation_fighters_1[MAXNATIONS+1];  // attacking fighters with range 1
+byte nation_fighters_2[MAXNATIONS+1];  // attacking fighters with range 2
+byte nation_fighters_3[MAXNATIONS+1];  // attacking fighters with range 3
+byte nation_bombers_0[MAXNATIONS+1];   // attacking bombers with range 0
+byte nation_bombers_1[MAXNATIONS+1];   // attacking bombers with range 1
+byte nation_bombers_2[MAXNATIONS+1];   // attacking bombers with range 2
+byte nation_bombers_3[MAXNATIONS+1];   // attacking bombers with range 3
+byte nation_bombers_4[MAXNATIONS+1];   // attacking bombers with range 4
+byte nation_bombers_5[MAXNATIONS+1];   // attacking bombers with range 5
+byte nation_helicopters_0[MAXNATIONS+1];  // attacking heli's with range 0
+byte nation_helicopters_1[MAXNATIONS+1];  // attacking heli's with range 1
+
+?define MAXBORDERS 16
+?define BORDERARRAYSIZE MAXNATIONS+1*MAXBORDERS
+byte nation_borders[BORDERARRAYSIZE]; /* nation_borders is a 2 dim array
+                                         256x16 the first 256 bytes (y = 0)
+                                         are used as counters. */
+
+word screenbuf;           // buffer for screen 256 K
+word windowbuf;           // buffer for screen 64 K
+word screenoffset = 0;    // the panned offset of the screen
+word topx=0,topy=0;       // coordinated of top left corner screen offset
+
+
+enum {gm_pick,gm_combatmove,gm_combat,gm_defencemove };
+byte gamemode = gm_pick;
+
+?include "WW.H--"
+
+
+byte quit;  // quit game flag
+
+
+void main ()
+word flag;
+word offset;
+{
+@ RANDOMIZE();
+
+IF( byte getmem() == FALSE )
+    {WRITESTR("Not enough memory!\n");
+    EXIT(1);
+    }
+
+IF( PARAMCOUNT() != 1 )
+    {instruct();
+    EXIT(1);
+    }
+
+AX = loadworld(screenbuf,PARAMSTR(0));
+
+IF( AX == ft_error )
+    {WRITESTR("Error loading file.\n");
+    EXIT(1);
+    }
+
+IF( AX == ft_world )   // new game
+    {
+    WRITESTR("\nNations: ");
+    WRITEWORD(nations);
+    WRITESTR("\nPress [1..9] for number of players for new game, or 0 to ABORT?\n");
+    AL = BIOSREADKEY();
+    IF( AL <= '0' )
+        EXIT(0);
+    IF( AL > '9' )
+        EXIT(0);
+    players = AL - '0';      
+    RESETMOUSE();
+    set320x240mode(FALSE);
+    CLEARSCREEN();
+    setup_palette(nations);
+    @ WAITVSYNC();
+    @ SETVGADAC(0, ,PALSIZE, , ,#palette);
+    zero_stuff();
+    putscreen(screenbuf);
+    set_stufflevels();
+    init_mouse();
+    }
+ELSE{  // continue game
+    WRITESTR("\nNations: ");
+    WRITEWORD(nations);
+    WRITESTR("\nPress <Enter> If you are ready to CONTINUE game?\n");
+    IF( byte BIOSREADKEY() != 13 )
+        EXIT(0);
+
+    RESETMOUSE();
+    set320x240mode(FALSE);
+    CLEARSCREEN();
+    putscreen(screenbuf);
+
+    setup_palette(nations);
+    @ WAITVSYNC();
+    @ SETVGADAC(0, ,PALSIZE, , ,#palette);
+    init_mouse();
+    }
+
+show_all_nation_stats();
+
+quit = FALSE;
+
+//=========== the main event loop ==============
+do {flag = FALSE;
+    getmouse();
+    IF( mousex == 0 )
+        {topx = topx + LOGICALSCREENWIDTH - 4 % LOGICALSCREENWIDTH;
+        flag = TRUE;
+        }
+    ELSE IF( mousex == 319 )
+        {topx = topx + 4 % LOGICALSCREENWIDTH;
+        flag = TRUE;
+        }
+
+    IF( mousey == 0 )
+        {topy = topy + LOGICALSCREENHEIGHT - 4 % LOGICALSCREENHEIGHT;
+        flag = TRUE;
+        }
+    ELSE IF( mousey == 239 )
+        {topy = topy + 4 % LOGICALSCREENHEIGHT;
+        flag = TRUE;
+        }
+
+    IF( flag )
+        {hidemouse();
+        AX = topx/4;
+        SI = AX;
+        screenoffset = LOGICALSCREENWIDTH/4 * topy + SI;
+        @ WAITVSYNC();
+        SETSCREENOFFSET( ,screenoffset);
+        showmouse();
+        }
+    IF( mousebuttons & 1 )
+        doleftbutton();
+    
+    IF( BIOSEKEYCHECK() != 0 )  // handle key presses
+        {AX = BIOSEREADKEY();
+        IF( AX == k_esc )
+            quit = TRUE;
+        }
+
+    } while( quit == FALSE );
+
+
+// WRITESTR("Saving Game...");
+// savegame(screenbuf,PARAMSTR(0));
+
+SETMOUSEHANDLE(CS,0,0);  // kill mouse handle
+SETVIDEOMODE(vid_text80c);
+WRITESTR("\nSPHINX programming 1994\n");
+}
+
+
+void instruct ()
+{
+WRITESTR("usage>  WW <input filename>\n");
+}
+
+
+byte getmem ()
+{screenbuf = GETMEM(0x4000);  // 256k buffer for screen
+IF( screenbuf == 0 )
+    return(FALSE);
+windowbuf = GETMEM(0x1000);  // 64K buffer for window
+IF( windowbuf == 0 )
+    return(FALSE);
+return(TRUE);
+}
+
+
+?define FILEHEADERSIZE 15
+byte worldheader = "WW world file.";
+byte gameheader =  "WW game file. ";
+byte fileheader[FILEHEADERSIZE]; 
+
+
+word loadworld (word bufseg,filenameaddr)
+word filehandle;
+byte count;
+word filetype;
+{
+fileheader[FILEHEADERSIZE-1] = '\000';
+filehandle = FOPEN(F_READ, , ,filenameaddr);   /* open file to read */
+IF(filehandle == 0)                    /* if file did not open */
+    return(ft_error);
+IF( FREAD( ,filehandle,FILEHEADERSIZE,#fileheader) != FILEHEADERSIZE )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(ft_error);}
+
+worldheader[FILEHEADERSIZE-1] = '\000';
+gameheader[FILEHEADERSIZE-1] = '\000';
+fileheader[FILEHEADERSIZE-1] = '\000';
+IF( strcmp(#fileheader,#worldheader) == 0 )
+    filetype = ft_world;
+ELSE IF( strcmp(#fileheader,#gameheader) == 0 )
+    filetype = ft_game;
+ELSE{FCLOSE( ,filehandle);  /* close the file */
+    return(ft_error);}
+
+IF( FREAD( ,filehandle,2,#nations) != 2 )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(FALSE);}
+$ PUSH DS
+count = 8;
+loop(count)
+    {DS = bufseg;
+    IF( FREAD( ,filehandle,0x8000,0) != 0x8000 )
+        {$ POP DS
+        FCLOSE( ,filehandle);  /* close the file */
+        return(ft_error);}
+    bufseg += 0x800;
+    }   
+$ POP DS
+IF( FREAD( ,filehandle,MAXNATIONS+1*2,#xs) != MAXNATIONS+1*2 )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(ft_error);}
+IF( FREAD( ,filehandle,MAXNATIONS+1*2,#ys) != MAXNATIONS+1*2 )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(ft_error);}
+
+IF( FREAD( ,filehandle,BORDERARRAYSIZE,#nation_borders) != BORDERARRAYSIZE )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(ft_error);}
+
+IF( FREAD( ,filehandle,MAXNATIONS+1,#nation_sea) != MAXNATIONS+1 )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(ft_error);}
+
+IF( filetype == ft_world )   // finished loading a world file
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(ft_world);
+    }
+
+// game file contains more data...
+
+// ......
+
+return(ft_game);
+}
+
+
+word savegame (word bufseg,filenameaddr)
+word filehandle;
+byte count;
+{
+gameheader[FILEHEADERSIZE-1] = '\026';
+filehandle = FCREATE( , ,FA_NORMAL,filenameaddr);   /* create file write */
+IF(filehandle == 0)                    /* if file did not open */
+    return(FALSE);
+IF( FWRITE( ,filehandle,FILEHEADERSIZE,#gameheader) != FILEHEADERSIZE )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(FALSE);}
+IF( FWRITE( ,filehandle,2,#nations) != 2 )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(FALSE);}
+$ PUSH DS
+count = 8;
+loop(count)
+    {DS = bufseg;
+    IF( FWRITE( ,filehandle,0x8000,0) != 0x8000 )
+        {$ POP DS
+        FCLOSE( ,filehandle);  /* close the file */
+        return(FALSE);}
+    bufseg += 0x800;
+    }   
+$ POP DS
+IF( FWRITE( ,filehandle,MAXNATIONS+1*2,#xs) != MAXNATIONS+1*2 )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(FALSE);}
+IF( FWRITE( ,filehandle,MAXNATIONS+1*2,#ys) != MAXNATIONS+1*2 )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(FALSE);}
+
+IF( FWRITE( ,filehandle,BORDERARRAYSIZE,#nation_borders) != BORDERARRAYSIZE )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(FALSE);}
+
+IF( FWRITE( ,filehandle,MAXNATIONS+1,#nation_sea) != MAXNATIONS+1 )
+    {FCLOSE( ,filehandle);  /* close the file */
+    return(FALSE);}
+FCLOSE( ,filehandle);  /* close the file */
+return(TRUE);
+}
+
+
+void putscreen (word bufseg)
+{SETWRITEMASK( ,1);
+COPYFARW(VGA_SEG,0,bufseg,0,0x8000);
+SETWRITEMASK( ,2);
+COPYFARW(VGA_SEG,0,0x1000+bufseg,0,0x8000);
+SETWRITEMASK( ,4);
+COPYFARW(VGA_SEG,0,0x2000+bufseg,0,0x8000);
+SETWRITEMASK( ,8);
+COPYFARW(VGA_SEG,0,0x3000+bufseg,0,0x8000);
+}
+
+
+void putmap (word bufseg)
+word x,y;
+{
+y = 0;
+do {
+    x = 0;
+    do {
+        ES = bufseg;
+        AX = y*320 + x;
+        SI = AX;
+        putpixel_x(x,y,ESBYTE[SI]);
+        x++;
+        } while( x < 128 );
+    y++;
+    } while( y < 128 );
+}
+
+
+void getscreen (word bufseg)
+{SETREADMASK( ,0);
+COPYFARW(bufseg,0,VGA_SEG,0,0x8000);
+SETREADMASK( ,1);
+COPYFARW(0x1000+bufseg,0,VGA_SEG,0,0x8000);
+SETREADMASK( ,2);
+COPYFARW(0x2000+bufseg,0,VGA_SEG,0,0x8000);
+SETREADMASK( ,3);
+COPYFARW(0x3000+bufseg,0,VGA_SEG,0,0x8000);
+}
+
+
+void show_income (word xloc,yloc,value)
+{
+IF( value > 0 )
+    {IF( value > 14+14 )
+        value = 14+14;
+    do {
+        putpixel_x(xloc,yloc,12); 
+        value--;
+        IF( value > 0 )
+            {putpixel_x(xloc,yloc+1,12); 
+            value--;}
+        xloc++;
+        } while( value > 0 );
+    }
+}
+
+
+void show_level (word xloc,yloc,value)
+{
+IF( value >= 20 )
+    {putpixel_x(xloc,yloc,13); 
+    value -= 20;}
+IF( value >= 10 )
+    {putpixel_x(xloc+1,yloc,1); 
+    value -= 10;}
+IF( value >= 5 )
+    {putpixel_x(xloc+2,yloc,4); 
+    value -= 5;}
+IF( value >= 1 )
+    {putpixel_x(xloc+3,yloc,15); 
+    value--;}
+IF( value >= 1 )
+    {putpixel_x(xloc+4,yloc,15); 
+    value--;}
+IF( value >= 1 )
+    {putpixel_x(xloc+5,yloc,15); 
+    value--;}
+IF( value >= 1 )
+    putpixel_x(xloc+6,yloc,15); 
+}
+
+
+void show_nation_stats (word nationnum,xloc,yloc)
+{
+SI = nationnum;
+overicon_x(xloc,yloc,DS,#landicon);
+SI = nationnum;
+
+show_income(xloc+1,yloc+1,nation_income[SI]);
+
+show_level(xloc+1,yloc+5,nation_troops[SI]); 
+show_level(xloc+1,yloc+7,nation_tanks[SI]); 
+show_level(xloc+1,yloc+9,nation_fighters[SI]); 
+show_level(xloc+1,yloc+11,nation_bombers[SI]); 
+show_level(xloc+1,yloc+13,nation_helicopters[SI]); 
+
+show_level(xloc+8,yloc+5,nation_troops_0[SI]); 
+show_level(xloc+8,yloc+7,nation_tanks_0[SI]+nation_tanks_1[SI]); 
+show_level(xloc+8,yloc+9,nation_fighters_0[SI]+nation_fighters_1[SI]+nation_fighters_2[SI]+nation_fighters_3[SI]); 
+show_level(xloc+8,yloc+11,nation_bombers_0[SI]+nation_bombers_1[SI]+nation_bombers_2[SI]+nation_bombers_3[SI]+nation_bombers_4[SI]+nation_bombers_5[SI]); 
+show_level(xloc+8,yloc+13,nation_helicopters_0[SI]+nation_helicopters_1[SI]); 
+}
+
+
+void show_all_nation_stats ()
+word count,offset;
+{count = nations;
+offset = 0xFF+0xFF;
+loop(count)
+    {SI = offset;
+    show_nation_stats(offset/2,xs[SI],ys[SI]);
+    offset -= 2;
+    }
+}
+
+
+void doleftbutton ()
+word tx,ty,modvalue,nation;
+word count,offset;
+{hidemouse();
+savewindow();
+
+tx = topx+mousex%LOGICALSCREENWIDTH;
+ty = topy+mousey%LOGICALSCREENHEIGHT;
+nation = obtain_nation(tx,ty);
+
+IF( nation < THECLEARCOLOR )
+    {// BEEP();
+    do {getmouse();
+        } while( mousebuttons != 0 );
+    showmouse();
+    return;
+    }
+
+tx = topx+20%LOGICALSCREENWIDTH;
+ty = topy+20%LOGICALSCREENHEIGHT;
+
+bar(tx,ty,70,160,6);
+writestr_x(tx,ty,"N A T I O N   S T A T S",15,6);
+writebyte_x(tx+182,ty,nation,14,6);
+
+writestr_x(tx,ty+8,"     Income:",15,6);
+BX = nation;
+writebyte_x(tx+84,ty+8,nation_income[BX],nation,6);
+
+writestr_x(tx,ty+16,"     Troops:   /",15,6);
+BX = nation;
+writebyte_x(tx+84,ty+16,nation_troops[BX],nation,6);
+BX = nation;
+DI = playersturn;
+writebyte_x(7*4+tx+84,ty+16,nation_troops_0[BX],player_color[DI],6);
+
+writestr_x(tx,ty+24,"      Tanks:   /   /",15,6);
+BX = nation;
+writebyte_x(tx+84,ty+24,nation_tanks[BX],nation,6);
+BX = nation;
+DI = playersturn;
+writebyte_x(7*4+tx+84,ty+24,nation_tanks_1[BX],player_color[DI],6);
+BX = nation;
+DI = playersturn;
+writebyte_x(7*8+tx+84,ty+24,nation_tanks_0[BX],player_color[DI],6);
+
+writestr_x(tx,ty+32,"   Fighters:   /   /   /   /",15,6);
+BX = nation;
+writebyte_x(tx+84,ty+32,nation_fighters[BX],nation,6);
+BX = nation;
+DI = playersturn;
+writebyte_x(7*4+tx+84,ty+32,nation_fighters_3[BX],player_color[DI],6);
+BX = nation;
+DI = playersturn;
+writebyte_x(7*8+tx+84,ty+32,nation_fighters_2[BX],player_color[DI],6);
+BX = nation;
+DI = playersturn;
+writebyte_x(7*12+tx+84,ty+32,nation_fighters_1[BX],player_color[DI],6);
+BX = nation;
+DI = playersturn;
+writebyte_x(7*16+tx+84,ty+32,nation_fighters_0[BX],player_color[DI],6);
+
+writestr_x(tx,ty+40,"    Bombers:   /   /   /   /   /   /",15,6);
+BX = nation;
+writebyte_x(tx+84,ty+40,nation_bombers[BX],nation,6);
+BX = nation;
+DI = playersturn;
+writebyte_x(7*4+tx+84,ty+40,nation_bombers_5[BX],player_color[DI],6);
+BX = nation;
+DI = playersturn;
+writebyte_x(7*8+tx+84,ty+40,nation_bombers_4[BX],player_color[DI],6);
+BX = nation;
+DI = playersturn;
+writebyte_x(7*12+tx+84,ty+40,nation_bombers_3[BX],player_color[DI],6);
+BX = nation;
+DI = playersturn;
+writebyte_x(7*16+tx+84,ty+40,nation_bombers_2[BX],player_color[DI],6);
+BX = nation;
+DI = playersturn;
+writebyte_x(7*20+tx+84,ty+40,nation_bombers_1[BX],player_color[DI],6);
+BX = nation;
+DI = playersturn;
+writebyte_x(7*24+tx+84,ty+40,nation_bombers_0[BX],player_color[DI],6);
+
+writestr_x(tx,ty+48,"Helicopters:   /   /",15,6);
+BX = nation;
+writebyte_x(tx+84,ty+48,nation_helicopters[BX],nation,6);
+BX = nation;
+DI = playersturn;
+writebyte_x(7*4+tx+84,ty+48,nation_helicopters_1[BX],player_color[DI],6);
+BX = nation;
+DI = playersturn;
+writebyte_x(7*8+tx+84,ty+48,nation_helicopters_0[BX],player_color[DI],6);
+
+IF( gamemode == gm_pick )
+    {
+    BX = nation;
+    IF( nation_owner[BX] == MAXPLAYERS )
+        writestr_x(tx,ty+56,"Click Right Button to PICK, Left to CANCEL",15,6);
+    }
+
+do {getmouse();
+    } while( mousebuttons != 0 );
+showmouse();
+
+do {getmouse();
+    } while( mousebuttons == 0 );
+
+IF( mousebuttons == 2 )
+    IF( gamemode == gm_pick )
+        {
+        BX = nation;
+        IF( nation_owner[BX] == MAXPLAYERS )
+            pick_nation(nation);
+        }
+
+hidemouse();
+restorewindow();
+
+do {getmouse();
+    } while( mousebuttons != 0 );
+showmouse();
+}
+
+
+void pick_nation (word nation)      // do this
+{
+DI = nation;
+nation_owner[DI] = playersturn;
+AX = nation * 3;
+DI = AX;
+SI = playersturn;
+AX = player_color[SI] * 3;
+SI = AX;
+palette[DI] = palette[SI];
+palette[DI+1] = palette[SI+1];
+palette[DI+2] = palette[SI+2];
+
+    @ WAITVSYNC();
+    @ SETVGADAC(0, ,PALSIZE, , ,#palette);
+
+BX = MAXNATIONS - nations + 1;
+DI = TRUE;
+do {
+    IF( nation_owner[BX] == MAXPLAYERS )
+        DI = FALSE;
+    BX++;
+    } while( BX <= MAXNATIONS );
+IF( DI == TRUE )
+    {BEEP();   // picking is done !!!
+    playersturn = 0;
+    gamemode = gm_combatmove;
+    }
+ELSE{
+    playersturn = playersturn + 1 % players;
+    }
+}
+
+
+/* end of WW.C-- */

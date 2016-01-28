@@ -1,0 +1,29 @@
+/*
+    SPHINX Programming (C) 1994.
+    NAME:  VCPI.H--
+    DESCRIPTION:  This file contains a procedure for detecting whether or not
+                  the VCPI Interface is installed on the host machine.
+    LAST MODIFIED:  26 Feb 1993
+    PROCEDURES DEFINED IN THIS FILE:
+        : word CHECK_VCPI()
+*/
+
+
+: word CHECK_VCPI ()
+/*
+Returns:
+  If VCPI is available:
+       AX != 0  with AH = VCPI major version number and
+                     AL = VCPI minor version number
+  else AX = 0
+*/
+{
+AX = 0xDE00;
+$ INT 0x67
+IF( AH == 0 )
+    AX = BX;
+ELSE AX = 0;
+}
+
+
+/* end of VCPI.H-- */
