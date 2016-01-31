@@ -29,14 +29,15 @@
 
 #define DRESNUM 100;
 
-enum{
-rc_accelerators,rc_auto3state,     rc_autocheckbox,rc_autoradiobutton,rc_bitmap,
-rc_caption,     rc_characteristics,rc_checkbox,    rc_class,          rc_combobox,
-rc_control,     rc_ctext,          rc_cursor,      rc_defpushbutton,  rc_dialog,
-rc_dialogex,    rc_edittext,       rc_exstyle,     rc_font,           rc_groupbox,
-rc_icon,        rc_listbox,        rc_ltext,       rc_menu,           rc_menuex,
-rc_menuitem,    rc_messagetable,   rc_popup,       rc_pushbox,        rc_pushbutton,
-rc_radiobutton, rc_rcdata,         rc_rtext,       rc_scrollbar,      rc_state3,
-rc_stringtable, rc_style,          rc_version,     rc_versioninfo,    rc_begin,
-rc_end,         rc_language
+enum
+{
+	rc_accelerators, rc_auto3state,     rc_autocheckbox, rc_autoradiobutton, rc_bitmap,
+	rc_caption,     rc_characteristics, rc_checkbox,    rc_class,          rc_combobox,
+	rc_control,     rc_ctext,          rc_cursor,      rc_defpushbutton,  rc_dialog,
+	rc_dialogex,    rc_edittext,       rc_exstyle,     rc_font,           rc_groupbox,
+	rc_icon,        rc_listbox,        rc_ltext,       rc_menu,           rc_menuex,
+	rc_menuitem,    rc_messagetable,   rc_popup,       rc_pushbox,        rc_pushbutton,
+	rc_radiobutton, rc_rcdata,         rc_rtext,       rc_scrollbar,      rc_state3,
+	rc_stringtable, rc_style,          rc_version,     rc_versioninfo,    rc_begin,
+	rc_end,         rc_language
 };
