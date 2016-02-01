@@ -74,33 +74,37 @@ typedef struct _COFF_HEADER_
 	long date_time;	//дата модификации линкером
 	long pCOFF;
 	long COFFsize;
-  short SizeOfOptionalHeader;
-  short Characteristics;
-}COFF_HEADER;
+	short SizeOfOptionalHeader;
+	short Characteristics;
+} COFF_HEADER;
 
 typedef struct _IMAGE_SYMBOL
 {
-	union{
+	union
+	{
 		char sname[8];
-		struct{
+		struct
+		{
 			unsigned long Short;
 			unsigned long Long;
-		}Name;
-		char *LongName[2];
-	}N;
+		} Name;
+		char* LongName[2];
+	} N;
 	unsigned long Value;
 	short SectionNumber;
 	unsigned short Type;
 	unsigned char StorageClass;
 	unsigned char NumberOfAuxSymbols;
-}IMAGE_SYMBOL;
+} IMAGE_SYMBOL;
 
-typedef struct _IMAGE_RELOCATION {
-	union {
+typedef struct _IMAGE_RELOCATION
+{
+	union
+	{
 		unsigned long VirtualAddress;
 		unsigned long RelocCount; // Set to the real count when IMAGE_SCN_LNK_NRELOC_OVFL is set
 	};
 	unsigned long SymbolTableIndex;
 	unsigned short Type;
-}IMAGE_RELOCATION;
+} IMAGE_RELOCATION;
 

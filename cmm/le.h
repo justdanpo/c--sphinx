@@ -10,33 +10,33 @@
 
 enum CPU_Type
 {
-	i80286       =0x01,
-	i80386       =0x02,
-	i80486       =0x03,
-	i80586       =0x04,
-	i860_N10     =0x20,
-	i860_N11     =0x21,
-	MIPS_Mark_I  =0x40,
-	MIPS_Mark_II =0x41,
-	MIPS_Mark_III=0x42
+	i80286       = 0x01,
+	i80386       = 0x02,
+	i80486       = 0x03,
+	i80586       = 0x04,
+	i860_N10     = 0x20,
+	i860_N11     = 0x21,
+	MIPS_Mark_I  = 0x40,
+	MIPS_Mark_II = 0x41,
+	MIPS_Mark_III = 0x42
 };
 
 struct Module_Type_Flags
 {
-	unsigned long Module_Is_DLL        :1;
-	unsigned long Reserved1            :1;
-	unsigned long Errors_In_Module     :1;
-	unsigned long Reserved2            :1;
-	unsigned long Code_Load_Application:1;
-	unsigned long Application_Type     :3;
+	unsigned long Module_Is_DLL        : 1;
+	unsigned long Reserved1            : 1;
+	unsigned long Errors_In_Module     : 1;
+	unsigned long Reserved2            : 1;
+	unsigned long Code_Load_Application: 1;
+	unsigned long Application_Type     : 3;
 
-	unsigned long Reserved3            :2;
-	unsigned long No_External_FIXUP    :1;
-	unsigned long No_Internal_FIXUP    :1;
-	unsigned long Protected_Mode_Only  :1;
-	unsigned long Global_Initialization:1;
-	unsigned long Multipledata         :1;
-	unsigned long Singledata           :1;
+	unsigned long Reserved3            : 2;
+	unsigned long No_External_FIXUP    : 1;
+	unsigned long No_Internal_FIXUP    : 1;
+	unsigned long Protected_Mode_Only  : 1;
+	unsigned long Global_Initialization: 1;
+	unsigned long Multipledata         : 1;
+	unsigned long Singledata           : 1;
 };
 
 struct LE_Header
@@ -48,7 +48,8 @@ struct LE_Header
 	unsigned short CPU_Type;
 	unsigned short Target_OS;
 	unsigned long Module_Version;
-	union{
+	union
+	{
 		unsigned long Type_Flags;
 		Module_Type_Flags Flags;
 	};
@@ -95,28 +96,29 @@ struct LE_Header
 
 struct OBJ_FLAGS
 {
-	unsigned long I_O_Privilage_Level  :1;
-	unsigned long Conforming_Segment   :1;
-	unsigned long BIG_Segment          :1;
-	unsigned long Alias_16_16          :1;
-	unsigned long Reserved             :1;
-	unsigned long Resident_Long_Locable:1;
-	unsigned long Segment_Type         :2;
-	unsigned long Segment_Invalid      :1;
-	unsigned long Segment_Preloaded    :1;
-	unsigned long Segment_Shared       :1;
-	unsigned long Segment_Discardable  :1;
-	unsigned long Segment_Resource     :1;
-	unsigned long Segment_Executable   :1;
-	unsigned long Segment_Writable     :1;
-	unsigned long Segment_Readable     :1;
+	unsigned long I_O_Privilage_Level  : 1;
+	unsigned long Conforming_Segment   : 1;
+	unsigned long BIG_Segment          : 1;
+	unsigned long Alias_16_16          : 1;
+	unsigned long Reserved             : 1;
+	unsigned long Resident_Long_Locable: 1;
+	unsigned long Segment_Type         : 2;
+	unsigned long Segment_Invalid      : 1;
+	unsigned long Segment_Preloaded    : 1;
+	unsigned long Segment_Shared       : 1;
+	unsigned long Segment_Discardable  : 1;
+	unsigned long Segment_Resource     : 1;
+	unsigned long Segment_Executable   : 1;
+	unsigned long Segment_Writable     : 1;
+	unsigned long Segment_Readable     : 1;
 };
 
 struct Object_Table
 {
 	unsigned long Virtual_Segment_Size;
 	unsigned long Relocation_Base_Address;
-	union {
+	union
+	{
 		unsigned long ObjTableFlags;
 		OBJ_FLAGS FLAGS;
 	};
@@ -126,7 +128,8 @@ struct Object_Table
 };
 
 
-enum {
+enum
+{
 	Segment_Type_Normal,
 	Segment_Zero_Filled,
 	Segment_Resident,
@@ -135,26 +138,27 @@ enum {
 
 struct PM_FLAGS
 {
-	unsigned char Page_Type:2;
-	unsigned char Reserved :6;
-	unsigned char End_Page :2;
+	unsigned char Page_Type: 2;
+	unsigned char Reserved : 6;
+	unsigned char End_Page : 2;
 };
 
 struct Page_Map_Table
 {
 	unsigned short High_Page_Number;
 	unsigned char Low_Page_Number;
-//	union{
-//		PM_FLAGS SFLAGS;
-		unsigned char FLAGS;
-//	};
+	//	union{
+	//		PM_FLAGS SFLAGS;
+	unsigned char FLAGS;
+	//	};
 };
 
-enum{//LE_PM_FLG_Page_Type_Enum        ENUM    {
-	Legal_Page      =0,
-	Iterated_Page   =1,
-	Invalid_Page    =2,
-	Zero_Filled_Page=3
+enum //LE_PM_FLG_Page_Type_Enum        ENUM    {
+{
+	Legal_Page      = 0,
+	Iterated_Page   = 1,
+	Invalid_Page    = 2,
+	Zero_Filled_Page = 3
 };
 
 struct Entry_Table
@@ -162,13 +166,14 @@ struct Entry_Table
 	unsigned char Number_of_Entries;
 	unsigned char Bungle_Flags;
 	unsigned short Object_Index;
-//LE_Entry_First_Entry            equ     $
+	//LE_Entry_First_Entry            equ     $
 };
 
 struct Entry
 {
 	unsigned char Entry_Flags;
-	union{
+	union
+	{
 		unsigned short Word_Offset;
 		unsigned long Dword_Offset;
 	};
@@ -176,8 +181,8 @@ struct Entry
 
 struct Entry_Bungle_Flags
 {
-	unsigned char Bits_Entry :1;
-	unsigned char Valid_Entry:1;
+	unsigned char Bits_Entry : 1;
+	unsigned char Valid_Entry: 1;
 };
 
 struct Fixup_Record_Table
@@ -191,38 +196,38 @@ struct Fixup_Record_Table
 
 struct Rel_Addr_Type
 {
-	unsigned char Repeat_Offset       :1;
-	unsigned char Target_OFFSET_Absent:1;
-	unsigned char Rel_Addr_Type       :4;
+	unsigned char Repeat_Offset       : 1;
+	unsigned char Target_OFFSET_Absent: 1;
+	unsigned char Rel_Addr_Type       : 4;
 };
 
 enum// LE_Relocation_Address_Type_ENUM
 {
-RA_Low_Byte           =0,
-RA_16_bits_selector   =2,
-RA_32_bits_Far_Pointer=3,
-RA_16_bits_Offset     =5,
-RA_48_bits_Far_Pointer=6,
-RA_32_bits_Offset     =7,
-RA_32_bits_EIP_Rel    =8
+	RA_Low_Byte           = 0,
+	RA_16_bits_selector   = 2,
+	RA_32_bits_Far_Pointer = 3,
+	RA_16_bits_Offset     = 5,
+	RA_48_bits_Far_Pointer = 6,
+	RA_32_bits_Offset     = 7,
+	RA_32_bits_EIP_Rel    = 8
 };
 
 struct Reloc_Type
 {
-	unsigned char Ordinal_Byte    :1;
-	unsigned char Reserv1         :1;
-	unsigned char ABS_Dword       :1;
-	unsigned char Target_Offset_32:1;
-	unsigned char Reserv2         :1;
-	unsigned char ADDITIVE_Type   :1;
-	unsigned char Reloc_Type      :2;
+	unsigned char Ordinal_Byte    : 1;
+	unsigned char Reserv1         : 1;
+	unsigned char ABS_Dword       : 1;
+	unsigned char Target_Offset_32: 1;
+	unsigned char Reserv2         : 1;
+	unsigned char ADDITIVE_Type   : 1;
+	unsigned char Reloc_Type      : 2;
 };
 
 enum //LE_Relocation_Type_ENUM
 {
-	Internal_Reference=0,
-	Imported_Ordinal  =1,
-	Imported_Name     =2,
-	OS_FIXUP          =3
+	Internal_Reference = 0,
+	Imported_Ordinal  = 1,
+	Imported_Name     = 2,
+	OS_FIXUP          = 3
 };
 

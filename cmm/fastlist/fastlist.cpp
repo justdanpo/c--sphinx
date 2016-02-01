@@ -53,7 +53,7 @@ int main()
 			lastlit = i;
 		}
 
-		fprintf(out, "\t0x%04X,0x%04X", 0xFFFF&table[i], 0xFFFF&table[i + 1]);
+		fprintf(out, "\t0x%04X,0x%04X", 0xFFFF & table[i], 0xFFFF & table[i + 1]);
 
 		if (i == 24)
 		{
@@ -85,13 +85,13 @@ int main()
 					break;
 				}
 
-				fprintf(out, "\t0x%02X,0x%02X,", 0xFF&*ii, 0xFF&*(ii + 1));
+				fprintf(out, "\t0x%02X,0x%02X,", 0xFF & *ii, 0xFF & *(ii + 1));
 				ii += 2;
 				jj = ii;
 
 				for (; *ii != 0; ii++)
 				{
-					fprintf(out, "0x%02X,", 0xFF&*ii);
+					fprintf(out, "0x%02X,", 0xFF & *ii);
 				}
 
 				fprintf(out, "0,\t// %c%s\n", i + 'A', jj);
@@ -118,7 +118,7 @@ int main()
 			lastlit = i;
 		}
 
-		fprintf(out, "\t0x%04X,0x%04X", 0xFFFF&table[i], 0xFFFF&table[i + 1]);
+		fprintf(out, "\t0x%04X,0x%04X", 0xFFFF & table[i], 0xFFFF & table[i + 1]);
 
 		if (i == 24)
 		{
@@ -150,13 +150,13 @@ int main()
 					break;
 				}
 
-				fprintf(out, "\t0x%02X,0x%02X,", 0xFF&*ii, 0xFF&*(ii + 1));
+				fprintf(out, "\t0x%02X,0x%02X,", 0xFF & *ii, 0xFF & *(ii + 1));
 				ii += 2;
 				jj = ii;
 
 				for (; *ii != 0; ii++)
 				{
-					fprintf(out, "0x%02X,", 0xFF&*ii);
+					fprintf(out, "0x%02X,", 0xFF & *ii);
 				}
 
 				fprintf(out, "0,\t// %c%s\n", i == 0 ? 'D' : i + 0x60, jj);
@@ -183,7 +183,7 @@ int main()
 			lastlit = i;
 		}
 
-		fprintf(out, "\t0x%04X,0x%04X", 0xFFFF&table[i], 0xFFFF&table[i + 1]);
+		fprintf(out, "\t0x%04X,0x%04X", 0xFFFF & table[i], 0xFFFF & table[i + 1]);
 
 		if (i == 50)
 		{
@@ -216,13 +216,13 @@ int main()
 					break;
 				}
 
-				fprintf(out, "\t0x%02X,0x%02X,", 0xFF&*ii, 0xFF&*(ii + 1));
+				fprintf(out, "\t0x%02X,0x%02X,", 0xFF & *ii, 0xFF & *(ii + 1));
 				ii += 2;
 				jj = ii;
 
 				for (; *ii != 0; ii++)
 				{
-					fprintf(out, "0x%02X,", 0xFF&*ii);
+					fprintf(out, "0x%02X,", 0xFF & *ii);
 				}
 
 				fprintf(out, "0,\t// %c%s\n", i >= 26 ? (i == 26 ? '_' : i + 'a' - 27) : i + 'A', jj);
@@ -249,7 +249,7 @@ int main()
 			lastlit = i;
 		}
 
-		fprintf(out, "\t0x%04X,0x%04X", 0xFFFF&table[i], 0xFFFF&table[i + 1]);
+		fprintf(out, "\t0x%04X,0x%04X", 0xFFFF & table[i], 0xFFFF & table[i + 1]);
 
 		if (i == 24)
 		{
@@ -281,13 +281,13 @@ int main()
 					break;
 				}
 
-				fprintf(out, "\t0x%02X,0x%02X,", 0xFF&*ii, 0xFF&*(ii + 1));
+				fprintf(out, "\t0x%02X,0x%02X,", 0xFF & *ii, 0xFF & *(ii + 1));
 				ii += 2;
 				jj = ii;
 
 				for (; *ii != 0; ii++)
 				{
-					fprintf(out, "0x%02X,", 0xFF&*ii);
+					fprintf(out, "0x%02X,", 0xFF & *ii);
 				}
 
 				fprintf(out, "0,\t// %c%s\n", i + 'a', jj);
@@ -374,7 +374,7 @@ void InitList(const char** keylist, int type)
 		}
 	}
 
-	for (j = 0; j < sizeof(table)/sizeof(table[0]); j++)
+	for (j = 0; j < sizeof(table) / sizeof(table[0]); j++)
 	{
 		table[j] = tableitemnone;
 	}

@@ -26,55 +26,61 @@
 #define TOTALTYPERES 22
 #define NUMMENUPOPUP 8
 
-struct RES{
+struct RES
+{
 	int type;	//тип ресурсв
-	char *tname;	//имя типа
+	char* tname;	//имя типа
 	int id;   //его id
-	char *name;	//имя ресурса
+	char* name;	//имя ресурса
 	unsigned short lang;	//язык
-	unsigned char *res;	//указатель на таблицу ресурса
+	unsigned char* res;	//указатель на таблицу ресурса
 	unsigned int size;	//размер таблицы
 };
 
 #define DRESNUM 100
 #define SIZERESBUF 2048
 
-struct _STRINGS_{
-	char *id;
+struct _STRINGS_
+{
+	char* id;
 	short val;
 };
 
-_STRINGS_ typemem[7]={
+_STRINGS_ typemem[7] =
+{
 	"MOVEABLE",   0x0010,
 	"FIXED",      ~0x0010,
 	"PURE",       0x0020,
 	"IMPURE",     ~0x0020,
 	"PRELOAD",    0x0040,
 	"LOADONCALL", ~0x0040,
-	"DISCARDABLE",0x1000
+	"DISCARDABLE", 0x1000
 };
 
-_STRINGS_ typeclass[6]={
+_STRINGS_ typeclass[6] =
+{
 	"BUTTON",   0x80,
 	"EDIT",     0x81,
 	"STATIC",   0x82,
 	"LISTBOX",  0x83,
-	"SCROLLBAR",0x84,
+	"SCROLLBAR", 0x84,
 	"COMBOBOX", 0x85
 };
 
-_STRINGS_ typemenu[NUMMENUPOPUP]={
+_STRINGS_ typemenu[NUMMENUPOPUP] =
+{
 	"GREYED",      0x0001,
 	"INACTIVE",    0x0002,
 	"BITMAP",      0x0004,
 	"OWNERDRAW",   0x0100,
 	"CHECKED",     0x0008,
-	"MENUBARBREAK",0x0020,
+	"MENUBARBREAK", 0x0020,
 	"MENUBREAK",   0x0040,
 	"HELP",        0x4000
 };
 
-_STRINGS_ typeacceler[5]={
+_STRINGS_ typeacceler[5] =
+{
 	"VIRTKEY",  0x01,
 	"NOINVERT", 0x02,
 	"SHIFT",    0x04,
@@ -82,75 +88,79 @@ _STRINGS_ typeacceler[5]={
 	"ALT",      0x10
 };
 
-enum {v_fv=1,v_pv,v_ffm,v_ff,v_fo,v_ft,v_fs};
+enum {v_fv = 1, v_pv, v_ffm, v_ff, v_fo, v_ft, v_fs};
 
-_STRINGS_ typeversion[7]={
-	"FILEVERSION",v_fv,
-	"PRODUCTVERSION",v_pv,
-	"FILEFLAGSMASK",v_ffm,
-	"FILEFLAGS",v_ff,
-	"FILEOS",v_fo,
-	"FILETYPE",v_ft,
-	"FILESUBTYPE",v_fs
+_STRINGS_ typeversion[7] =
+{
+	"FILEVERSION", v_fv,
+	"PRODUCTVERSION", v_pv,
+	"FILEFLAGSMASK", v_ffm,
+	"FILEFLAGS", v_ff,
+	"FILEOS", v_fo,
+	"FILETYPE", v_ft,
+	"FILESUBTYPE", v_fs
 };
 
-enum{
-rc_accelerators,rc_auto3state,     rc_autocheckbox,rc_autoradiobutton,rc_bitmap,
-rc_caption,     rc_characteristics,rc_checkbox,    rc_class,          rc_combobox,
-rc_control,     rc_ctext,          rc_cursor,      rc_defpushbutton,  rc_dialog,
-rc_dialogex,    rc_edittext,       rc_exstyle,     rc_font,           rc_groupbox,
-rc_icon,        rc_listbox,        rc_ltext,       rc_menu,           rc_menuex,
-rc_menuitem,    rc_messagetable,   rc_popup,       rc_pushbox,        rc_pushbutton,
-rc_radiobutton, rc_rcdata,         rc_rtext,       rc_scrollbar,      rc_state3,
-rc_stringtable, rc_style,          rc_version,     rc_versioninfo,    rc_begin,
-rc_end,         rc_language
+enum
+{
+	rc_accelerators, rc_auto3state,     rc_autocheckbox, rc_autoradiobutton, rc_bitmap,
+	rc_caption,     rc_characteristics, rc_checkbox,    rc_class,          rc_combobox,
+	rc_control,     rc_ctext,          rc_cursor,      rc_defpushbutton,  rc_dialog,
+	rc_dialogex,    rc_edittext,       rc_exstyle,     rc_font,           rc_groupbox,
+	rc_icon,        rc_listbox,        rc_ltext,       rc_menu,           rc_menuex,
+	rc_menuitem,    rc_messagetable,   rc_popup,       rc_pushbox,        rc_pushbutton,
+	rc_radiobutton, rc_rcdata,         rc_rtext,       rc_scrollbar,      rc_state3,
+	rc_stringtable, rc_style,          rc_version,     rc_versioninfo,    rc_begin,
+	rc_end,         rc_language
 };
 
-struct{
+struct
+{
 	unsigned short dclass;
 	unsigned long style;
-}defdialog[rc_state3+1]={
-	0,0,
-	0x80,6,//BS_AUTO3STATE
-	0X80,3|0x00010000,//BS_AUTOCHECKBOX|WS_TABSTOP,
-	0X80,9,//BS_AUTORADIOBUTTON,
-	0,0,
-	0,0,
-	0,0,
-	0X80,0x00010002,//BS_CHECKBOX|WS_TABSTOP,
-	0,0,
-	0X85,0x00010000,//0,WS_TABSTOP
-	0,0x40000000|0x10000000,//WS_CHILD|WS_VISIBLE,
-	0X82,1,//ES_CENTER,
-	0,0,
-	0X80,1|0x00010000,//BS_DEFPUSHBUTTON|WS_TABSTOP,
-	0,0,
-	0,0,
-	0X81,0x00800000|0x00010000,//ES_LEFT|WS_BORDER|WS_TABSTOP,
-	0,0,
-	0,0,
-	0X80,7|0x00010000,//BS_GROUPBOX,
-	0X82,3,//SS_ICON,
-	0X83,0x00800000|1,//WS_BORDER|LBS_NOTIFY,
-	0X82,0x00020000,//ES_LEFT|WS_GROUP,
-	0,0,
-	0,0,
-	0,0,
-	0,0,
-	0,0,
-	0X80,0x00010000,// ??? BS_PUSHBOX,
-	0X80,0x00010000,//BS_PUSHBUTTON|WS_TABSTOP,
-	0X80,4,//BS_RADIOBUTTON,
-	0,0,
-	0X82,2|0x00020000,//ES_RIGHT|WS_GROUP,
-	0X84,0,
-	0X80,5//BS_3STATE
+} defdialog[rc_state3 + 1] =
+{
+	0, 0,
+	0x80, 6, //BS_AUTO3STATE
+	0X80, 3 | 0x00010000, //BS_AUTOCHECKBOX|WS_TABSTOP,
+	0X80, 9, //BS_AUTORADIOBUTTON,
+	0, 0,
+	0, 0,
+	0, 0,
+	0X80, 0x00010002, //BS_CHECKBOX|WS_TABSTOP,
+	0, 0,
+	0X85, 0x00010000, //0,WS_TABSTOP
+	0, 0x40000000 | 0x10000000, //WS_CHILD|WS_VISIBLE,
+	0X82, 1, //ES_CENTER,
+	0, 0,
+	0X80, 1 | 0x00010000, //BS_DEFPUSHBUTTON|WS_TABSTOP,
+	0, 0,
+	0, 0,
+	0X81, 0x00800000 | 0x00010000, //ES_LEFT|WS_BORDER|WS_TABSTOP,
+	0, 0,
+	0, 0,
+	0X80, 7 | 0x00010000, //BS_GROUPBOX,
+	0X82, 3, //SS_ICON,
+	0X83, 0x00800000 | 1, //WS_BORDER|LBS_NOTIFY,
+	0X82, 0x00020000, //ES_LEFT|WS_GROUP,
+	0, 0,
+	0, 0,
+	0, 0,
+	0, 0,
+	0, 0,
+	0X80, 0x00010000, // ??? BS_PUSHBOX,
+	0X80, 0x00010000, //BS_PUSHBUTTON|WS_TABSTOP,
+	0X80, 4, //BS_RADIOBUTTON,
+	0, 0,
+	0X82, 2 | 0x00020000, //ES_RIGHT|WS_GROUP,
+	0X84, 0,
+	0X80, 5 //BS_3STATE
 };
 
 
 union NameOrdinal
 {
-	unsigned char *name;
+	unsigned char* name;
 	unsigned short ordinal[2];
 };
 
@@ -166,9 +176,9 @@ struct _DBH_	//структура диалога
 	unsigned short cy;
 	NameOrdinal MenuName;
 	NameOrdinal ClassName;
-	char *Caption;
+	char* Caption;
 	unsigned short FontSize;
-	char *FontName;
+	char* FontName;
 };
 
 struct _CD_	//контрольные данные диалога
@@ -190,7 +200,7 @@ struct _ICOHEAD_
 	unsigned short res1;
 	unsigned short type;
 	unsigned short count;
-//	unsigned short res2;
+	//	unsigned short res2;
 };
 
 struct _RESDIR_
@@ -203,7 +213,7 @@ struct _RESDIR_
 	unsigned short bitcount;
 	unsigned long binres;
 	unsigned short nameord;
-//	unsigned short res2;
+	//	unsigned short res2;
 };
 
 struct _CURDIR_
@@ -214,5 +224,5 @@ struct _CURDIR_
 	unsigned short bitcount;
 	unsigned long binres;
 	unsigned short nameord;
-//	unsigned short res2;
+	//	unsigned short res2;
 };

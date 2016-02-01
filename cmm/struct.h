@@ -1,40 +1,42 @@
-typedef struct _BIT_{
-	unsigned int siz:8;
-	unsigned int ofs:24;
-}BIT;
+typedef struct _BIT_
+{
+	unsigned int siz: 8;
+	unsigned int ofs: 24;
+} BIT;
 
 struct _PROCINFO_
 {
-	char *buf;	//адрес текста процедуры
-	void *classteg;	//адрес тега, где определена процедура
-	unsigned int warn:1;
-	unsigned int speed:1;
-	unsigned int lst:1;
-	unsigned int typestring:2;
-	unsigned int inlinest:1;
-	unsigned int code32:1;
-	unsigned int align:1;
-	unsigned int acycle:1;
-	unsigned int idasm:1;
-	unsigned int opnum:1;
-	unsigned int de:1;
-	unsigned int ostring:1;
-	unsigned int uselea:1;
-	unsigned int regoverstack:1;
+	char* buf;	//адрес текста процедуры
+	void* classteg;	//адрес тега, где определена процедура
+	unsigned int warn: 1;
+	unsigned int speed: 1;
+	unsigned int lst: 1;
+	unsigned int typestring: 2;
+	unsigned int inlinest: 1;
+	unsigned int code32: 1;
+	unsigned int align: 1;
+	unsigned int acycle: 1;
+	unsigned int idasm: 1;
+	unsigned int opnum: 1;
+	unsigned int de: 1;
+	unsigned int ostring: 1;
+	unsigned int uselea: 1;
+	unsigned int regoverstack: 1;
 	unsigned int sizeacycle;
 	char chip;
 };
 
 struct idrec
 {
-	union{
-		struct idrec *left;
-		struct localrec *next;
+	union
+	{
+		struct idrec* left;
+		struct localrec* next;
 	};
-	struct idrec *right;	//предыдущ и следующ запись
+	struct idrec* right;	//предыдущ и следующ запись
 	char recid[IDLENGTH];	//имя
 	unsigned int flag;
-	char *newid;  //блок с даными, для структур адрес тега,для процедур параметры
+	char* newid;  //блок с даными, для структур адрес тега,для процедур параметры
 	int rectok;		//тип
 	int recrm;    //для структур число копий
 	int recsegm;
@@ -46,11 +48,13 @@ struct idrec
 	int count;	//счетчик использования
 	unsigned short type;
 	unsigned short npointr;
-	union{
-		char *sbuf;	//указатель на блок исходного текста
-		_PROCINFO_ *pinfo;
+	union
+	{
+		char* sbuf;	//указатель на блок исходного текста
+		_PROCINFO_* pinfo;
 	};
-	union{
+	union
+	{
 		long recnumber;
 		long long reclnumber;
 		double recdnumber;
@@ -70,18 +74,18 @@ struct localinfo
 
 struct localrec
 {
-/*	struct localrec *next;
-	int localtok;
-	unsigned short type;
-	unsigned short npointr;
-	union{
-		unsigned int localnumber;
-		idrec *rec;
-	};
-	int locsize;
-	char localid[IDLENGTH];
-	unsigned char fuse;	//флаг использования
-	unsigned char flag;	//флаг static*/
+	/*	struct localrec *next;
+		int localtok;
+		unsigned short type;
+		unsigned short npointr;
+		union{
+			unsigned int localnumber;
+			idrec *rec;
+		};
+		int locsize;
+		char localid[IDLENGTH];
+		unsigned char fuse;	//флаг использования
+		unsigned char flag;	//флаг static*/
 	idrec rec;
 	localinfo li;
 	unsigned char fuse;	//флаг использования
@@ -101,8 +105,8 @@ struct HEADLOC
 
 struct treelocalrec
 {
-	treelocalrec *next;
-	localrec *lrec;
+	treelocalrec* next;
+	localrec* lrec;
 	int initbp;
 	int level;
 	unsigned int addesp;
@@ -115,34 +119,39 @@ typedef struct _ITOK_
 	int segm;
 	int post;
 	int sib;
-	union{
+	union
+	{
 		long number;
 		long long lnumber;
 		double dnumber;
 		float fnumber;
 	};
-	union{
+	union
+	{
 		int size;
 		BIT bit;
 	};
 	unsigned short type;
 	unsigned short npointr;
-union{
- 		idrec *rec;
-		localrec *locrec;
+	union
+	{
+		idrec* rec;
+		localrec* locrec;
 	};
 	char name[IDLENGTH];
 	unsigned int flag;
-}ITOK;
+} ITOK;
 
 struct elementteg
 {
-	union{
-		void *nteg;	//адрес тега вложенной структуры
-		idrec *rec;
+	union
+	{
+		void* nteg;	//адрес тега вложенной структуры
+		idrec* rec;
 	};
 	int tok;
-	union{
+	union
+	{
 		unsigned int numel;	//число элементов этого типа
 		BIT bit;
 	};
@@ -152,11 +161,11 @@ struct elementteg
 
 struct structteg
 {
-	struct structteg *left;	//следующий тег
-	struct structteg *right;	//следующий тег
+	struct structteg* left;	//следующий тег
+	struct structteg* right;	//следующий тег
 	unsigned int size;	//размер тега
 	unsigned int numoper;	//число операндов структуры
-	struct elementteg *baza;	//адрес с описанием элементов тега
+	struct elementteg* baza;	//адрес с описанием элементов тега
 	unsigned int flag;
 	char name[IDLENGTH];
 };
@@ -173,41 +182,41 @@ typedef struct _IOFS_
 	unsigned int line;	//номер линии
 	unsigned int file;	//файл
 	unsigned char dataseg;
-}IOFS;
+} IOFS;
 
 typedef struct _UNDEFOFF_
 {
-	struct _UNDEFOFF_ *next;
-	IOFS *pos;	//буфер с адресами откуда ссылки
+	struct _UNDEFOFF_* next;
+	IOFS* pos;	//буфер с адресами откуда ссылки
 	int num;	//число ссылок на эту метку
 	char name[IDLENGTH];
-}UNDEFOFF;
+} UNDEFOFF;
 
 typedef struct _LISTCOM_
 {
 	char name[IDLENGTH];
-}LISTCOM;
+} LISTCOM;
 
 typedef struct _SINFO_
 {
-	char *bufstr;
+	char* bufstr;
 	int size;
-}SINFO;
+} SINFO;
 
 //структура списка api-процедур
 typedef struct _APIPROC_
 {
-	struct idrec *recapi;
-}APIPROC;
+	struct idrec* recapi;
+} APIPROC;
 
 //
 typedef struct _DLLLIST_
 {
-	struct _DLLLIST_ *next;	//следующая DLL
-	struct _APIPROC_ *list;	//список процедур
+	struct _DLLLIST_* next;	//следующая DLL
+	struct _APIPROC_* list;	//список процедур
 	unsigned short num;     //число процедур
 	char name[IDLENGTH];	//имя DLL
-}DLLLIST;
+} DLLLIST;
 
 typedef struct _PE_HEADER_
 {
@@ -271,7 +280,7 @@ typedef struct _PE_HEADER_
 	long iatRVA;
 	long iatSize;
 	long rez3[6];
-}PE_HEADER;
+} PE_HEADER;
 
 typedef struct _OBJECT_ENTRY_
 {
@@ -285,7 +294,7 @@ typedef struct _OBJECT_ENTRY_
 	unsigned short NumberOfRelocations;
 	unsigned short NumberOfLinenumbers;
 	long flags;
-}OBJECT_ENTRY;
+} OBJECT_ENTRY;
 
 typedef struct _EXPORT_TABLE_
 {
@@ -299,16 +308,17 @@ typedef struct _EXPORT_TABLE_
 	unsigned long AddressRVA;
 	unsigned long NamePRVA;
 	unsigned long OrdinalRVA;
-}EXPORT_TABLE;
+} EXPORT_TABLE;
 
 #if !defined(__WIN32__)
-struct ftime {
-	unsigned ft_tsec:5;  /* две секунды */
-	unsigned ft_min:6;   /* минуты */
-	unsigned ft_hour:5;  /* часы */
-	unsigned ft_day:5;   /* день */
-	unsigned ft_month:4; /* месяц */
-	unsigned ft_year:7;  /* год-1980 */
+struct ftime
+{
+	unsigned ft_tsec: 5; /* две секунды */
+	unsigned ft_min: 6;  /* минуты */
+	unsigned ft_hour: 5; /* часы */
+	unsigned ft_day: 5;  /* день */
+	unsigned ft_month: 4; /* месяц */
+	unsigned ft_year: 7; /* год-1980 */
 };
 #else
 #include <io.h>
@@ -317,27 +327,29 @@ struct ftime {
 
 typedef struct _STRING_LIST_
 {
-	void *next;	//следующая структура
+	void* next;	//следующая структура
 	unsigned int len; //длина строки
 	unsigned int ofs;	//адрес в выходном файле
 	unsigned char type;	//тип терминатора
 	unsigned char plase;	//где сейчас строка - post or data
-}STRING_LIST;
+} STRING_LIST;
 
 struct FILEINFO
 {
-	char *filename;
+	char* filename;
 	int numdline;
-	idrec *stlist;
-	union{
+	idrec* stlist;
+	union
+	{
 		struct ftime time;
 		unsigned short lineidx[2];
 	};
 };
 
-struct EWAR{
-	FILE *file;
-	char *name;
+struct EWAR
+{
+	FILE* file;
+	char* name;
 };
 
 typedef struct _ICOMP_
@@ -345,25 +357,27 @@ typedef struct _ICOMP_
 	unsigned int type;
 	unsigned int loc;
 	unsigned int use_cxz;
-}ICOMP;
+} ICOMP;
 
 typedef struct _RETLIST_
 {
 	unsigned int line;
 	unsigned int loc;
 	unsigned int type;
-//	int use;
-}RETLIST;
+	//	int use;
+} RETLIST;
 
-enum{
-	singlcase,startmulti,endmulti};
+enum
+{
+	singlcase, startmulti, endmulti
+};
 
 typedef struct _ISW_
 {
 	unsigned char type;
 	unsigned int postcase;
 	unsigned long value;
-}ISW;
+} ISW;
 
 struct postinfo
 {
@@ -392,11 +406,11 @@ typedef struct _EXE_DOS_HEADER_
 	unsigned short ofsreloc;
 	unsigned short overlay;
 	unsigned long  fullsize;
-}EXE_DOS_HEADER;
+} EXE_DOS_HEADER;
 
 typedef struct _FSWI_
 {
-	ISW *info;
+	ISW* info;
 	int sizetab;	//число элементов
 	int type;	//разрядность
 	int numcase;	//число используемых элементов
@@ -405,7 +419,7 @@ typedef struct _FSWI_
 	int ptv;	//адрес тавлицы величин
 	int mode;	//тип switch
 	int razr;	//разрядность величин
-}FSWI;
+} FSWI;
 
 struct paraminfo
 {
@@ -427,12 +441,14 @@ struct MEOSheader
 
 #ifdef OPTVARCONST
 
-struct LVIC{
-	idrec *rec;
-//	int blocks;
+struct LVIC
+{
+	idrec* rec;
+	//	int blocks;
 	int typevar;
 	int contype;	//тип содержимого
-	union{
+	union
+	{
 		long number;
 		long long lnumber;
 		double dnumber;
@@ -443,7 +459,7 @@ struct LVIC{
 struct BLVIC
 {
 	int sizevic;
-	LVIC *listvic;
+	LVIC* listvic;
 };
 
 #endif
@@ -454,22 +470,24 @@ struct BLVIC
 
 struct REGEQVAR
 {
-	REGEQVAR *next;
+	REGEQVAR* next;
 	char name[IDLENGTH];
 	unsigned char razr;
 };
 
 struct REGISTERSTAT
 {
-	union{
-		REGEQVAR *next;
+	union
+	{
+		REGEQVAR* next;
 #ifdef OPTVARCONST
-		BLVIC *bakvic;
+		BLVIC* bakvic;
 #endif
 	};
-	union{
+	union
+	{
 		char id[SIZEIDREG];
-		void *stringpar;
+		void* stringpar;
 		unsigned long number;
 	};
 	unsigned char type;
@@ -485,46 +503,48 @@ struct SAVEREG
 
 struct SAVEPAR
 {
- unsigned char ooptimizespeed;
- unsigned char owarning;
- unsigned char odbg;
- unsigned char odosstring;
- unsigned char ouseinline;
- unsigned char oam32; 		      // режим 32 битной адресации
- unsigned char oalignword;
- unsigned char oAlignCycle;       //выравнивать начала циклов
- unsigned char oidasm;	//ассемблерные инструкции считать идентификаторами
- int ooptnumber;
- int odivexpand;
- unsigned char ooptstr;	//оптимизация строковых констант
- unsigned char ochip;
- int           oaligncycle;
- unsigned char ouselea;
- unsigned char oregoverstack;
+	unsigned char ooptimizespeed;
+	unsigned char owarning;
+	unsigned char odbg;
+	unsigned char odosstring;
+	unsigned char ouseinline;
+	unsigned char oam32; 		      // режим 32 битной адресации
+	unsigned char oalignword;
+	unsigned char oAlignCycle;       //выравнивать начала циклов
+	unsigned char oidasm;	//ассемблерные инструкции считать идентификаторами
+	int ooptnumber;
+	int odivexpand;
+	unsigned char ooptstr;	//оптимизация строковых констант
+	unsigned char ochip;
+	int           oaligncycle;
+	unsigned char ouselea;
+	unsigned char oregoverstack;
 };
 
 struct COM_MOD
 {
-	COM_MOD *next;
-	unsigned char *input; 	 /* dynamic input buffer */
+	COM_MOD* next;
+	unsigned char* input; 	 /* dynamic input buffer */
 	unsigned int endinptr;		 /* end index of input array */
 	unsigned int inptr; 		 /* index in input buffer */
 	unsigned int inptr2; 		 /* index in input buffer */
 	unsigned int linenumber;
 	unsigned int currentfileinfo;
 	int numparamdef;	//число параметров в текущем define
-	char *declareparamdef;	//список объявленых параметров define
-	char *paramdef;	//список новых параметров
+	char* declareparamdef;	//список объявленых параметров define
+	char* paramdef;	//список новых параметров
 	int freze;	//флаг запрещения удаления структуры
 };
 
-struct LISTRELOC {
+struct LISTRELOC
+{
 	unsigned int val;
 };
 
 struct LISTFLOAT
 {
-	union{
+	union
+	{
 		float fnum;
 		double dnum;
 		unsigned long num[2];
@@ -537,11 +557,11 @@ struct LILV
 {
 	unsigned int ofs;
 	int size;
-	localrec *rec;
+	localrec* rec;
 };
 
 struct WARNACT
 {
-	void (*fwarn)(char *str,unsigned int line,unsigned int file);
+	void (*fwarn)(char* str, unsigned int line, unsigned int file);
 	unsigned char usewarn;
 };
