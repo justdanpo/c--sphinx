@@ -1654,6 +1654,7 @@ void addconsttotree(char* keystring, long long constvalue, int type)
 	struct idrec* ptr, *newptr;
 	int cmpresult;
 	newptr = (struct idrec*)MALLOC(sizeof(struct idrec)); //новый блок константы
+	memset(newptr, 0, sizeof(idrec));
 	ptr = definestart;
 
 	if (ptr == NULL)
@@ -4335,6 +4336,7 @@ void KillVarOfTree(idrec** treestart)
 		if (ptr->newid)
 		{
 			free(ptr->newid);    //удалить доп информ.
+			ptr->newid = NULL;
 		}
 
 		leftptr = ptr->left;	//дите

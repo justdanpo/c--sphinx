@@ -524,7 +524,7 @@ int GetNumberR(int sreg, unsigned long* num, int razr, unsigned long number)
 	int nr;
 	int reg, rreg = NOINREG;
 	unsigned long dnum = 0xffffffff;
-	unsigned long nnum;
+	unsigned long nnum = 0;//TODO: default value?
 
 	if (optinitreg != FALSE && razr <= r32)
 	{
