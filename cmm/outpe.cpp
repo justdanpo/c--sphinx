@@ -207,6 +207,7 @@ int MakePE()
 	else
 	{
 		vsize = outptr;
+		psize = Align(outptr, FILEALIGN);	//физический размер секции кода
 	}
 
 	//	sizehead=((postsize&&wbss)?2:1)*sizeof(OBJECT_ENTRY);
@@ -597,11 +598,7 @@ int MakePE()
 	PE_HEADER* peheader = (PE_HEADER*)MALLOC(sizeof(PE_HEADER));
 	memset(peheader, 0, sizeof(PE_HEADER));
 	sizehead = Align(sizeof(PE_HEADER) + sizestub + (numobj + (numres != 0 ? 0 : 1)) * sizeof(OBJECT_ENTRY), FILEALIGN);
-#ifdef _WC_
-	peheader->sign = 'EP';
-#else
-	peheader->sign = 'PE';
-#endif
+	peheader->sign = 'P' + ('E' << 8);
 	peheader->cpu = 0x14c; //(chip>=4?(chip>=5?0x14e:0x14D):0x14c);
 	//	peheader->date_time=0;
 	peheader->DLLflag = dllflag;
@@ -915,7 +912,7 @@ void ImportName(char* name)
 		OBJECT_ENTRY obj;
 	};
 	unsigned long temp;
-	unsigned long export;	//секция с експортом
+	unsigned long export_;	//секция с експортом
 	unsigned long numobj;	//число объектов
 	unsigned long posdll;	//позиция секции в файле
 	unsigned long nameadr;	//таблица адресов имен
@@ -957,20 +954,14 @@ errread:
 		goto errread;
 	}
 
-	if (pe.sign !=
-#ifdef _WC_
-			'EP'
-#else
-			'PE'
-#endif
-	   )
+	if (pe.sign != ('P' + ('E' << 8)))
 	{
 		fprintf(stderr, "For DLL support only format PE.\n");
 		fclose(infile);
 		return;
 	}
 
-	if ((export = pe.exportRVA) == 0)
+	if ((export_ = pe.exportRVA) == 0)
 	{
 		fprintf(stderr, "No export directory on %s.\n", name);
 		fclose(infile);
@@ -987,7 +978,7 @@ errread:
 			goto errread;
 		}
 
-		if ((obj.sectionRVA + Align(obj.psize, temp)) > export)
+		if ((obj.sectionRVA + Align(obj.psize, temp)) > export_)
 		{
 			break;
 		}
@@ -1002,7 +993,7 @@ errread:
 		return;
 	}
 
-	posdll = obj.pOffset + export - obj.sectionRVA;
+	posdll = obj.pOffset + export_ - obj.sectionRVA;
 	fseek(infile, posdll + 24, SEEK_SET);
 
 	if (fread(&numobj, 4, 1, infile) != 1)
@@ -1022,8 +1013,8 @@ errread:
 		goto errread;
 	}
 
-	nameadr -= export;
-	ordinallist -= export;
+	nameadr -= export_;
+	ordinallist -= export_;
 	fseek(infile, posdll + 12, SEEK_SET);
 
 	if (fread(&startname, 4, 1, infile) != 1)
@@ -1036,7 +1027,7 @@ errread:
 		goto errread;
 	}
 
-	fseek(infile, posdll + startname - export, SEEK_SET);
+	fseek(infile, posdll + startname - export_, SEEK_SET);
 	j = 0;
 
 	do
@@ -1060,7 +1051,7 @@ errread:
 			goto errread;
 		}
 
-		fseek(infile, posdll + startname - export, SEEK_SET);
+		fseek(infile, posdll + startname - export_, SEEK_SET);
 		itok.size = -1;
 		j = 0;
 		unsigned char c;
@@ -1209,18 +1200,11 @@ errstub:
 
 				switch (temp)
 				{
-#ifdef _WC_
 
-				case 'EP':
-				case 'EN':
-				case 'EL':
-				case 'XL':
-#else
-				case 'PE':
-				case 'NE':
-				case 'LE':
-				case 'LX':
-#endif
+				case 'P'+('E'<<8):
+				case 'N'+('E'<<8):
+				case 'L'+('E'<<8):
+				case 'L'+('X'<<8):
 					goto errstub;
 				}
 			}

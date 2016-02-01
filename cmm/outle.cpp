@@ -30,7 +30,7 @@ unsigned int EntryParamStr()
 {
 	ITOK btok;
 	int bb = tk_id;
-	unsigned char* buf = "__bufcomstr";
+	unsigned char* buf = (unsigned char*)"__bufcomstr";
 	btok.number = 0;
 	searchtree(&btok, &bb, buf);
 
@@ -88,11 +88,7 @@ int MakeLE()
 	int sizeb;
 	CreatStub(stubfile);
 	memset(&hdr, 0, sizeof(LE_Header));
-#ifdef _WC_
-	hdr.Signature = 'EL';
-#else
-	hdr.Signature = 'LE';
-#endif
+	hdr.Signature = 'L' + ('E' << 8);
 	hdr.CPU_Type = i80386;
 	hdr.Target_OS = 1;
 	hdr.Type_Flags = 0x200;

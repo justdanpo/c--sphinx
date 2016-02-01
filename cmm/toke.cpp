@@ -2003,7 +2003,7 @@ void AddMacro(char* name, int numpar, char* paramstr)
 void GetMacro(char* name)
 {
 	int size, nsize, numpar = 0;
-	char* paramstr;
+	char* paramstr = NULL;
 	inptr = inptr2;
 	cha = cha2;
 	FastTok(0);
@@ -3464,7 +3464,7 @@ endef:
 			inptr2 = inptr;
 			cha2 = cha;
 
-			while (ptr == input)
+			while (ptr == (char*)input)
 			{
 				nexttok();
 			}

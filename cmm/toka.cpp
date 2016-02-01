@@ -1,6 +1,7 @@
 #include <dos.h>
 #define _TOKA_
 
+#include <sys/stat.h>
 #include "tok.h"
 #pragma option -w-pin
 #ifdef _UNIX_
@@ -2273,7 +2274,7 @@ void whitespace() //пропуск нзначащих символов
 
 			if ((dbg & 2) && displaytokerrors && notdef)
 			{
-				startline = input + inptr + 1;
+				startline = (char*)input + inptr + 1;
 			}
 
 			if (scanlexmode == RESLEX || scanlexmode == DEFLEX || scanlexmode == ASMLEX)
@@ -2302,7 +2303,7 @@ unsigned char convert_char()
 
 			if ((dbg & 2) && displaytokerrors && notdef)
 			{
-				startline = input + inptr + 1;
+				startline = (char*)input + inptr + 1;
 			}
 		}
 
@@ -2661,7 +2662,7 @@ void tokscan(int* tok4, ITOK* itok4, unsigned char* string4)
 
 	if (debug)
 	{
-		printf("start tokscan input=%08X inptr=%08X %c%s\n", input, inptr, cha, input + inptr);
+		printf("start tokscan input=%08X inptr=%08X %c%s\n", reinterpret_cast<int>(input), inptr, cha, input + inptr);
 	}
 
 #endif
@@ -4102,20 +4103,7 @@ undefofs:
 			break;
 
 		case '(':
-			if (*(unsigned short*) & (input[inptr]) ==
-#ifdef _WC_
-					')E'
-#else
-					'E)'
-#endif
-					||
-					(*(unsigned short*) & (input[inptr]) ==
-#ifdef _WC_
-					 ')e'
-#else
-					 'e)'
-#endif
-					))
+			if ((tolower(input[inptr]) == 'e') && (input[inptr + 1] == ')'))
 			{
 				for (useme = 0; useme < 8; useme++)
 				{
@@ -4507,7 +4495,7 @@ void SetNewStr(char* name)
 	fmod->currentfileinfo = currentfileinfo;
 	cur_mod = fmod;
 	//	if(debug)printf("new curmod %08X prev cur_mod=%08X old input %08X %s\n",cur_mod,cur_mod->next,input,name);
-	input = name;
+	input = (unsigned char*)name;
 	inptr = 1;
 	cha = input[0];
 	endinptr = strlen(name) + 1;
@@ -4569,7 +4557,7 @@ int searchtree2(idrec* fptr, ITOK* itok4, int* tok4, unsigned char* string4)
 					NewMod(itok4->size);
 					notdef = FALSE;
 					cur_mod->declareparamdef = ptr->newid;
-					input = ptr->sbuf;
+					input = (unsigned char*)ptr->sbuf;
 					inptr = 1;
 					cha = input[0];
 					endinptr = strlen((char*)input);
@@ -5069,7 +5057,7 @@ void CallDestr(idrec* ptr)
 	}
 
 	tok2 = tk_openbracket;
-	input = "();";
+	input = (unsigned char*)"();";
 	inptr2 = 1;
 	cha2 = '(';
 	endinptr = 3;
@@ -5165,7 +5153,7 @@ void RunNew(int size)
 	otok = tok;
 	otok2 = tok2;
 	oinput = input;
-	input = buf;
+	input = (unsigned char*)buf;
 	inptr2 = 1;
 	cha2 = '_';
 	tok = tk_openbrace;
@@ -5362,7 +5350,7 @@ void dodelete()
 			}
 		}
 
-		input = "__delete((E)AX);}";
+		input = (unsigned char*)"__delete((E)AX);}";
 		inptr2 = 1;
 		cha2 = '_';
 		endinptr = strlen((char*)input);
@@ -8138,7 +8126,7 @@ endelteg:
 			itok.number = nrec->recnumber = secondcallnum++;
 			(bazael + numel)->numel = 1;
 			numel++;
-			input = buf;
+			input = (unsigned char*)buf;
 			inptr2 = 1;
 			cha2 = '(';
 			endinptr = strlen(buf);

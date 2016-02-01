@@ -194,12 +194,12 @@ struct Fixup_Record_Table
 	unsigned short Offset_Or_Ordinal_Value;
 };
 
-struct Rel_Addr_Type
-{
-	unsigned char Repeat_Offset       : 1;
-	unsigned char Target_OFFSET_Absent: 1;
-	unsigned char Rel_Addr_Type       : 4;
-};
+//struct Rel_Addr_Type
+//{
+//	unsigned char Repeat_Offset       : 1;
+//	unsigned char Target_OFFSET_Absent: 1;
+//	unsigned char Rel_Addr_Type      : 4;
+//};
 
 enum// LE_Relocation_Address_Type_ENUM
 {
@@ -212,16 +212,16 @@ enum// LE_Relocation_Address_Type_ENUM
 	RA_32_bits_EIP_Rel    = 8
 };
 
-struct Reloc_Type
-{
-	unsigned char Ordinal_Byte    : 1;
-	unsigned char Reserv1         : 1;
-	unsigned char ABS_Dword       : 1;
-	unsigned char Target_Offset_32: 1;
-	unsigned char Reserv2         : 1;
-	unsigned char ADDITIVE_Type   : 1;
-	unsigned char Reloc_Type      : 2;
-};
+//struct Reloc_Type
+//{
+//	unsigned char Ordinal_Byte    : 1;
+//	unsigned char Reserv1         : 1;
+//	unsigned char ABS_Dword       : 1;
+//	unsigned char Target_Offset_32: 1;
+//	unsigned char Reserv2         : 1;
+//	unsigned char ADDITIVE_Type   : 1;
+//	unsigned char Reloc_Type      : 2;
+//};
 
 enum //LE_Relocation_Type_ENUM
 {

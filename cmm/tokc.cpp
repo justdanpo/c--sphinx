@@ -1,5 +1,6 @@
 #define _TOKC_
 
+#include <sys/stat.h>
 #include <fcntl.h>	 /* O_ constant definitions */
 #include "tok.h"
 
@@ -226,7 +227,7 @@ void compilefile(char* filename, int firstflag)
 
 	inptr = 0;
 	endoffile = 0;
-	startline = input;
+	startline = (char*)input;
 	endinput = startline + endinptr;
 	warning = gwarning;
 	nextchar();
@@ -10787,7 +10788,7 @@ void RunBackText()
 	tok = tk_openbrace;
 	SizeBackBuf = 0;
 	ostartline = startline;
-	startline = input;
+	startline = (char*)input;
 	endinptr = strlen((char*)input);
 	endinput = startline + endinptr;
 
@@ -10854,7 +10855,7 @@ int PushLocInit(int ofs)
 	ostartline = startline;
 	cha2 = input[inptr2++];
 	endinptr = strlen((char*)input);
-	startline = input + ofs;
+	startline = (char*)input + ofs;
 	endinput = startline + endinptr;
 	nexttok();
 	wtok = itok;
@@ -14958,7 +14959,7 @@ void insert_dynamic(int insert)
 	pinfo = ptr->pinfo;
 	input = (unsigned char*)pinfo->buf;
 	inptr2 = 1;
-	startline = input;
+	startline = (char*)input;
 	cha2 = input[0];
 	endinptr = strlen((char*)input);
 	endinput = startline + endinptr;
@@ -15429,6 +15430,7 @@ int loadinputfile(char* inpfile)	//считывание файла в память
 cont_load:
 	staticlist = (startfileinfo + currentfileinfo)->stlist;
 	input = (unsigned char*)MALLOC(size + 1);
+	input[size] = 0;
 
 	//	printf("%08lX %s %lu\n",input,inpfile,size);
 

@@ -1,5 +1,6 @@
 #define _MAIN_
 
+#include <sys/stat.h>
 #ifndef _UNIX_
 #include <conio.h>
 #include <io.h>
@@ -232,7 +233,7 @@ void ErrOpenFile(char* str)
 	fprintf(stderr, "Unable to open file %s.\n", str);
 }
 
-void main(int argc, char* argv[])
+int main(int argc, char* argv[])
 {
 	int count;
 	unsigned char pari = FALSE;
@@ -796,7 +797,7 @@ void strbtrim(char* st)
 
 	*q = '\0';
 
-	for (i = strlen(st) - 1; isspace(st[i]) && i >= 0; i--);
+	for (i = strlen(st) - 1; (i >= 0) && isspace(st[i]); i--);
 
 	st[i + 1] = '\0';
 }
@@ -2538,7 +2539,7 @@ void setdindata(idrec* ptr, int i)
 	input = (unsigned char*)ptr->sbuf;
 	inptr2 = 1;
 	ostartline = startline;
-	startline = input;
+	startline = (char*)input;
 	cha2 = input[0];
 	linenum2 = ptr->line;
 	currentfileinfo = ptr->file;
