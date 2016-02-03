@@ -1,5 +1,6 @@
 #define _SWITCH_
 
+#include "platform.h"
 #include "tok.h"
 
 extern int lastcommand;	//последний оператор в блоке
@@ -181,7 +182,7 @@ int ScanSwitch(int* numcase, ISW* caseinf, COM_MOD* startmod)
 				case tk_CASE:
 					if (i == 1)
 					{
-						if (stricmp(itok.name, "case") == 0)
+						if (strcasecmp(itok.name, "case") == 0)
 						{
 							inptr2 = inptr;
 							cha2 = cha;

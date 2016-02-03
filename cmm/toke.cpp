@@ -1,13 +1,8 @@
 #define _TOKE_
 
-#include <fcntl.h>		/* O_ constant definitions */
+#include "platform.h"
 
-#ifdef _UNIX_
-#include <unistd.h>
-#else
-#include <conio.h>
 #include <io.h>
-#endif
 
 #include "tok.h"
 
@@ -1530,7 +1525,7 @@ struct _HLIB_
 
 int FindProcLib(int type)
 {
-	static int lhandl = -1;
+	static FILE* lhandl = NULL;
 	long ofs = 0;
 	char m1[80];
 	int index;
@@ -1540,17 +1535,17 @@ int FindProcLib(int type)
 		return -1;
 	}
 
-	if (lhandl == -1)
+	if (lhandl == NULL)
 	{
 		sprintf(m1, "%s%s", findpath[0], "mainlib.ldp");
 
-		if ((lhandl = open(m1, O_RDONLY | O_BINARY)) == -1)
+		if ((lhandl = fopen(m1, "rb")) == NULL)
 		{
 			return -1;
 		}
 	}
 
-	lseek(lhandl, 0, SEEK_SET);
+	fseek(lhandl, 0, SEEK_SET);
 
 	if (chip < 3)
 	{
@@ -1577,7 +1572,7 @@ int FindProcLib(int type)
 
 	for (;;)
 	{
-		if (read(lhandl, &hlib, sizeof(_HLIB_)) != sizeof(_HLIB_))
+		if (sizeof(_HLIB_) != fread(&hlib, 1, sizeof(_HLIB_), lhandl))
 		{
 			break;
 		}
@@ -1591,7 +1586,7 @@ int FindProcLib(int type)
 				CheckCodeSize();
 			}
 
-			lseek(lhandl, ofs + sizeof(_HLIB_) + hlib.info[index].ofs, SEEK_SET);
+			fseek(lhandl, ofs + sizeof(_HLIB_) + hlib.info[index].ofs, SEEK_SET);
 			size = hlib.info[index].size;
 
 			if (type != 1)
@@ -1604,7 +1599,7 @@ int FindProcLib(int type)
 				AddCodeNullLine(m1);
 			}
 
-			if (read(lhandl, output + outptr, size) != size)
+			if (size != fread(output + outptr, 1, size, lhandl))
 			{
 				break;
 			}
@@ -1642,7 +1637,7 @@ int FindProcLib(int type)
 		}
 
 		ofs += sizeof(_HLIB_) + hlib.size;
-		lseek(lhandl, ofs, SEEK_SET);
+		fseek(lhandl, ofs, SEEK_SET);
 	}
 
 	return -1;
@@ -2610,13 +2605,13 @@ endef:
 
 			if ((a = strrchr((char*)string3, '.')) != NULL)
 			{
-				if (stricmp(a, ".obj") == 0)
+				if (strcasecmp(a, ".obj") == 0)
 				{
 					AddNameObj((char*)string3, i, 0);
 					break;
 				}
 
-				if (stricmp(a, ".lib") == 0)
+				if (strcasecmp(a, ".lib") == 0)
 				{
 					AddNameObj((char*)string3, i, 1);
 					break;
@@ -2642,16 +2637,16 @@ endef:
 				header = 0;
 			}
 		}
-		else if (stricmp(itok.name, "NONE") == 0)
+		else if (strcasecmp(itok.name, "NONE") == 0)
 		{
 			jumptomain = CALL_NONE;
 			header = 0;
 		}
-		else if (stricmp(itok.name, "SHORT") == 0)
+		else if (strcasecmp(itok.name, "SHORT") == 0)
 		{
 			jumptomain = CALL_SHORT;
 		}
-		else if (stricmp(itok.name, "NEAR") == 0)
+		else if (strcasecmp(itok.name, "NEAR") == 0)
 		{
 			jumptomain = CALL_NEAR;
 		}

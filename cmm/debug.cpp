@@ -1,4 +1,6 @@
 #include "tok.h"
+
+#include "util.h"
 #include <io.h>
 
 #define _DEBUG_
@@ -233,6 +235,8 @@ void AddLine(int SkipLineInfo)
 		dbgnum[pdbg] = oline = linenumber;
 		dbgmod[pdbg] = (unsigned short)currentfileinfo;
 		omodule = currentfileinfo;
+
+		lststring[pdbg] = NULL;
 
 		if (dbg & 2)
 		{

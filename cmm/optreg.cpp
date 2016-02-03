@@ -1440,7 +1440,7 @@ int UpdVarConst(ITOK* itok4, long long num, int typenum, int operand)
 				}
 				else if ((listvic + i)->contype == tk_double)
 				{
-					(listvic + i)->lnumber |= 0x8000000000000000I64;
+					(listvic + i)->lnumber |= 0x8000000000000000LL;
 				}
 				else
 				{

@@ -52,19 +52,6 @@
 #include "const.h"
 #include "struct.h"
 
-#ifdef _UNIX_
-#ifndef stricmp
-#define stricmp strcasecmp
-#endif
-#endif
-
-#ifdef _UNIX_
-long getfilelen(int fd);
-#ifndef O_BINARY
-#define O_BINARY 0
-#endif
-#endif
-
 extern unsigned char FixUpTable;	//запретить создание таблици Fix UP for Windows
 extern unsigned char WinMonoBlock;
 extern unsigned int currentfileinfo;

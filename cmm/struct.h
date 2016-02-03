@@ -1,3 +1,5 @@
+#include "util.h"
+
 typedef struct _BIT_
 {
 	unsigned int siz: 8;
@@ -309,21 +311,6 @@ typedef struct _EXPORT_TABLE_
 	unsigned long NamePRVA;
 	unsigned long OrdinalRVA;
 } EXPORT_TABLE;
-
-#if !defined(__WIN32__)
-struct ftime
-{
-	unsigned ft_tsec: 5; /* две секунды */
-	unsigned ft_min: 6;  /* минуты */
-	unsigned ft_hour: 5; /* часы */
-	unsigned ft_day: 5;  /* день */
-	unsigned ft_month: 4; /* месяц */
-	unsigned ft_year: 7; /* год-1980 */
-};
-#else
-#include <io.h>
-#include <sys/stat.h>
-#endif
 
 typedef struct _STRING_LIST_
 {

@@ -1,15 +1,10 @@
 #define _RES_
 
-#include <fcntl.h>	 /* O_ constant definitions */
+#include "platform.h"
+#include "util.h"
+
 #include <io.h>
 #include "tok.h"
-#pragma option -w-pin
-#ifdef __CONSOLE__
-#include <windows.h>
-#else
-#include <wchar.h>
-//#include <mbctype.h>
-#endif
 #include "res.h"
 
 RES* listres;	//таблица ресурсов
@@ -63,7 +58,7 @@ void AddType(unsigned short type, char* tname = NULL)
 	{
 		if (type == (tuse + i)->id)
 		{
-			if (type == 0 && stricmp(tname, (tuse + i)->tname) != 0)
+			if (type == 0 && strcasecmp(tname, (tuse + i)->tname) != 0)
 			{
 				continue;
 			}
@@ -448,11 +443,7 @@ void AddWString(unsigned char* name)
 	{
 		pos = (strlen((char*)name) + 1) * 3;
 		CheckResBuf(pos);
-#ifdef __CONSOLE__
-		pos = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, (char*)name, -1, (wchar_t*)&resbuf[curposbuf], pos);
-#else
 		pos = mbsrtowcs((wchar_t*)&resbuf[curposbuf], (char const**)&name, pos, NULL) + 1;
-#endif
 		curposbuf += pos * 2;
 	}
 }
@@ -512,7 +503,7 @@ unsigned short GetFlag(_STRINGS_ *type, int num)
 {
 	for (int i = 0; i < num; i++)
 	{
-		if (stricmp(itok.name, (type + i)->id) == 0)
+		if (strcasecmp(itok.name, (type + i)->id) == 0)
 		{
 			return (type + i)->val;
 		}
@@ -754,7 +745,7 @@ void domenu(unsigned int exts)
 
 					free(name);
 				}
-				else if (stricmp(itok.name, "SEPARATOR") == 0)
+				else if (strcasecmp(itok.name, "SEPARATOR") == 0)
 				{
 					if (exts)
 					{
@@ -1065,7 +1056,7 @@ void GetBlockInfo()
 		CheckResBuf(6);
 		curposbuf += 6;
 
-		if (stricmp("BLOCK", itok.name) == 0)
+		if (strcasecmp("BLOCK", itok.name) == 0)
 		{
 			nexttok();
 
@@ -1088,7 +1079,7 @@ void GetBlockInfo()
 				badformat("VERSIONINFO");
 			}
 		}
-		else if (stricmp("VALUE", itok.name) == 0)
+		else if (strcasecmp("VALUE", itok.name) == 0)
 		{
 			nexttok();
 
@@ -1677,7 +1668,7 @@ void GetFileName(char* name)
 
 		for (i = 0; i < 7; i++)
 		{
-			if (stricmp(itok.name, typemem[i].id) == 0)
+			if (strcasecmp(itok.name, typemem[i].id) == 0)
 			{
 				break;
 			}
@@ -1711,33 +1702,33 @@ void GetFileName(char* name)
 
 unsigned char* LoadFileBin(char* name)
 {
-	int inico;
+	FILE* inico;
 	unsigned char* bitobr;
 
-	if ((inico = open(name, O_BINARY | O_RDONLY)) == -1)
+	if ((inico = fopen(name, "rb")) == NULL)
 	{
 		badinfile(name);
 		return NULL;
 	}
 
-	if ((curposbuf = filelength(inico)) == 0)
+	if ((curposbuf = fgetsize(inico)) == 0)
 	{
 		badinfile(name);
-		close(inico);
+		fclose(inico);
 		return NULL;
 	}
 
 	bitobr = (unsigned char*)MALLOC(curposbuf);
 
-	if ((unsigned int)read(inico, bitobr, curposbuf) != curposbuf)
+	if (curposbuf != fread(bitobr, 1, curposbuf, inico))
 	{
 		errorreadingfile(name);
-		close(inico);
+		fclose(inico);
 		free(bitobr);
 		return NULL;
 	}
 
-	close(inico);
+	fclose(inico);
 	nexttok();
 	return bitobr;
 }
@@ -2195,7 +2186,7 @@ void SortRes()
 
 			if ((tuse + i)->id == (tuse + j)->id)
 			{
-				if (stricmp((tuse + i)->tname, (tuse + j)->tname) > 0)
+				if (strcasecmp((tuse + i)->tname, (tuse + j)->tname) > 0)
 				{
 					buf.count = (tuse + i)->count;
 					buf.tname = (tuse + i)->tname;

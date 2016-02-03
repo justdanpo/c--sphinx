@@ -1,19 +1,15 @@
-#include <dos.h>
+#include "platform.h"
+
 #define _TOKA_
+
+#include "platform.h"
+#include <stdint.h>
 
 #include <sys/stat.h>
 #include "tok.h"
-#pragma option -w-pin
-#ifdef _UNIX_
-#include <unistd.h>
-#else
-#include <io.h>
-#endif
 
 #ifdef __CONSOLE__
 #include <windows.h>
-#else
-#include <wchar.h>
 #endif
 
 #include "dirlist.h"
@@ -2628,9 +2624,7 @@ nextstr:
 	{
 		char* bak;
 		bak = BackString((char*)string4);
-#ifdef __CONSOLE__
-		strptr = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, bak, -1, (wchar_t*)string4, STRLEN) - 1;
-#else
+
 		strptr = mbsrtowcs((wchar_t*)string4, (char const**)&bak, STRLEN, NULL);
 
 		if (strptr == -1)
@@ -2639,7 +2633,7 @@ nextstr:
 		}
 
 		//		strptr++;
-#endif
+
 		//		printf("size string=%d\n",strptr);
 		//		if(itok4->flag==no_term)strptr--;
 		strptr *= 2;
@@ -2747,19 +2741,19 @@ void tokscan(int* tok4, ITOK* itok4, unsigned char* string4)
 
 		if (scanlexmode == RESLEX)
 		{
-			if (stricmp((char*)string4, "not") == 0)
+			if (strcasecmp((char*)string4, "not") == 0)
 			{
 				*tok4 = tk_not;
 			}
-			else if (stricmp((char*)string4, "or") == 0)
+			else if (strcasecmp((char*)string4, "or") == 0)
 			{
 				*tok4 = tk_or;
 			}
-			else if (stricmp((char*)string4, "xor") == 0)
+			else if (strcasecmp((char*)string4, "xor") == 0)
 			{
 				*tok4 = tk_xor;
 			}
-			else if (stricmp((char*)string4, "and") == 0)
+			else if (strcasecmp((char*)string4, "and") == 0)
 			{
 				*tok4 = tk_and;
 			}
@@ -2859,7 +2853,7 @@ void tokscan(int* tok4, ITOK* itok4, unsigned char* string4)
 
 					if (asmparam)
 					{
-						i = stricmp((char*)string4, regs[0][useme]);
+						i = strcasecmp((char*)string4, regs[0][useme]);
 					}
 					else
 					{
@@ -2883,7 +2877,7 @@ extreg:
 
 					if (asmparam)
 					{
-						i = stricmp((char*)string4, begs[useme]);
+						i = strcasecmp((char*)string4, begs[useme]);
 					}
 					else
 					{
@@ -2946,7 +2940,7 @@ extreg:
 
 				if (asmparam)
 				{
-					i = stricmp((char*)&string4[1], regs[0][useme]);
+					i = strcasecmp((char*)&string4[1], regs[0][useme]);
 				}
 				else
 				{
@@ -4111,7 +4105,7 @@ undefofs:
 
 					if (asmparam)
 					{
-						i = strnicmp((char*)input + inptr + 2, regs[0][useme], 2);
+						i = strncasecmp((char*)input + inptr + 2, regs[0][useme], 2);
 					}
 					else
 					{
@@ -4742,8 +4736,6 @@ void AddDynamicList(idrec* ptr)
 	DynamicList[countDP] = ptr;
 	countDP++;
 }
-
-#include <conio.h>
 
 void docals(struct idrec* ptr)
 /* extract any procedures required from interal library and insert any
@@ -6787,7 +6779,7 @@ int FindOff(unsigned char* name, int base)	//поиск ссылок на текущее имя
 				{
 					CheckPosts();
 					(postbuf + posts)->type = (unsigned short)(am32 == 0 ? DIN_VAR : DIN_VAR32);
-					(postbuf + posts)->num = (int)itok.rec;
+					(postbuf + posts)->num = reinterpret_cast<intptr_t>(itok.rec);
 					(postbuf + posts)->loc = ofs;
 				}
 				else
@@ -10719,7 +10711,7 @@ cbinnum:
 		{
 			*rm = tk_word;
 		}
-		else if (number < 0x100000000I64)
+		else if (number < 0x100000000ULL)
 		{
 			*rm = tk_dword;
 		}

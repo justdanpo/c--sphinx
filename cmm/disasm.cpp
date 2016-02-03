@@ -692,7 +692,7 @@ int sib()
 }
 
 /*------------------------------------------------------------------------*/
-void uprintf(char* s, ...)
+void uprintf(const char* s, ...)
 {
 	va_list argptr;
 	va_start(argptr, s);

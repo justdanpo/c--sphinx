@@ -1,0 +1,16 @@
+#ifndef __CONFIG_H__
+#define __CONFIG_H__
+
+#cmakedefine HAVE_STRCASECMP
+#cmakedefine HAVE__STRICMP
+#cmakedefine HAVE_STRICMP
+//#cmakedefine HAVE_STRCMPI
+//#cmakedefine HAVE__STRCMPI
+
+#cmakedefine HAVE_STRNCASECMP
+#cmakedefine HAVE__STRNICMP
+#cmakedefine HAVE_STRNICMP
+
+#cmakedefine HAVE_MBSRTOWCS
+
+#endif

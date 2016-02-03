@@ -1,5 +1,6 @@
 #define _TOKB_
 #include "tok.h"
+#include <stdint.h>
 
 char badadr[] = "Bad outrm value in outaddress();";
 char CXandDX[] = "CX and DX";
@@ -36,7 +37,7 @@ void reg2bits(ITOK* gtok, int razr);
 void cwpointr(ITOK* wtok, char*& wbuf, SINFO* wstr, int* otok, int npointr, int ureg);
 int CheckAddOnly();
 void optnumadd64(unsigned long long num, int r1, int r2, int vop);
-void CallExternProc(char* name);
+void CallExternProc(const char* name);
 void getinto_reg(int gtok, ITOK* gstok, char*& gbuf, SINFO* gstr, int razr, int reg);
 void intinstack(int addop);
 
@@ -56,14 +57,14 @@ extern void wordnotoper();
 unsigned long long li[] = {0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80, 0x100, 0x200, 0x400,
 						   0x800, 0x1000, 0x2000, 0x4000, 0x8000, 0x10000, 0x20000, 0x40000, 0x80000, 0x100000,
 						   0x200000, 0x400000, 0x800000, 0x1000000, 0x2000000, 0x4000000, 0x8000000, 0x10000000,
-						   0x20000000, 0x40000000, 0x80000000, 0x100000000I64, 0x200000000I64, 0x400000000I64
-						   , 0x800000000I64, 0x1000000000I64, 0x2000000000I64, 0x4000000000I64, 0x8000000000I64
-						   , 0x10000000000I64, 0x20000000000I64, 0x40000000000I64, 0x80000000000I64
-						   , 0x100000000000I64, 0x200000000000I64, 0x400000000000I64, 0x800000000000I64
-						   , 0x1000000000000I64, 0x2000000000000I64, 0x4000000000000I64, 0x8000000000000I64
-						   , 0x10000000000000I64, 0x20000000000000I64, 0x40000000000000I64, 0x80000000000000I64
-						   , 0x100000000000000I64, 0x200000000000000I64, 0x400000000000000I64, 0x800000000000000I64
-						   , 0x1000000000000000I64, 0x2000000000000000I64, 0x4000000000000000I64, 0x8000000000000000I64
+						   0x20000000, 0x40000000, 0x80000000, 0x100000000ULL, 0x200000000ULL, 0x400000000ULL
+						   , 0x800000000ULL, 0x1000000000ULL, 0x2000000000ULL, 0x4000000000ULL, 0x8000000000ULL
+						   , 0x10000000000ULL, 0x20000000000ULL, 0x40000000000ULL, 0x80000000000ULL
+						   , 0x100000000000ULL, 0x200000000000ULL, 0x400000000000ULL, 0x800000000000ULL
+						   , 0x1000000000000ULL, 0x2000000000000ULL, 0x4000000000000ULL, 0x8000000000000ULL
+						   , 0x10000000000000ULL, 0x20000000000000ULL, 0x40000000000000ULL, 0x80000000000000ULL
+						   , 0x100000000000000ULL, 0x200000000000000ULL, 0x400000000000000ULL, 0x800000000000000ULL
+						   , 0x1000000000000000ULL, 0x2000000000000000ULL, 0x4000000000000000ULL, 0x8000000000000000ULL
 						  };
 
 unsigned long leanum[24] = {3, 5, 9, 15, 25, 27, 45, 81, 75, 125, 135, 225, 243, 405, 729,
@@ -14127,11 +14128,11 @@ void setwordpost(ITOK* stok)						/* for post word num setting */
 		//		printf("rec=%08X\n",stok->rec);
 		if (stok->rec->rectok == tk_structvar && stok->rec->recsib == tp_gvar)
 		{
-			(postbuf + posts)->num = (int)stok->rec; //02.09.05 17:11 ->right;
+			(postbuf + posts)->num = reinterpret_cast<intptr_t>(stok->rec); //02.09.05 17:11 ->right;
 		}
 		else
 		{
-			(postbuf + posts)->num = (int)stok->rec;
+			(postbuf + posts)->num = reinterpret_cast<intptr_t>(stok->rec);
 		}
 	}
 	else if (stok->post >= CODE_SIZE && stok->post <= STACK_SIZE32)
@@ -14390,7 +14391,7 @@ int CheckMinusNum()
 		}
 		else if (itok.rm == tk_double)
 		{
-			itok.lnumber |= 0x8000000000000000I64;
+			itok.lnumber |= 0x8000000000000000LL;
 		}
 		else
 		{
@@ -16434,7 +16435,7 @@ int doqwordvar(int terminater)	//64 bit memory variable
 						break;
 					}
 
-					if (itok.lnumber == 0xFFFFFFFFFFFFFFFFI64)
+					if (itok.lnumber == 0xFFFFFFFFFFFFFFFFLL)
 					{
 						CheckAllMassiv(wbuf, 8, &wstr, &wtok);
 
@@ -20073,7 +20074,7 @@ movreg64:
 	}
 }
 
-void CallExternProc(char* name)
+void CallExternProc(const char* name)
 {
 	ITOK itok4;
 	int tok4 = tk_id;

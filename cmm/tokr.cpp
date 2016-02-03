@@ -1,5 +1,6 @@
 #define _TOKR_
 
+#include "platform.h"
 #include "tok.h"
 
 char useasm = FALSE;
@@ -289,13 +290,13 @@ sw_asm:
 
 			if (tok == tk_ID || tok == tk_id)
 			{
-				if (stricmp("FAR", (char*)string) == 0)
+				if (strcasecmp("FAR", (char*)string) == 0)
 				{
 					nexttok();
 					faradd = 8;
 					htok = 1;
 				}
-				else if (stricmp("NEAR", (char*)string) == 0)
+				else if (strcasecmp("NEAR", (char*)string) == 0)
 				{
 					nexttok();
 					htok = 1;
@@ -1426,16 +1427,16 @@ invlgp:
 			faradd = 0;
 			lastcommand = tk_goto;
 
-			if (stricmp("FAR", itok.name) == 0)
+			if (strcasecmp("FAR", itok.name) == 0)
 			{
 				nexttok();
 				faradd = 8;
 			}
-			else if (stricmp("NEAR", itok.name) == 0)
+			else if (strcasecmp("NEAR", itok.name) == 0)
 			{
 				nexttok();
 			}
-			else if (stricmp("SHORT", itok.name) == 0) 	 // case insensitive
+			else if (strcasecmp("SHORT", itok.name) == 0) 	 // case insensitive
 			{
 				nexttok();
 				next = (unsigned char)GOTO();
@@ -5265,17 +5266,17 @@ void  asmshortjump(int shortcode, int nearcode)
 #endif
 	nexttok();
 
-	if (stricmp("FAR", itok.name) == 0)  	 // case insensitive
+	if (strcasecmp("FAR", itok.name) == 0)  	 // case insensitive
 	{
 		preerror("FAR jump not available for this instruction");
 		nexttok();
 	}
-	else if (stricmp("NEAR", itok.name) == 0) // case insensitive
+	else if (strcasecmp("NEAR", itok.name) == 0) // case insensitive
 	{
 		shortjump = 0;
 		nexttok();
 	}
-	else if (stricmp("SHORT", itok.name) == 0)
+	else if (strcasecmp("SHORT", itok.name) == 0)
 	{
 		nexttok();    // case insensitive
 	}
@@ -9121,11 +9122,11 @@ int Push(ITOK* wtok)
 	{
 	case tk_id:
 	case tk_ID:
-		if ((stricmp("dword", (char*)string) == 0) || (stricmp("long", (char*)string) == 0))
+		if ((strcasecmp("dword", (char*)string) == 0) || (strcasecmp("long", (char*)string) == 0))
 		{
 			i = r32;
 		}
-		else if ((stricmp("word", (char*)string) == 0) || (stricmp("int", (char*)string) == 0))
+		else if ((strcasecmp("word", (char*)string) == 0) || (strcasecmp("int", (char*)string) == 0))
 		{
 			i = r16;
 		}

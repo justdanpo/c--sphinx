@@ -1,20 +1,11 @@
 #define _MAIN_
 
+#include "platform.h"
+#include "util.h"
+
 #include <sys/stat.h>
-#ifndef _UNIX_
-#include <conio.h>
-#include <io.h>
-#else
-#include <unistd.h>
-#endif
 
-#include <fcntl.h>
 #include "tok.h"
-
-#ifndef _UNIX_
-#include <dos.h>
-//int outfile=1;
-#endif
 
 static char** _Argv; //!!! simplest way to make your own variable
 
@@ -287,7 +278,7 @@ int main(int argc, char* argv[])
 
 					if ((rawext = strrchr(rawfilename, '.')) != NULL)
 					{
-						if (stricmp(rawext, ".ini") == 0) 	//указан ini файл
+						if (strcasecmp(rawext, ".ini") == 0) 	//указан ini файл
 						{
 							rawfilename = NULL;
 							rawext = NULL;
@@ -334,7 +325,7 @@ void CheckExtenshions()
 
 	for (i = 0; i < NUMEXT; i++)
 	{
-		if (stricmp(rawext, extcompile[i]) == 0)
+		if (strcasecmp(rawext, extcompile[i]) == 0)
 		{
 			break;
 		}
@@ -1199,7 +1190,7 @@ nexpardll:
 				stubfile = BackString(ptr);
 				dpmistub = FALSE;
 
-				if (stricmp(stubfile, "dpmi") == 0)
+				if (strcasecmp(stubfile, "dpmi") == 0)
 				{
 					if (notdoneprestuff != TRUE)
 					{
@@ -2105,34 +2096,25 @@ void MakeExeHeader(EXE_DOS_HEADER* exeheader)
 void startsymbiosys(char* symfile)
 {
 	unsigned int size;
-	int filehandle;
+	FILE* filehandle;
 	long filesize;
 	outptr = startptr;
 
-	if ((filehandle = open(symfile, O_BINARY | O_RDONLY)) == -1)
+	if ((filehandle = fopen(symfile, "rb")) == NULL)
 	{
-		;
 		ErrOpenFile(symfile);
 		exit(e_symbioerror);
 	}
 
-#ifdef _UNIX_
-
-	if ((filesize = getfilelen(filehandle)) != -1L)
+	if ((filesize = fgetsize(filehandle)) != -1L)
 	{
-#else
-
-	if ((filesize = filelength(filehandle)) != -1L)
-	{
-#endif
-
 		if (filesize + outptr < MAXDATA)
 		{
 			size = filesize;
 
-			if ((unsigned int)read(filehandle, output + outptr, size) != size)
+			if (size != fread(output + outptr, 1, size, filehandle))
 			{
-				close(filehandle);
+				fclose(filehandle);
 				puts("Error reading symbio COM file.");
 				exit(e_symbioerror);
 			}
@@ -2151,7 +2133,7 @@ void startsymbiosys(char* symfile)
 		exit(e_symbioerror);
 	}
 
-	close(filehandle);
+	fclose(filehandle);
 	outptrdata = outptr;
 	outputcodestart = outptr - startptr;
 	addconsttotree("__comsymbios", TRUE);

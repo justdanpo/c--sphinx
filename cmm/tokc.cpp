@@ -1,20 +1,11 @@
 #define _TOKC_
 
+#include <stdint.h>
+#include "platform.h"
+#include "util.h"
+
 #include <sys/stat.h>
-#include <fcntl.h>	 /* O_ constant definitions */
 #include "tok.h"
-
-#ifdef _UNIX_
-#include <unistd.h>
-#else
-#include <io.h>
-#endif
-
-#if !defined(__WIN32__)
-void GetFileTime(int fd, struct ftime* buf);
-#else
-#include <time.h>
-#endif
 
 #define MAXIF 32
 
@@ -139,7 +130,7 @@ void CalcRegPar(int reg, int def, char*& ofsstr);
 void JXorJMP();
 int loadinputfile(char* inpfile);
 int SaveStartUp(int size, char* var_name);
-void LoadData(unsigned int size, int filehandle);
+void LoadData(unsigned int size, FILE* filehandle);
 void SetNewTok(int type, int typev);
 void doreturn(int type = tokens);		/* do return(...); */
 void notnegit(int notneg);
@@ -240,7 +231,7 @@ void compilefile(char* filename, int firstflag)
 
 		if ((a = strrchr(filename, '.')) != NULL)
 		{
-			if (stricmp(a, ".rc") == 0)
+			if (strcasecmp(a, ".rc") == 0)
 			{
 				input_res();
 				free(input);
@@ -2799,7 +2790,7 @@ int  outcmp(int swapped, int ctok, ITOK* cstok, char*& cbuf, SINFO* cstr, int ct
 				outword(am32 == FALSE ? 0x46d9 : 0x45d9);
 				op(0xfC);//fld ssdword[bp-4]
 				op(0xD8);
-				outword(0xF85e-am32);	//fcomp [bp-8]
+				outword(0xF85e - am32);	//fcomp [bp-8]
 				endcmpfloat();
 			}
 		}
@@ -3743,7 +3734,7 @@ int constructcompare(int invertflag, unsigned int startloc)
 		nexttok();
 
 	case tk_idasm:
-		if (strcmpi(itok.name, "test") == 0)
+		if (strcasecmp(itok.name, "test") == 0)
 		{
 			if (iTest(1) == FALSE)
 			{
@@ -9416,7 +9407,7 @@ int CheckUses()
 
 	if (tok == tk_openbracket)
 	{
-		if (stricmp(itok2.name, "uses") == 0)
+		if (strcasecmp(itok2.name, "uses") == 0)
 		{
 			bracket = TRUE;
 			nexttok();
@@ -9427,7 +9418,7 @@ int CheckUses()
 		}
 	}
 
-	if (stricmp(itok.name, "uses") == 0)
+	if (strcasecmp(itok.name, "uses") == 0)
 	{
 		nexttok();
 
@@ -11655,7 +11646,7 @@ void IsUses(idrec* rec)
 {
 	int i;
 
-	if (tok == tk_openbracket && stricmp(itok2.name, "uses") == 0)
+	if (tok == tk_openbracket && strcasecmp(itok2.name, "uses") == 0)
 	{
 		nexttok();
 		i = 0;
@@ -14205,7 +14196,7 @@ void  addacall(unsigned int idnum, unsigned char callkind)
 
 unsigned int dofrom() // returns number of bytes read from FROM file
 {
-	int filehandle;
+	FILE* filehandle;
 	long filesize;
 
 	if (tok != tk_string)
@@ -14214,32 +14205,25 @@ unsigned int dofrom() // returns number of bytes read from FROM file
 		return (0);
 	}
 
-	filehandle = open((char*)string3, O_BINARY | O_RDONLY);
+	filehandle = fopen((char*)string3, "rb");
 
-	if (filehandle == -1)
+	if (filehandle == NULL)
 	{
 		unableopenfile((char*)string3);
 		return (0);
 	}
 
-#ifdef _UNIX_
-
-	if ((filesize = getfilelen(filehandle)) == -1L)
+	if ((filesize = fgetsize(filehandle)) == -1L)
 	{
-#else
-
-	if ((filesize = filelength(filehandle)) == -1L)
-	{
-#endif
 		preerror("Unable to determine FROM file size");
-		close(filehandle);
+		fclose(filehandle);
 		return (0);
 	}
 
 	if (am32 == FALSE && filesize >= 0xFFFFL)
 	{
 		preerror("FROM file too large");
-		close(filehandle);
+		fclose(filehandle);
 		return (0);
 	}
 
@@ -14250,7 +14234,7 @@ unsigned int dofrom() // returns number of bytes read from FROM file
 unsigned int doextract() // returns number of bytes EXTRACTed
 {
 	unsigned int sizetoread;
-	int filehandle;
+	FILE* filehandle;
 	long filesize, startpos;
 
 	if (tok != tk_string)
@@ -14259,9 +14243,9 @@ unsigned int doextract() // returns number of bytes EXTRACTed
 		return (0);
 	}
 
-	filehandle = open((char*)string3, O_BINARY | O_RDONLY);
+	filehandle = fopen((char*)string3, "rb");
 
-	if (filehandle == -1)
+	if (filehandle == NULL)
 	{
 		unableopenfile((char*)string3);
 		return (0);
@@ -14286,24 +14270,18 @@ unsigned int doextract() // returns number of bytes EXTRACTed
 	}
 
 	sizetoread = doconstlongmath();
-#ifdef _UNIX_
 
-	if ((filesize = getfilelen(filehandle)) == -1L)
+	if ((filesize = fgetsize(filehandle)) == -1L)
 	{
-#else
-
-	if ((filesize = filelength(filehandle)) == -1L)
-	{
-#endif
 		preerror("Unable to determine EXTRACT file size");
-		close(filehandle);
+		fclose(filehandle);
 		return (0);
 	}
 
 	if (filesize <= startpos)
 	{
 		preerror("EXTRACT offset exceeds the length of the file");
-		close(filehandle);
+		fclose(filehandle);
 		return (0);
 	}
 
@@ -14315,16 +14293,16 @@ unsigned int doextract() // returns number of bytes EXTRACTed
 	if (am32 == FALSE && sizetoread >= 0xFFFFL)
 	{
 		preerror("Block to EXTRACT exceeds 64K");
-		close(filehandle);
+		fclose(filehandle);
 		return (0);
 	}
 
-	lseek(filehandle, startpos, 0); 	// error checking required on this
+	fseek(filehandle, startpos, SEEK_SET); 	// error checking required on this
 	LoadData(sizetoread, filehandle);
 	return sizetoread;
 }
 
-void LoadData(unsigned int size, int filehandle)
+void LoadData(unsigned int size, FILE* filehandle)
 {
 	if (splitdata)
 	{
@@ -14336,7 +14314,7 @@ void LoadData(unsigned int size, int filehandle)
 			}
 		}
 
-		if ((unsigned int)read(filehandle, outputdata + outptrdata, size) != size)
+		if (size != fread(outputdata + outptrdata, 1, size, filehandle))
 		{
 			errorreadingfile((char*)string3);
 		}
@@ -14353,7 +14331,7 @@ void LoadData(unsigned int size, int filehandle)
 			}
 		}
 
-		if ((unsigned int)read(filehandle, output + outptr, size) != size)
+		if (size != fread(output + outptr, 1, size, filehandle))
 		{
 			errorreadingfile((char*)string3);
 		}
@@ -14362,7 +14340,7 @@ void LoadData(unsigned int size, int filehandle)
 		outptrdata = outptr;
 	}
 
-	close(filehandle);
+	fclose(filehandle);
 }
 
 void  op66(int ctok)
@@ -14537,11 +14515,11 @@ void  outseg(ITOK* outtok, unsigned int locadd)
 			//			printf("Add tok=%d %08X sib=%d %s\n",outtok->rec->rectok,outtok->rec->right,outtok->rec->recsib,outtok->rec->recid);
 			if (outtok->rec->rectok == tk_structvar && outtok->rec->recsib == tp_gvar)
 			{
-				(postbuf + posts)->num = (int)outtok->rec; //02.09.05 17:10 ->right;
+				(postbuf + posts)->num = reinterpret_cast<intptr_t>(outtok->rec); //02.09.05 17:10 ->right;
 			}
 			else
 			{
-				(postbuf + posts)->num = (int)outtok->rec;
+				(postbuf + posts)->num = reinterpret_cast<intptr_t>(outtok->rec);
 			}
 		}
 		//		else if((outtok->flag&f_dataseg))(postbuf+posts)->type=(unsigned short)(am32==0?DATABLOCK_VAR:DATABLOCK_VAR32);
@@ -15367,24 +15345,17 @@ jump labels. */
 int loadinputfile(char* inpfile)	//считывание файла в память
 {
 	unsigned long size;
-	int filehandle;
+	FILE* filehandle;
 
-	if ((filehandle = open(inpfile, O_BINARY | O_RDONLY)) == -1)
+	if ((filehandle = fopen(inpfile, "rb")) == NULL)
 	{
 		return -2;
 	}
 
-#ifdef _UNIX_
-
-	if ((size = getfilelen(filehandle)) == 0)
+	if ((size = fgetsize(filehandle)) == 0)
 	{
-#else
-
-	if ((size = filelength(filehandle)) == 0)
-	{
-#endif
 		badinfile(inpfile);
-		close(filehandle);
+		fclose(filehandle);
 		return (-1);
 	}
 
@@ -15398,7 +15369,7 @@ int loadinputfile(char* inpfile)	//считывание файла в память
 	{
 		for (currentfileinfo = 0; currentfileinfo < totalmodule; currentfileinfo++)
 		{
-			if (stricmp(inpfile, (startfileinfo + currentfileinfo)->filename) == 0)
+			if (strcasecmp(inpfile, (startfileinfo + currentfileinfo)->filename) == 0)
 			{
 				break;
 			}
@@ -15422,11 +15393,9 @@ int loadinputfile(char* inpfile)	//считывание файла в память
 	(startfileinfo + currentfileinfo)->filename = (char*)MALLOC(strlen(inpfile) + 1);
 	strcpy((startfileinfo + currentfileinfo)->filename, inpfile);
 	(startfileinfo + currentfileinfo)->numdline = 0;
-#if !defined(__WIN32__)
-	GetFileTime(filehandle, &(startfileinfo + currentfileinfo)->time);
-#else
-	getftime(filehandle, &(startfileinfo + currentfileinfo)->time);
-#endif
+
+	GetFileTime(inpfile, &(startfileinfo + currentfileinfo)->time);
+
 cont_load:
 	staticlist = (startfileinfo + currentfileinfo)->stlist;
 	input = (unsigned char*)MALLOC(size + 1);
@@ -15434,14 +15403,14 @@ cont_load:
 
 	//	printf("%08lX %s %lu\n",input,inpfile,size);
 
-	if ((endinptr = read(filehandle, input, size)) != size)
+	if ((endinptr = fread(input, 1, size, filehandle)) != size)
 	{
 		errorreadingfile(inpfile);
-		close(filehandle);
+		fclose(filehandle);
 		return (-1);
 	}
 
-	close(filehandle);
+	fclose(filehandle);
 	return (0);
 }
 
@@ -16104,7 +16073,7 @@ DLLLIST* FindDLL()
 
 	if (listdll != NULL) 	//список DLL не пуст
 	{
-		for (newdll = listdll; stricmp(newdll->name, (char*)string) != 0; newdll = newdll->next)
+		for (newdll = listdll; strcasecmp(newdll->name, (char*)string) != 0; newdll = newdll->next)
 		{
 			if (newdll->next == NULL) 	//последняя в списке
 			{
@@ -16811,22 +16780,6 @@ char* BackString(char* str)
 	return retbuf;
 }
 
-#if !defined(__WIN32__)
-void GetFileTime(int fd, struct ftime* buf)
-{
-	struct stat sb;
-	struct tm* tblock;
-	fstat(fd, &sb);
-	tblock = localtime(&sb.st_atime);
-	buf->ft_tsec = tblock->tm_sec;
-	buf->ft_min = tblock->tm_min;
-	buf->ft_hour = tblock->tm_hour;
-	buf->ft_day = tblock->tm_mday;
-	buf->ft_month = tblock->tm_mon;
-	buf->ft_year = tblock->tm_year - 80;
-}
-#endif
-
 void CheckPosts()
 {
 	if (posts == maxposts)
@@ -17004,7 +16957,7 @@ void startblock()
 	treelocalrec* nrec;
 	numblocks++;
 	//	printf("start block %d\n",numblocks);
-	nrec = (treelocalrec*)MALLOC(sizeof treelocalrec);
+	nrec = (treelocalrec*)MALLOC(sizeof(treelocalrec));
 	nrec->level = numblocks;
 	nrec->lrec = NULL;
 	nrec->addesp = addESP;
