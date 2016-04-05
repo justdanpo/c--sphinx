@@ -11762,7 +11762,7 @@ dwordvar:
 		if (*ofsstr != NULL)
 		{
 			free(*ofsstr);
-			ofsstr = NULL;
+			*ofsstr = NULL;
 		}
 
 		//		printf("tok=%d num=%d tok2=%d\n",tok,itok.number,tok2);
